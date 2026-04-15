@@ -2,3 +2,4 @@ torch
 torchvision
 timm
 pillow
+split-folder
