@@ -18,14 +18,15 @@
 
 ## Project Team (DEPI Trainees)
 
-| #  | Name                          | Role          |
-|----|-------------------------------|---------------|
-| 1  | **Abdelrahman Hisham Ismail** | Team Leader   |
-| 2  | Abdelrahman Mahmoud Ahmed     | Member        |
-| 3  | Omar Tarek Emam               | Member        |
-| 4  | Abdallah Mohamed Fahmy        | Member        |
-| 5  | Amgad Mohammed Mohammed       | Member        |
-| 6  | Zyad Atef                     | Member        |
+| #  | Name                          | Role               |             Description            |   
+|----|-------------------------------|--------------------|-------------------------------------
+| 1  | Omar Tarek Emam               | Frontend Developer | Build UI/UX, integrate APIs, display CV & NLP results, and optimize performance
+| 2  | Abdelrahman Hisham Ismail     | Backend Developer  | Node.js/Express API, PostgreSQL schema, auth, audit logging
+| 3  | Abdelrahman Mahmoud Ahmed     | AI Engineer        | Build and optimize CNN models using Convolutional Neural Networks, implement segmentation, and deploy via FastAPI
+| 4  | Abdallah Mohamed Fahmy        | AI Engineer        | Build and optimize CNN models using Convolutional Neural Networks, implement segmentation, and deploy via FastAPI
+| 5  | Amgad Mohammed Mohammed       | LLM Engineer       | Develop NLP pipelines using Natural Language Processing and process user inputs into meaningful insights
+| 6  | Zyad Atef                     | LLM Enginner       | Develop NLP pipelines using Natural Language Processing and process user inputs into meaningful insights
+
 
 ---
 
