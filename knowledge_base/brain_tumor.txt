@@ -1,0 +1,10 @@
+Brain Tumors: Overview
+
+Gliomas are tumors that originate from glial cells in the brain. 
+They represent about 30% of all brain tumors. Common symptoms include headaches, seizures, and cognitive changes.
+
+Meningiomas are typically benign tumors that grow from the meninges, 
+the protective layers around the brain. They account for approximately 37% of all brain tumors.
+
+MRI Scans: Magnetic Resonance Imaging is the preferred method for brain tumor diagnosis. 
+It provides detailed images of brain structures and can help identify tumor location, size, and characteristics.
