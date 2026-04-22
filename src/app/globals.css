@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@layer base {
+  body {
+    @apply bg-bg text-text font-sans;
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+  .page-shell {
+    @apply min-h-screen px-4 md:px-8 lg:px-20 py-14 md:py-16;
+  }
+
+  .page-wrap {
+    @apply max-w-6xl mx-auto;
+  }
+
+  .panel {
+    @apply bg-card/95 border border-border rounded-2xl;
+  }
+
+  .panel-soft {
+    @apply bg-surface/70 border border-border rounded-xl;
+  }
+
+  .section-kicker {
+    @apply inline-flex items-center px-3 py-1 rounded-full border border-accent/30 text-accent text-[11px] tracking-[2px] uppercase font-semibold;
+  }
+
+  .btn-primary {
+    @apply px-5 py-2.5 rounded-lg bg-accent text-[#050B18] text-sm font-bold hover:bg-[#00ddd4] transition;
+  }
+
+  .btn-secondary {
+    @apply px-5 py-2.5 rounded-lg bg-blue text-[#050B18] text-sm font-bold hover:bg-[#6fa0ff] transition;
+  }
+
+  .btn-outline {
+    @apply px-5 py-2.5 rounded-lg border border-border text-sm text-muted hover:text-white hover:border-accent transition;
+  }
+
+  .input-base {
+    @apply w-full h-11 px-4 rounded-lg bg-surface border border-border text-sm text-text focus:outline-none focus:border-accent;
+  }
+
+  .bg-grid-pattern {
+    background-image:
+      linear-gradient(rgba(26, 40, 68, 0.45) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(26, 40, 68, 0.45) 1px, transparent 1px);
+    background-size: 52px 52px;
+  }
+
+  @keyframes blink {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.2;
+    }
+  }
+
+  .animate-blink {
+    animation: blink 2s infinite;
+  }
+}

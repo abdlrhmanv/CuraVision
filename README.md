@@ -157,3 +157,14 @@ pip install opencv-python scikit-image pandas matplotlib seaborn scikit-learn
 ## License
 
 This project is developed for educational purposes as part of the DEPI Microsoft Track. The BRISC 2025 dataset is subject to its own license — see the [original paper](https://arxiv.org/abs/2506.14318) for details.
+
+---
+
+## Frontend (Next.js)
+
+If you want to run the frontend locally:
+
+```bash
+npm install
+npm run dev
+```
