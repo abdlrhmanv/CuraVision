@@ -1,32 +1,36 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
-/node_modules
-/.pnp
+# node dependencies
+node_modules/
+.pnp/
 .pnp.js
 .yarn/install-state.gz
 
-# testing
-/coverage
+# testing/coverage
+coverage/
 
 # next.js
-/.next/
-/out/
+.next/
+out/
 
-# production
-/build
+# production build output
+build/
+dist/
 
 # misc
 .DS_Store
 *.pem
 
-# debug
+# debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# local env files
-.env*.local
+# env files
+.env
+.env.*
+!.env.example
 
 # vercel
 .vercel
@@ -34,3 +38,30 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# ml/data artifacts (do not track)
+ml/data/
+ml/checkpoints/
+ai-service/chroma_db/
+
+# generated training/inference outputs
+*.pth
+*.pt
+*.ckpt
+*.onnx
+*.h5
+*.joblib
+*.pkl
+*.sqlite3
+*.bin
