@@ -1,0 +1,114 @@
+[
+  {
+    "term": "Edema",
+    "definition": "Swelling caused by excess fluid trapped in the body's tissues. Cerebral edema (brain swelling) often surrounds a tumor and can increase pressure inside the skull, causing headaches, nausea, or neurological symptoms."
+  },
+  {
+    "term": "Glioma",
+    "definition": "A type of tumor that arises from glial cells in the brain or spine. Gliomas are the most common primary brain tumors and are classified by cell type (astrocytoma, oligodendroglioma, glioblastoma) and grade (I–IV)."
+  },
+  {
+    "term": "Glioblastoma (GBM)",
+    "definition": "A highly aggressive Grade IV glioma. It is the most common and most malignant primary brain tumor in adults. Treatment typically involves surgery, radiation, and chemotherapy (temozolomide)."
+  },
+  {
+    "term": "Astrocytoma",
+    "definition": "A glioma originating from star-shaped glial cells called astrocytes. Grades range from I (pilocytic, benign) to IV (glioblastoma, malignant). Grade II and III are called 'diffuse astrocytomas'."
+  },
+  {
+    "term": "Oligodendroglioma",
+    "definition": "A type of glioma arising from oligodendrocytes. Usually slow-growing (Grade II) or anaplastic (Grade III). Often carries IDH mutation and 1p/19q codeletion, which are favorable prognostic markers."
+  },
+  {
+    "term": "Meningioma",
+    "definition": "A tumor that arises from the meninges, the protective membranes surrounding the brain and spinal cord. Most meningiomas are benign (Grade I) and slow-growing. They are the most common benign brain tumor."
+  },
+  {
+    "term": "Tumor Grade",
+    "definition": "A classification system (Grade I–IV) describing how abnormal tumor cells look under a microscope and how quickly they grow. Grade I = slow-growing, nearly normal cells. Grade IV = fast-growing, highly abnormal cells (e.g., glioblastoma)."
+  },
+  {
+    "term": "Tumor Volume",
+    "definition": "The three-dimensional size of a tumor, measured in cubic centimeters (cc) or milliliters (mL). It is calculated from segmentation masks and helps track treatment response over time."
+  },
+  {
+    "term": "Segmentation",
+    "definition": "The process of precisely outlining the boundaries of a tumor in an MRI image to separate it from healthy surrounding tissue. AI models like U-Net are used to automate this process."
+  },
+  {
+    "term": "MRI (Magnetic Resonance Imaging)",
+    "definition": "A medical imaging technique that uses magnetic fields and radio waves to create detailed images of organs and tissues. It does not use radiation and is the primary imaging method for brain tumors."
+  },
+  {
+    "term": "T1-weighted MRI",
+    "definition": "An MRI sequence where fat appears bright and water appears dark. It provides good anatomical detail. With gadolinium contrast, it highlights areas where the blood-brain barrier is disrupted (e.g., active tumor regions)."
+  },
+  {
+    "term": "T2-weighted MRI",
+    "definition": "An MRI sequence where water appears bright (white). It is sensitive to edema and infiltration around a tumor. The bright area on T2 often extends beyond the actual tumor boundary."
+  },
+  {
+    "term": "FLAIR (Fluid-Attenuated Inversion Recovery)",
+    "definition": "An MRI sequence that suppresses the bright signal of cerebrospinal fluid (CSF), making it easier to see lesions near fluid-filled spaces. It is especially useful for detecting tumor infiltration and edema."
+  },
+  {
+    "term": "Contrast Enhancement",
+    "definition": "The brightening of an area on T1 MRI after injection of a gadolinium contrast agent. It indicates disruption of the blood-brain barrier, which is typically seen in high-grade tumors, active tumor regions, or inflammation."
+  },
+  {
+    "term": "Blood-Brain Barrier (BBB)",
+    "definition": "A selective protective barrier formed by tightly joined cells lining brain blood vessels. It prevents many substances from entering the brain. High-grade tumors can disrupt this barrier, allowing contrast agents (and some drugs) to pass through."
+  },
+  {
+    "term": "Mass Effect",
+    "definition": "The compression or displacement of brain structures caused by a growing tumor or associated swelling. It can shift normal anatomy and impair brain function depending on the location and severity."
+  },
+  {
+    "term": "Midline Shift",
+    "definition": "The displacement of the brain's midline structures (such as the septum pellucidum or pineal gland) from the center of the skull, caused by a mass or swelling on one side. A shift greater than 5 mm is considered significant."
+  },
+  {
+    "term": "Hydrocephalus",
+    "definition": "An abnormal accumulation of cerebrospinal fluid (CSF) within the brain's ventricles. Tumors can block CSF flow and cause obstructive hydrocephalus, leading to increased intracranial pressure."
+  },
+  {
+    "term": "Necrosis",
+    "definition": "The death of cells or tissues. Tumor necrosis (dead tissue within a tumor) is a hallmark of high-grade tumors like glioblastoma and appears as a dark core on T1 contrast MRI. It indicates rapid tumor growth that has outpaced its blood supply."
+  },
+  {
+    "term": "Resection",
+    "definition": "Surgical removal of a tumor. 'Gross total resection' means removing all visible tumor; 'subtotal resection' means only a portion is removed. The extent of resection affects prognosis and treatment planning."
+  },
+  {
+    "term": "Biopsy",
+    "definition": "A procedure in which a small tissue sample is taken from the tumor for laboratory analysis to determine tumor type and grade. It may be performed as a 'stereotactic biopsy' (guided by imaging) without full surgical resection."
+  },
+  {
+    "term": "Grad-CAM (Gradient-weighted Class Activation Mapping)",
+    "definition": "An explainable AI technique that produces a heatmap highlighting the regions of an image most important to the model's prediction. In CuraVision, it shows which parts of the MRI influenced the tumor detection result."
+  },
+  {
+    "term": "Frontal Lobe",
+    "definition": "The largest lobe of the brain, located at the front. It is responsible for executive functions (planning, decision-making), movement, speech production (Broca's area), and personality. Tumors here may cause personality changes or motor deficits."
+  },
+  {
+    "term": "Temporal Lobe",
+    "definition": "The brain lobe located on the sides, near the temples. It processes auditory information, language comprehension (Wernicke's area), and memory (hippocampus). Tumors here can cause memory issues, hearing changes, or seizures."
+  },
+  {
+    "term": "Parietal Lobe",
+    "definition": "The brain lobe located at the top-back. It processes sensory information (touch, temperature, pain), spatial awareness, and helps integrate sensory inputs. Tumors here may cause numbness, coordination issues, or difficulty with spatial tasks."
+  },
+  {
+    "term": "Occipital Lobe",
+    "definition": "The brain lobe at the back of the head, responsible for processing visual information. Tumors here typically cause visual disturbances such as partial blindness, visual field cuts, or hallucinations."
+  },
+  {
+    "term": "Cerebellum",
+    "definition": "The region of the brain at the back and bottom, responsible for coordinating movement, balance, and fine motor control. Tumors in the cerebellum commonly cause unsteady gait, coordination difficulties, and tremors."
+  },
+  {
+    "term": "Intracranial Pressure (ICP)",
+    "definition": "The pressure inside the skull. It can rise due to a growing tumor, edema, or hydrocephalus. Symptoms of elevated ICP include headache (worse in the morning), nausea, vomiting, and visual changes."
+  }
+]
