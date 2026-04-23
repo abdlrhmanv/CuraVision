@@ -110,5 +110,9 @@
   {
     "term": "Intracranial Pressure (ICP)",
     "definition": "The pressure inside the skull. It can rise due to a growing tumor, edema, or hydrocephalus. Symptoms of elevated ICP include headache (worse in the morning), nausea, vomiting, and visual changes."
-  }
+  },
+  {
+  "term": "Inflammation",
+  "definition": "The body's immune response to injury, infection, or irritation. In the brain, inflammation (cerebritis) can cause swelling, redness, and warmth. It may indicate infection, autoimmune disease, or reaction to a tumor. While inflammation is a protective response, chronic or severe brain inflammation can damage healthy tissue and increase intracranial pressure."
+ }
 ]
