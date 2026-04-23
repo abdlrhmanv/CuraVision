@@ -2,4 +2,5 @@ torch
 torchvision
 timm
 pillow
-split-folder
+matplotlib
+scikit-learn

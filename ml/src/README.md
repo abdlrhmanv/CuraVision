@@ -1,82 +1,59 @@
-# Brain Tumor PyTorch Project
+# ML folder guide
 
-This is a clean PyTorch rewrite of the architectures from your Keras notebooks.
+This folder is the standalone machine-learning part of the project.
 
-## Included models
-- xception_enhancement
-- xception_focal
-- efficientnetv2s
-- convnext_tiny
-- efficientnet_b0
-
-## Project structure
+## Folder layout
 ```text
-brain_tumor_pytorch_complete/
-├── models/
-│   ├── __init__.py
-│   ├── _base.py
-│   ├── xception_enhancement.py
-│   ├── xception_focal.py
-│   ├── efficientnetv2s.py
-│   ├── convnext_tiny.py
-│   └── efficientnet_b0.py
-├── losses.py
-├── utils.py
-├── train.py
-├── test.py
-├── predict_one.py
-├── run_train.py
-├── run_test.py
+ml/
+├── Data/
+│   ├── train/
+│   ├── val/
+│   ├── test/
+│   └── data_splitter.py
+├── artifacts/
+│   ├── checkpoints/
+│   └── heatmaps/
 ├── requirements.txt
-└── README.md
+└── src/
+    ├── losses.py
+    ├── predict_one.py
+    ├── run_test.py
+    ├── run_train.py
+    ├── test.py
+    ├── train.py
+    ├── utils.py
+    └── models/
 ```
 
-## Dataset folder
+## Expected dataset structure
 ```text
-D:\brain_tumor_data
-├── train
-│   ├── glioma
-│   ├── meningioma
-│   ├── notumor
-│   └── pituitary
-├── val
-│   ├── glioma
-│   ├── meningioma
-│   ├── notumor
-│   └── pituitary
-└── test
-    ├── glioma
-    ├── meningioma
-    ├── notumor
-    └── pituitary
+ml/Data/
+├── train/
+│   ├── glioma/
+│   ├── meningioma/
+│   ├── notumor/
+│   └── pituitary/
+├── val/
+│   ├── glioma/
+│   ├── meningioma/
+│   ├── notumor/
+│   └── pituitary/
+└── test/
+    ├── glioma/
+    ├── meningioma/
+    ├── notumor/
+    └── pituitary/
 ```
 
-## How to run from code
-### Training
-Open `run_train.py` and edit the values, especially:
-- `model_name`
-- `data_root`
-- `save_path`
+## What gets saved
+Only the essentials:
+- best model checkpoint in `ml/artifacts/checkpoints/`
+- test confusion-matrix heatmap in `ml/artifacts/heatmaps/`
 
-Then run that file in VS Code or PyCharm.
+No CSV, no Excel, no extra report files.
 
-### Testing
-Open `run_test.py` and edit:
-- `model_name`
-- `weights_path`
-- `data_root`
-
-Then run that file.
-
-### Predict one image
-Open `predict_one.py` and edit:
-- `MODEL_NAME`
-- `WEIGHTS_PATH`
-- `IMAGE_PATH`
-
-Then run that file.
-
-## Notes
-- These are PyTorch architecture rewrites, not direct `.keras` weight imports.
-- Backbones use pretrained weights from `timm`.
-- `train.py` supports both code-based use and CLI use.
+## How to run
+Run these files directly:
+- `ml/src/run_train.py`
+- `ml/src/run_test.py`
+- `ml/src/predict_one.py`

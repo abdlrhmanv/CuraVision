@@ -1,18 +1,22 @@
+from pathlib import Path
+
 from train import train_model
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
+    ml_root = Path(__file__).resolve().parents[1]
+
     result = train_model(
-        model_name='efficientnet_b0',
-        data_root=r'AI\Data',
-        epochs=5,
-        batch_size=8,
+        model_name="convnext_tiny",
+        data_root=str(ml_root / "Data"),
+        epochs=20,
+        batch_size=16,
         lr=1e-3,
-        loss_name='ce',
-        save_path='checkpoints/efficientnet_b0_best.pth',
-        num_workers=2,
+        loss_name="ce",
+        save_path=str(ml_root / "artifacts" / "checkpoints" / "convnext_tiny_best.pth"),
+        num_workers=4,
         freeze_backbone=True,
     )
 
-    print('Training finished.')
+    print("Training finished.")
     print(result)
