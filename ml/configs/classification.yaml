@@ -1,0 +1,32 @@
+experiment_name: brain_mri_classification
+seed: 42
+class_names: [glioma, meningioma, pituitary, no_tumor]
+
+data:
+  root_dir: Data/classification
+  image_size: 224
+  num_workers: 0
+
+model:
+  backbone: efficientnet_b0
+  pretrained: true
+  hidden_dim: 256
+  dropout: 0.35
+
+train:
+  batch_size: 8
+  epochs: 10
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  freeze_backbone: true
+  early_stopping_patience: 4
+  use_focal_loss: false
+
+eval:
+  batch_size: 8
+
+artifacts:
+  checkpoint_path: artifacts/checkpoints/classification_best.pt
+  heatmap_path: artifacts/heatmaps/classification_confusion_matrix.png
+  metrics_path: artifacts/heatmaps/classification_metrics.json
+  onnx_path: artifacts/onnx/classification.onnx

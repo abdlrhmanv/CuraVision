@@ -1,0 +1,14 @@
+class_names: [glioma, meningioma, pituitary, no_tumor]
+
+classification:
+  onnx_path: artifacts/onnx/classification.onnx
+  image_size: 224
+  no_tumor_index: 3
+  no_tumor_stop_threshold: 0.85
+  tumor_class_threshold: 0.50
+  segmentation_trigger_threshold: 0.35
+
+segmentation:
+  onnx_path: artifacts/onnx/segmentation.onnx
+  image_size: 256
+  positive_threshold: 0.5

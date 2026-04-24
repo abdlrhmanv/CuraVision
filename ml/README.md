@@ -1,158 +1,284 @@
-# CuraVision — Brain Tumor Classification Pipeline
+# CuraVision ML Module — Classification + Segmentation Only
 
-> **From Imagery to Insights:** An end-to-end ML pipeline that transforms MRI segmentation masks into structured features and classifies brain tumors using Microsoft Azure AutoML.
+This `ml/` folder contains only the computer-vision part of CuraVision.
+The separate `ai-service/` folder/team can handle LLM summaries later.
 
----
+The ML workflow is:
 
-## Project Overview
+1. **Classification first**: predict one of `glioma`, `meningioma`, `pituitary`, `no_tumor`.
+2. **Early stop**: if `no_tumor` is predicted with high confidence, skip segmentation.
+3. **Segmentation second**: if tumor likelihood is high enough, generate a binary tumor mask.
+4. **Return structured findings**: send clean JSON to backend or ai-service.
 
-**CuraVision** is the capstone project for the **Digital Egypt Pioneers Initiative (DEPI) — Microsoft AI & Data Science Track**. It demonstrates a complete cloud-based machine learning workflow for classifying brain tumors into four classes: **Glioma**, **Meningioma**, **Pituitary Tumor**, and **No Tumor**.
+No LLM code is included here.
 
-### Methodology
+## Folder map
 
-1. **Feature Extraction** — Computer vision techniques (OpenCV, scikit-image) extract geometric and texture features from MRI segmentation masks, converting raw imagery into a clean tabular dataset.
-2. **Local Baseline Model** — A tuned Random Forest (GridSearchCV) serves as a local benchmark to verify feature quality.
-3. **Azure AutoML** — The exported dataset is uploaded to Azure ML Studio, where Automated ML handles model selection, hyperparameter optimization, and deployment.
-
----
-
-## Project Team (DEPI Trainees)
-
-| #  | Name                          | Role          |
-|----|-------------------------------|---------------|
-| 1  | **Abdelrahman Hisham Ismail** | Team Leader   |
-| 2  | Abdelrahman Mahmoud Ahmed     | Member        |
-| 3  | Omar Tarek Emam               | Member        |
-| 4  | Abdallah Mohamed Fahmy        | Member        |
-| 5  | Amgad Mohammed Mohammed       | Member        |
-| 6  | Zyad Atef                     | Member        |
-
----
-
-## Tech Stack & Tools
-
-| Layer             | Technology                                                    |
-|-------------------|---------------------------------------------------------------|
-| **Platform**      | Microsoft Azure Machine Learning                              |
-| **Data Source**   | [BRISC 2025](https://arxiv.org/abs/2506.14318) (Nature Scientific Data) |
-| **Preprocessing** | Python · OpenCV · scikit-image · Pandas (Google Colab)        |
-| **Baseline Model**| scikit-learn (Random Forest + GridSearchCV)                   |
-| **Model Training**| Azure Automated ML (Classification)                           |
-| **Deployment**    | Azure Real-time Endpoint                                      |
-
----
-
-## Dataset — BRISC 2025
-
-**BRISC** (BRain tumor Image Segmentation & Classification) is an expert-annotated T1-weighted MRI dataset.
-
-- **6,000 slices** — 5,000 train / 1,000 test
-- **4 classes** — Glioma (1,401) · Meningioma (1,635) · Pituitary (1,757) · No Tumor (1,207)
-- **3 anatomical views** — Axial · Coronal · Sagittal
-- **Pixel-wise masks** — radiologist-reviewed segmentation annotations
-
-See [`brisc2025/README.md`](brisc2025/README.md) for full dataset details, file naming convention, and citation info.
-
----
-
-## Repository Structure
-
-```
-CuraVision/
-├── CuraVision.ipynb              # Main notebook (feature extraction → baseline → export)
-├── CuraVision_colab.ipynb        # Google Colab version
-├── BRISC_Features_Dataset.csv    # Exported features (ready for Azure upload)
-├── README.md                     # This file
-└── brisc2025/                    # BRISC 2025 dataset
-    ├── classification_task/      # Image-level labels (train/test × 4 classes)
-    ├── segmentation_task/        # Paired MRI images + binary masks
-    ├── features.csv              # Full feature dataset (with split & filename)
-    ├── azure_train.csv           # Training split for Azure AutoML
-    ├── azure_test.csv            # Test split for Azure AutoML
-    ├── manifest.json / .csv      # Dataset manifests + SHA-256 checksums
-    └── README.md                 # Dataset documentation & citation
+```text
+ml/
+├── Data/                         # datasets live here
+│   ├── classification/            # classification train/val/test folders
+│   └── segmentation/              # segmentation images/masks folders
+├── artifacts/                    # saved outputs
+│   ├── checkpoints/               # .pth checkpoints
+│   ├── heatmaps/                  # confusion matrix heatmaps
+│   ├── onnx/                      # exported ONNX models
+│   └── overlays/                  # segmentation overlay debug images
+├── configs/                      # YAML settings
+│   ├── classification.yaml
+│   ├── segmentation.yaml
+│   └── inference.yaml
+├── src/
+│   ├── common/                   # shared helpers
+│   ├── classification/           # classification training/eval/export/inference
+│   ├── segmentation/             # segmentation training/eval/export/inference
+│   ├── inference/                # combined class→segment pipeline
+│   ├── api/                      # optional FastAPI CV endpoint
+│   └── scripts/                  # easy runnable entry points
+└── requirements.txt
 ```
 
----
+## Expected datasets
 
-## Notebook Pipeline
+### Classification
 
-The `CuraVision.ipynb` notebook is organized into the following sections:
+```text
+ml/Data/classification/
+├── train/
+│   ├── glioma/
+│   ├── meningioma/
+│   ├── pituitary/
+│   └── no_tumor/
+├── val/
+│   ├── glioma/
+│   ├── meningioma/
+│   ├── pituitary/
+│   └── no_tumor/
+└── test/
+    ├── glioma/
+    ├── meningioma/
+    ├── pituitary/
+    └── no_tumor/
+```
 
-### 1. Exploratory Data Analysis (EDA)
-- Class distribution (bar charts + pie charts)
-- Sample MRI slices vs. segmentation masks
-- Image dimension consistency check
-- Multi-sample grid & MRI + mask overlay visualization
+### Segmentation
 
-### 2. Feature Extraction
-For each MRI image with a segmentation mask, the pipeline extracts:
+```text
+ml/Data/segmentation/
+├── train/
+│   ├── images/
+│   └── masks/
+├── val/
+│   ├── images/
+│   └── masks/
+└── test/
+    ├── images/
+    └── masks/
+```
 
-| Category     | Features                                                         |
-|--------------|------------------------------------------------------------------|
-| **Geometric**| area · perimeter · solidity · eccentricity · bounding box ratio  |
-| **Texture (GLCM)** | contrast · correlation · energy · homogeneity             |
-| **Metadata** | anatomical view (axial / coronal / sagittal) · tumor label       |
+Image/mask names should match, for example:
 
-> `no_tumor` images have no masks, so all geometric and texture features are set to **0.0** — the absence of features is the discriminative signal.
+```text
+train/images/case_001.png
+train/masks/case_001.png
+```
 
-### 3. Feature Analysis & Visualization
-- Histograms with KDE (per tumor class, excl. no_tumor)
-- Pearson correlation heatmap
-- Box plots per class
-- Anatomical view distribution
-- Pair plot (selected features)
+Masks should be binary:
+- `0` = background
+- `1` or `255` = tumor
 
-### 4. Local Baseline Model (Benchmarking)
-- **Algorithm:** Random Forest with `GridSearchCV` (5-fold CV)
-- **Features:** All 9 extracted features (no outlier removal, no feature dropping)
-- **Purpose:** Establish a minimum accuracy threshold before Azure AutoML
-- **Output:** Feature importance ranking, classification report, confusion matrix
+## Quick run commands
 
-### 5. Export Final Dataset
-- Saves `BRISC_Features_Dataset.csv` — clean, Azure-ready CSV with all features + labels
-- 6,000 rows × 11 columns (label, view, + 9 numeric features)
-
----
-
-## Quick Start
-
-### Prerequisites
+Run commands from inside `ml/`:
 
 ```bash
-pip install opencv-python scikit-image pandas matplotlib seaborn scikit-learn
+pip install -r requirements.txt
 ```
 
-### Run the Notebook
+Train classification:
 
-1. Clone this repository
-2. Download the [BRISC 2025 dataset](https://arxiv.org/abs/2506.14318) and place it in `brisc2025/`
-3. Open `CuraVision.ipynb` in Jupyter / VS Code / Google Colab
-4. Run all cells — the pipeline will:
-   - Extract features from all 6,000 MRI images
-   - Train a baseline Random Forest
-   - Export `BRISC_Features_Dataset.csv`
+```bash
+python -m src.scripts.train_classification --config configs/classification.yaml
+```
 
-### Upload to Azure
+Evaluate classification:
 
-1. Go to [Azure ML Studio](https://ml.azure.com) → **Data** → **Create** → upload `BRISC_Features_Dataset.csv`
-2. Create an **Automated ML** job → Classification → target column: `label` → primary metric: Accuracy
-3. Review the best model, register it, and deploy to a real-time endpoint
+```bash
+python -m src.scripts.evaluate_classification --config configs/classification.yaml --split test
+```
 
----
+Train segmentation:
 
-## Results — Local Baseline
+```bash
+python -m src.scripts.train_segmentation --config configs/segmentation.yaml
+```
 
-| Metric          | Value  |
-|-----------------|--------|
-| CV Accuracy     | ~64%   |
-| Test Accuracy   | ~64%   |
-| no_tumor Recall | 100%   |
+Evaluate segmentation:
 
-> This is a **baseline only**. Azure AutoML is expected to surpass these numbers with ensemble methods, stacking, and automated feature engineering.
+```bash
+python -m src.scripts.evaluate_segmentation --config configs/segmentation.yaml --split test
+```
 
----
+Export ONNX models:
 
-## License
+```bash
+python -m src.scripts.export_classification_onnx --config configs/classification.yaml
+python -m src.scripts.export_segmentation_onnx --config configs/segmentation.yaml
+```
 
-This project is developed for educational purposes as part of the DEPI Microsoft Track. The BRISC 2025 dataset is subject to its own license — see the [original paper](https://arxiv.org/abs/2506.14318) for details.
+Run combined inference demo:
+
+```bash
+python -m src.scripts.run_inference_demo --config configs/inference.yaml --image path/to/mri.png
+```
+
+Start optional ML-only API:
+
+```bash
+uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+## File explanation
+
+### `configs/`
+- `classification.yaml`: classification dataset path, model name, classes, training settings, checkpoint path, ONNX path.
+- `segmentation.yaml`: segmentation dataset path, image size, training settings, checkpoint path, ONNX path.
+- `inference.yaml`: ONNX paths and thresholds controlling when segmentation runs.
+
+### `src/common/`
+Shared helper code used by both tasks.
+- `paths.py`: resolves paths from the `ml/` root.
+- `config.py`: loads YAML configs and fixes relative paths.
+- `seeds.py`: sets random seeds.
+- `io.py`: file and image helpers.
+- `metrics.py`: accuracy, confusion heatmap, Dice/IoU, overlay saving.
+
+### `src/classification/`
+Classification code.
+- `dataset.py`: loads class folders with `ImageFolder`.
+- `augmentations.py`: resize, augmentation, normalization.
+- `model.py`: timm backbone + classification head.
+- `losses.py`: optional focal loss.
+- `trainer.py`: training loop and checkpoint saving.
+- `evaluator.py`: evaluation and confusion-matrix heatmap.
+- `export_onnx.py`: exports classifier to ONNX.
+- `infer_onnx.py`: ONNX Runtime classifier used at deployment.
+
+### `src/segmentation/`
+Segmentation code.
+- `dataset.py`: custom image-mask dataset.
+- `augmentations.py`: paired transforms for image and mask.
+- `model.py`: beginner-friendly U-Net.
+- `losses.py`: Dice loss and BCE+Dice loss.
+- `trainer.py`: segmentation training loop and checkpoint saving.
+- `evaluator.py`: Dice/IoU evaluation and overlay output.
+- `export_onnx.py`: exports segmenter to ONNX.
+- `infer_onnx.py`: ONNX Runtime segmenter used at deployment.
+
+### `src/inference/`
+Combined CV pipeline.
+- `schemas.py`: clean Pydantic response models.
+- `pipeline.py`: runs classification first and segmentation only when needed.
+
+### `src/api/`
+Optional FastAPI service for CV only.
+- `main.py`: `/health` and `/analyze`. It does not call any LLM.
+
+### `src/scripts/`
+Small entry files so commands are easy.
+
+## Output sent to backend or ai-service
+
+The final output is structured JSON like:
+
+```json
+{
+  "findings": {
+    "classification": {
+      "predicted_class": "glioma",
+      "predicted_index": 0,
+      "confidence": 0.91,
+      "class_probabilities": {
+        "glioma": 0.91,
+        "meningioma": 0.04,
+        "pituitary": 0.03,
+        "no_tumor": 0.02
+      }
+    },
+    "segmentation": {
+      "ran_segmentation": true,
+      "mask_found": true,
+      "tumor_area_pixels": 18432,
+      "tumor_area_ratio": 0.127,
+      "bbox": [84, 65, 211, 220]
+    },
+    "decision_reason": "Segmentation ran because tumor likelihood was high enough."
+  }
+}
+```
+
+Your `ai-service/` team can later convert this structured JSON into a summary.
+
+## Things you may need to adjust
+
+- Change `no_tumor` to `notumor` in configs if your folder name is different.
+- Update mask pairing rules in `segmentation/dataset.py` if masks use names like `case_001_mask.png`.
+- Tune thresholds in `inference.yaml` after validation.
+- Change image size if your model or dataset needs another resolution.
+
+## Figshare `.mat` segmentation data
+
+Your sample file `3057.mat` is a MATLAB v7.3 file. It contains:
+
+```text
+cjdata/
+├── image       # MRI image, shape 512x512, int16
+├── tumorMask   # binary tumor mask, shape 512x512, values 0/1
+├── label       # tumor type label, e.g. 2 = glioma
+├── tumorBorder # optional tumor border coordinates
+└── PID         # patient/case id stored as character codes
+```
+
+Because the training code expects normal image/mask files, the `ml` module now includes a converter.
+
+Put raw `.mat` files here:
+
+```text
+ml/Data/segmentation_raw/mat_files/
+```
+
+Convert them into PNG image/mask pairs:
+
+```bash
+python -m src.scripts.convert_mat_segmentation --overwrite
+```
+
+The converter creates:
+
+```text
+ml/Data/segmentation/
+├── train/images
+├── train/masks
+├── val/images
+├── val/masks
+├── test/images
+├── test/masks
+└── metadata.csv
+```
+
+The saved masks use:
+- `0` for background
+- `255` for tumor
+
+You can inspect one `.mat` file before conversion:
+
+```bash
+python -m src.scripts.inspect_mat_file --mat Data/segmentation_raw/mat_files/3057.mat
+```
+
+New files for `.mat` support:
+- `src/segmentation/mat_utils.py`: reads Figshare `.mat` files and converts them to PNG.
+- `src/scripts/inspect_mat_file.py`: prints the internal structure of one `.mat` file.
+- `src/scripts/convert_mat_segmentation.py`: converts all raw `.mat` files into train/val/test image-mask folders.
+
+The rest of the segmentation pipeline does not need to change after conversion. It still trains from `Data/segmentation/train|val|test/images` and `masks`.

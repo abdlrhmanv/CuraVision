@@ -1,0 +1,31 @@
+experiment_name: brain_mri_segmentation
+seed: 42
+
+data:
+  root_dir: Data/segmentation
+  image_size: 256
+  num_workers: 0
+  mask_suffix: ""
+
+model:
+  in_channels: 3
+  out_channels: 1
+  init_features: 32
+
+train:
+  batch_size: 4
+  epochs: 15
+  learning_rate: 0.0003
+  weight_decay: 0.0001
+  early_stopping_patience: 5
+  positive_threshold: 0.5
+
+eval:
+  batch_size: 4
+  positive_threshold: 0.5
+
+artifacts:
+  checkpoint_path: artifacts/checkpoints/segmentation_best.pt
+  overlay_dir: artifacts/overlays
+  metrics_path: artifacts/overlays/segmentation_metrics.json
+  onnx_path: artifacts/onnx/segmentation.onnx
