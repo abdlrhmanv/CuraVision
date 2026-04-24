@@ -21,7 +21,7 @@ def _get_collection():
     if _collection is not None:
         return _collection
 
-    _client = chromadb.Client(ChromaSettings(anonymized_telemetry=False))
+    _client = chromadb.Client(ChromaSettings(anonymized_telemetry=False, is_persistent=False))
     _collection = _client.get_or_create_collection(
         name=COLLECTION_NAME,
         metadata={"hnsw:space": "cosine"},
@@ -46,28 +46,55 @@ def _seed_glossary(collection: chromadb.Collection) -> None:
     collection.upsert(documents=documents, ids=ids, metadatas=metadatas)
 
 
+def expand_query(query: str) -> str:
+    """Expand query with related medical terms for better retrieval."""
+    # Simple synonym mapping
+    synonyms = {
+        "inflammation": "edema swelling cerebritis",
+        "dangerous": "severe serious malignant aggressive",
+        "swelling": "edema inflammation",
+        "brain": "cerebral intracranial",
+        "tumor": "neoplasm mass lesion"
+    }
+    
+    query_lower = query.lower()
+    expanded_terms = [query]
+    
+    for term, expansion in synonyms.items():
+        if term in query_lower:
+            expanded_terms.append(expansion)
+    
+    return " ".join(expanded_terms)
+
 def retrieve(query: str, n_results: int = 3) -> list[dict]:
-    """
-    Query the medical glossary for terms relevant to *query*.
-
-    Returns a list of dicts with keys: ``term``, ``text``.
-    """
+    """Query the medical glossary with query expansion."""
     collection = _get_collection()
-
+    
+    # Expand query for better retrieval
+    expanded_query = expand_query(query)
+    
     results = collection.query(
-        query_texts=[query],
-        n_results=min(n_results, collection.count()),
+        query_texts=[expanded_query], 
+        n_results=min(n_results * 2, collection.count()),  
         include=["documents", "metadatas", "distances"],
     )
 
+    MAX_DISTANCE = 0.5  
     hits = []
+    
     for doc, meta, distance in zip(
         results["documents"][0],
         results["metadatas"][0],
         results["distances"][0],
     ):
-        # Cosine distance: 0 = identical, 2 = opposite.  Accept reasonably close hits.
-        if distance < 1.5:
-            hits.append({"term": meta["term"], "text": doc})
 
+        if distance < MAX_DISTANCE:
+            hits.append({
+                "term": meta["term"],
+                "text": doc,
+                "score": 1 - distance,
+            })
+    
+    hits = sorted(hits, key=lambda x: x["score"], reverse=True)[:n_results]
     return hits
+
