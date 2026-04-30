@@ -1,8 +1,13 @@
-fastapi==0.111.0
-uvicorn[standard]==0.29.0
-groq==0.5.0
-chromadb==0.5.0
-numpy==1.26.4
-python-dotenv==1.0.1
-pydantic==2.7.1
-pydantic-settings==2.2.1
+fastapi==0.136.0
+uvicorn[standard]==0.45.0
+groq==1.2.0
+chromadb==1.5.8
+numpy==2.4.4
+python-dotenv==1.2.2
+pydantic==2.13.3
+pydantic-settings==2.14.0
+# Async pipeline (SDD §7) — Redis-backed Celery worker.
+celery[redis]==5.6.3
+# Pinned to the latest 6.x that Celery/Kombu accept (kombu caps redis<6.5).
+redis==6.4.0
+httpx==0.28.1

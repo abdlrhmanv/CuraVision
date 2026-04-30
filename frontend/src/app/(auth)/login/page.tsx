@@ -4,25 +4,18 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { showSuccess, showError, showLoading, closeLoading } from '@/lib/sweetAlert'
-
-const STATIC_PATIENT_USER = {
-  email: 'omar',
-  password: '123',
-}
+import { useAuth } from '@/lib/authContext'
+import { ApiError } from '@/lib/apiClient'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { login } = useAuth()
   const [role, setRole] = useState<'patient' | 'doctor'>('patient')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
   const handleLogin = async () => {
-    if (role !== 'patient') {
-      showError('Login Unavailable', 'Static login is currently available for patient role only.')
-      return
-    }
-
     if (!email || !password) {
       showError('Missing Fields', 'Please enter both email and password')
       return
@@ -31,31 +24,43 @@ export default function LoginPage() {
     setIsLoading(true)
     showLoading('Signing in...')
 
-    // Simulate slight delay for better UX
-    setTimeout(() => {
-      if (email === STATIC_PATIENT_USER.email && password === STATIC_PATIENT_USER.password) {
-        localStorage.setItem('curavision_demo_user', JSON.stringify({ role: 'patient', email }))
-        closeLoading()
+    try {
+      const user = await login(email, password)
+      closeLoading()
+
+      const expectedRole = role === 'doctor' ? 'DOCTOR' : 'PATIENT'
+      if (user.role !== expectedRole && user.role !== 'ADMIN') {
+        showError(
+          'Role mismatch',
+          `This account is registered as a ${user.role}. Please switch the role tab and try again.`
+        )
         setIsLoading(false)
-        
-        showSuccess('Welcome back!', `Successfully signed in as ${email}`)
-        
-        setTimeout(() => {
-          router.push('/patient')
-        }, 1500)
-      } else {
-        closeLoading()
-        setIsLoading(false)
-        showError('Invalid Credentials', 'Please use the demo patient account: omar / 123')
+        return
       }
-    }, 1000)
+
+      showSuccess('Welcome back!', `Signed in as ${user.full_name}`)
+
+      setTimeout(() => {
+        if (user.role === 'DOCTOR') router.push('/doctor')
+        else if (user.role === 'ADMIN') router.push('/admin')
+        else router.push('/patient')
+      }, 900)
+    } catch (err) {
+      closeLoading()
+      setIsLoading(false)
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : 'Unable to reach the backend. Is it running on port 3001?'
+      showError('Sign-in failed', message)
+    }
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-bg relative overflow-hidden">
       <div className="absolute inset-0 bg-grid-pattern opacity-20 pointer-events-none" />
       <div className="absolute top-[-80px] left-1/2 -translate-x-1/2 w-[600px] h-[420px] bg-[radial-gradient(ellipse,rgba(0,198,184,0.08),transparent_65%)] pointer-events-none" />
-      
+
       <div className="bg-card border border-border rounded-xl p-6 md:p-10 w-full max-w-[500px] relative z-10">
         <div className="text-center mb-8">
           <Link href="/" className="text-xl font-extrabold tracking-tight inline-block">
@@ -87,10 +92,10 @@ export default function LoginPage() {
         <div className="space-y-4">
           <div>
             <label className="text-[11px] tracking-wide uppercase text-muted font-semibold block mb-1.5">Email</label>
-            <input 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
-              type="email" 
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
               className="w-full px-4 py-3 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:border-accent transition"
               placeholder="your@email.com"
               disabled={isLoading}
@@ -98,10 +103,11 @@ export default function LoginPage() {
           </div>
           <div>
             <label className="text-[11px] tracking-wide uppercase text-muted font-semibold block mb-1.5">Password</label>
-            <input 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              type="password" 
+            <input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              type="password"
               className="w-full px-4 py-3 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:border-accent transition"
               placeholder="••••••••"
               disabled={isLoading}
@@ -111,16 +117,20 @@ export default function LoginPage() {
 
         <div className="mt-5 mb-6 p-3.5 rounded-lg bg-surface/50 border border-border">
           <p className="text-xs text-muted text-center">
-            Demo patient login: <span className="text-text font-semibold">omar</span> / <span className="text-text font-semibold">123</span>
+            Seeded demo accounts: <span className="text-text font-semibold">patient1@curavision.com</span> /{' '}
+            <span className="text-text font-semibold">Patient@123</span>
+            <br />
+            <span className="text-text font-semibold">doctor@curavision.com</span> /{' '}
+            <span className="text-text font-semibold">Doctor@123</span>
           </p>
         </div>
 
-        <button 
-          onClick={handleLogin} 
+        <button
+          onClick={handleLogin}
           disabled={isLoading}
           className={`w-full py-3 rounded-lg text-sm font-bold transition ${
-            role === 'patient' 
-              ? 'bg-accent text-[#050B18] hover:bg-[#00ddd4]' 
+            role === 'patient'
+              ? 'bg-accent text-[#050B18] hover:bg-[#00ddd4]'
               : 'bg-blue text-[#050B18] hover:bg-[#6fa0ff]'
           } disabled:opacity-50 disabled:cursor-not-allowed`}
         >

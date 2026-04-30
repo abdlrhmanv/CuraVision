@@ -3,14 +3,23 @@
 import { useState } from 'react'
 import { Plus, Edit, Trash2 } from 'lucide-react'
 
+type Article = {
+  id: number
+  title: string
+  content: string
+  date: string
+  author: string
+  userId: string
+}
+
 export default function PatientArticles() {
-  const [articles, setArticles] = useState([
+  const [articles, setArticles] = useState<Article[]>([
     { id: 1, title: 'My Journey with Migraine Diagnosis', content: 'After months of recurring headaches with visual aura, I finally got a proper diagnosis. The AI chatbot helped me understand my symptoms before my doctor\'s appointment.', date: 'Apr 15, 2026', author: 'Omar Hesham', userId: 'omar' },
     { id: 2, title: 'How AI Helped Me Read My MRI Report', content: 'The U-Net segmentation and Grad-CAM heatmaps made it so much easier to understand where the radiologist was focusing.', date: 'Apr 10, 2026', author: 'Sarah Ahmed', userId: 'sarah' },
     { id: 3, title: 'Recovery After Brain Surgery', content: 'Thanks to Dr. Sara and CuraVision, my recovery has been smooth. The platform\'s report system kept me informed every step of the way.', date: 'Apr 5, 2026', author: 'John Doe', userId: 'john' },
   ])
   const [showWriteModal, setShowWriteModal] = useState(false)
-  const [editingArticle, setEditingArticle] = useState<any>(null)
+  const [editingArticle, setEditingArticle] = useState<Article | null>(null)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
 
@@ -30,7 +39,7 @@ export default function PatientArticles() {
     setContent('')
   }
 
-  const handleEdit = (article: any) => {
+  const handleEdit = (article: Article) => {
     setEditingArticle(article)
     setTitle(article.title)
     setContent(article.content)

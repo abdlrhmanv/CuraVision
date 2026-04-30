@@ -1,9 +1,37 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
 
+/* Design tokens — Tailwind v4 CSS-first config. Each `--color-*` key below
+   becomes a utility (`bg-*`, `text-*`, `border-*`, ...) automatically. */
+@theme {
+  --color-bg: #080E1C;
+  --color-surface: #0D1526;
+  --color-card: #111D33;
+  --color-border: #1A2844;
+  --color-accent: #00C6B8;
+  --color-blue: #4F8EFF;
+  --color-purple: #9B6FFF;
+  --color-warn: #FF6B5B;
+  --color-green: #22C55E;
+  --color-yellow: #FACC15;
+  --color-text: #ECF0FA;
+  --color-muted: #5A6F99;
+  --color-sub: #1E2D4A;
+
+  --font-sans: "Sora", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+/* Tailwind v4 defaults `border` to `currentColor`. Restore the v3 behaviour
+   of using our project `border` token so legacy `border` classes still look
+   right without having to touch every component. */
 @layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-border);
+  }
+
   body {
     @apply bg-bg text-text font-sans;
   }

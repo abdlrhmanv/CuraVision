@@ -1,13 +1,36 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    groq_api_key: str
-    groq_model: str = "llama3-8b-8192"
-    port: int = 8001
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
-    class Config:
-        env_file = ".env"
+    # Provider selection — "groq" (hosted) or "ollama" (local).
+    llm_provider: str = "groq"
+
+    # Groq ---------------------------------------------------------------
+    # When LLM_PROVIDER=groq this must be set. For LLM_PROVIDER=ollama it
+    # can be left empty.
+    groq_api_key: str = ""
+    groq_model: str = "llama3-8b-8192"
+
+    # Ollama -------------------------------------------------------------
+    # Point at a running `ollama serve` instance. Default is the CLI default.
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3"
+
+    # ChromaDB -----------------------------------------------------------
+    # When CHROMA_HOST is set we use the HTTP client against a running
+    # `chromadb/chroma` container; otherwise the rag_service falls back to
+    # an in-process EphemeralClient (fine for tests and solo dev).
+    chroma_host: str = ""
+    chroma_port: int = 8000
+
+    # Service ------------------------------------------------------------
+    port: int = 8001
 
 
 settings = Settings()

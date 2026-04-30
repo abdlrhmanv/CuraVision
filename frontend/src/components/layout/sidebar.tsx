@@ -12,8 +12,9 @@ import {
   LogOut,
   Inbox,
   Users,
-  Star,
+  Calendar,
 } from "lucide-react";
+import { useAuth } from "@/lib/authContext";
 
 interface SidebarProps {
   role: "patient" | "doctor";
@@ -24,6 +25,7 @@ interface SidebarProps {
 export default function Sidebar({ role, collapsed, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { logout } = useAuth();
 
   const patientItems = [
     {
@@ -44,6 +46,12 @@ export default function Sidebar({ role, collapsed, onNavigate }: SidebarProps) {
       label: "Reports",
       icon: FileText,
       href: "/patient/reports",
+    },
+    {
+      id: "appointments",
+      label: "Appointments",
+      icon: Calendar,
+      href: "/patient/appointments",
     },
     {
       id: "articles",
@@ -70,19 +78,31 @@ export default function Sidebar({ role, collapsed, onNavigate }: SidebarProps) {
       id: "dashboard",
       label: "Dashboard",
       icon: LayoutDashboard,
-      href: "/doctor/dashboard",
+      href: "/doctor",
     },
     {
-      id: "requests",
-      label: "Scan Requests",
+      id: "scans",
+      label: "Scans",
+      icon: Brain,
+      href: "/doctor/scans",
+    },
+    {
+      id: "upload",
+      label: "New Scan",
       icon: Inbox,
-      href: "/doctor/requests",
+      href: "/doctor/upload",
     },
     {
       id: "patients",
-      label: "My Patients",
+      label: "Patients",
       icon: Users,
       href: "/doctor/patients",
+    },
+    {
+      id: "appointments",
+      label: "Appointments",
+      icon: Calendar,
+      href: "/doctor/appointments",
     },
     { id: "profile", label: "My Profile", icon: User, href: "/doctor/profile" },
     {
@@ -133,7 +153,10 @@ export default function Sidebar({ role, collapsed, onNavigate }: SidebarProps) {
         })}
 
         <div className="mt-8 pt-4 border-t border-border">
-          <button className="w-full text-left px-5 py-2.5 text-sm flex items-center gap-3 text-muted hover:bg-card hover:text-white transition">
+          <button
+            onClick={logout}
+            className="w-full text-left px-5 py-2.5 text-sm flex items-center gap-3 text-muted hover:bg-card hover:text-white transition"
+          >
             <LogOut size={16} />
             <span>Sign out</span>
           </button>

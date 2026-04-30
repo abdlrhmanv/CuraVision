@@ -55,6 +55,9 @@ ml/data/
 ml/checkpoints/
 ai-service/chroma_db/
 
+# backend runtime storage (uploaded DICOMs, generated masks/heatmaps)
+backend/storage/
+
 # generated training/inference outputs
 *.pth
 *.pt

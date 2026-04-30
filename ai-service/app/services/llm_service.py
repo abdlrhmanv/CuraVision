@@ -1,15 +1,23 @@
-from groq import Groq
+"""
+LLM adapter — abstracts the concrete chat completion backend so the rest of
+the application (chatbot, analysis, worker tasks) can stay provider-agnostic.
+
+Supported providers, selectable via the `LLM_PROVIDER` environment variable:
+
+* ``groq``    — hosted Groq API (current production path). Requires `GROQ_API_KEY`.
+* ``ollama``  — local Ollama server for fully on-prem inference. Matches the
+                architecture wording in the PRD/SDD ("LLM · Ollama").
+
+The public surface is the single :func:`generate_response` function.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+import httpx
 
 from app.core.config import settings
-
-_client: Groq | None = None
-
-
-def _get_client() -> Groq:
-    global _client
-    if _client is None:
-        _client = Groq(api_key=settings.groq_api_key)
-    return _client
 
 
 SYSTEM_PROMPT = """\
@@ -56,24 +64,14 @@ RESPONSE STRUCTURE for "what does this mean for me" questions:
 5. Safety reminder about consulting doctor (1 sentence)
 """
 
-def generate_response(
+# ── Shared prompt construction ────────────────────────────────────────────────
+
+def _build_messages(
     report_text: str,
     patient_question: str,
     retrieved_context: list[dict],
     chat_history: list[dict],
-) -> str:
-    """
-    Build the full prompt and call Groq to get a chatbot reply.
-
-    :param report_text: The doctor-approved report text for this patient.
-    :param patient_question: The patient's latest message.
-    :param retrieved_context: RAG hits from the medical glossary.
-    :param chat_history: Previous turns [{role: "user"|"assistant", content: str}].
-    :returns: The assistant's reply as a plain string.
-    """
-    client = _get_client()
-
-    # Build context block from RAG hits
+) -> list[dict[str, str]]:
     rag_block = ""
     if retrieved_context:
         rag_lines = "\n".join(
@@ -82,24 +80,98 @@ def generate_response(
         )
         rag_block = f"\n\nRELEVANT MEDICAL KNOWLEDGE:\n{rag_lines}"
 
-    # Build the user-facing system message with injected context
     context_message = (
         f"PATIENT'S APPROVED MRI REPORT:\n{report_text}"
         f"{rag_block}"
     )
 
-    messages = [
+    return [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "system", "content": context_message},
         *chat_history,
         {"role": "user", "content": patient_question},
     ]
 
+
+# ── Groq backend ──────────────────────────────────────────────────────────────
+
+_groq_client: Any = None
+
+
+def _get_groq_client() -> Any:
+    global _groq_client
+    if _groq_client is None:
+        # Imported lazily so installations using only Ollama are not forced
+        # to have the `groq` SDK installed at runtime.
+        from groq import Groq
+
+        if not settings.groq_api_key:
+            raise RuntimeError(
+                "LLM_PROVIDER=groq but GROQ_API_KEY is not configured."
+            )
+        _groq_client = Groq(api_key=settings.groq_api_key)
+    return _groq_client
+
+
+def _generate_groq(messages: list[dict[str, str]]) -> str:
+    client = _get_groq_client()
     response = client.chat.completions.create(
         model=settings.groq_model,
         messages=messages,
-        temperature=0.3,      # Low temperature → more consistent, factual replies
+        temperature=0.3,
         max_tokens=512,
     )
-
     return response.choices[0].message.content.strip()
+
+
+# ── Ollama backend ────────────────────────────────────────────────────────────
+
+def _generate_ollama(messages: list[dict[str, str]]) -> str:
+    """
+    Call a local Ollama server via its OpenAI-compatible chat API.
+    See https://github.com/ollama/ollama/blob/main/docs/openai.md
+    """
+    url = f"{settings.ollama_base_url.rstrip('/')}/api/chat"
+    payload = {
+        "model": settings.ollama_model,
+        "messages": messages,
+        "stream": False,
+        "options": {"temperature": 0.3},
+    }
+    with httpx.Client(timeout=120.0) as client:
+        res = client.post(url, json=payload)
+        res.raise_for_status()
+        data = res.json()
+
+    # Ollama's native response shape: {"message": {"role": "assistant", "content": "..."}}
+    message = data.get("message") or {}
+    content = message.get("content")
+    if not content:
+        raise RuntimeError(f"Ollama returned an empty response: {data!r}")
+    return content.strip()
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
+
+def generate_response(
+    report_text: str,
+    patient_question: str,
+    retrieved_context: list[dict],
+    chat_history: list[dict],
+) -> str:
+    """Generate a chatbot reply using the configured LLM provider."""
+    messages = _build_messages(
+        report_text=report_text,
+        patient_question=patient_question,
+        retrieved_context=retrieved_context,
+        chat_history=chat_history,
+    )
+
+    provider = settings.llm_provider.lower()
+    if provider == "ollama":
+        return _generate_ollama(messages)
+    if provider == "groq":
+        return _generate_groq(messages)
+    raise RuntimeError(
+        f"Unknown LLM_PROVIDER={settings.llm_provider!r}. Use 'groq' or 'ollama'."
+    )

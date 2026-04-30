@@ -1,69 +1,255 @@
 # CuraVision
 
-CuraVision is a multi-service project that combines a web app, an API layer, an AI chatbot service, and machine learning training code in a single monorepo.
+CuraVision is a multi-service project that combines a web app, an API layer, an AI microservice, an async worker, and machine learning training code in a single monorepo.
 
 ## Monorepo Layout
 
 ```text
 GP/
-├── frontend/         # Next.js + TypeScript web app
-├── backend/          # Node.js + Express API
-├── ai-service/       # FastAPI RAG chatbot service (ChromaDB + Groq)
-├── ml/               # ML training/inference code and datasets
-├── scripts/          # Standalone scripts and prototypes
-├── docs/             # Product and design documentation
-├── .gitignore
+├── frontend/             # Next.js 16 + React 19 + TS 6 + Tailwind 4 (patient + doctor portals)
+├── backend/              # Node.js + Express 5 + Prisma 7 REST API
+│   └── prisma/           # PostgreSQL schema + migrations + seed
+├── ai-service/           # FastAPI service (RAG chatbot, segmentation/Grad-CAM/report stubs)
+│   └── app/worker/       # Celery worker (run_full_analysis chain)
+├── ml/                   # ML training/inference code and datasets
+├── scripts/              # Standalone scripts and prototypes
+├── docs/                 # Product and design documentation
+├── docker-compose.yml    # Full stack: frontend, backend, ai-service, postgres, redis, chromadb, minio
+├── .github/workflows/    # CI: lint + build + tests
 └── README.md
 ```
 
 ## Services at a Glance
 
-| Service       | Stack                     | Default Port |
-|---------------|---------------------------|--------------|
-| Frontend      | Next.js 14, TypeScript    | 3000         |
-| Backend API   | Node.js, Express          | 5000         |
-| AI Service    | FastAPI, ChromaDB, Groq   | 8000         |
-| ML Scripts    | Python, PyTorch, timm     | n/a          |
+| Service       | Stack                                                  | Default Port |
+|---------------|--------------------------------------------------------|--------------|
+| Frontend      | Next.js 16, React 19, TypeScript 6, Tailwind 4         | 3000         |
+| Backend API   | Node.js 20+, Express 5, Prisma 7                       | 3001         |
+| AI Service    | FastAPI 0.136, Pydantic 2.13, ChromaDB 1.5, Groq 1.2   | 8001         |
+| Celery Worker | Celery + Redis                             | —            |
+| PostgreSQL    | Docker (`curavision-postgres`)             | 5432         |
+| Redis         | Docker (`curavision-redis`)                | 6379         |
+| ChromaDB      | Docker (`curavision-chromadb`) — RAG store | 8000         |
+| MinIO         | Docker (`curavision-minio`) — S3 storage   | 9000 / 9001  |
 
 ## Prerequisites
 
-- Node.js 18+ and npm
-- Python 3.10+
-- `venv` or another Python environment manager
+- Node.js 20+ and npm (Next.js 16 / React 19 require Node 20)
+- Python 3.11+ (tested on 3.13 with NumPy 2.4 / Pydantic 2.13)
+- Docker + Docker Compose (for Postgres / Redis)
 - Git
 
 ---
 
-## Frontend (`frontend/`)
+## Quick start — local MVP
 
 ```bash
+# 1. Infra (Postgres + Redis)
+docker compose up -d
+
+# 2. Backend
+cd backend
+cp .env.example .env
+npm install
+# Optional: run the real database instead of mock data
+#   npx prisma migrate dev --name init
+#   npm run db:seed
+npm run dev            # http://localhost:3001
+
+# 3. AI service (new terminal)
+cd ai-service
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload --port 8001
+
+# 4. Celery worker (optional, new terminal)
+cd ai-service && source .venv/bin/activate
+celery -A app.worker.celery_app.celery worker --loglevel=info
+
+# 5. Frontend (new terminal)
 cd frontend
 npm install
-npm run dev
+npm run dev            # http://localhost:3000
 ```
 
-Additional commands:
+The frontend reads `NEXT_PUBLIC_API_BASE_URL` (defaults to `http://localhost:3001`).
+
+Seeded demo accounts (in-memory mock data):
+
+| Role    | Email                         | Password       |
+|---------|-------------------------------|----------------|
+| Patient | `patient1@curavision.com`     | `Patient@123`  |
+| Doctor  | `doctor@curavision.com`       | `Doctor@123`   |
+| Admin   | `admin@curavision.com`        | `Admin@123`    |
+
+---
+
+## Backend API (selected endpoints)
+
+See `docs/CuraVision-SDD.md` §5 for the full contract.
+
+- `POST /api/auth/register` — self-register (Patient or Doctor)
+- `POST /api/auth/login` — returns `{ token, user }`
+- `POST /api/scans` — multipart DICOM upload (doctor only)
+- `GET  /api/scans` — doctor's scans
+- `GET  /api/scans/:id` — scan metadata + status
+- `GET  /api/scans/:id/analysis` — segmentation + Grad-CAM
+- `GET  /api/scans/:id/report` — draft / published report
+- `PATCH /api/reports/:id` — doctor edits final report
+- `POST /api/reports/:id/approve` — publish to patient
+- `GET  /api/patient/reports` — patient's published reports
+- `POST /api/chat/:reportId/message` — grounded chatbot
+- `GET  /api/reservations`, `POST /api/reservations` — appointments
+- `PATCH /api/reservations/:id` — confirm / cancel / complete
+- `GET  /api/doctors/:id/availability` — free slots
+- `GET  /api/reports/:id/corrections` — HITL correction history
+- `GET  /api/admin/audit-logs`, `GET /api/admin/users` (admin only)
+
+Security middleware:
+
+- **CORS**: `CORS_ORIGIN` accepts a comma-separated allowlist (defaults to
+  `http://localhost:3000`). Use `*` only in development.
+- **Rate limits**: generic `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` for
+  `/api/*` and stricter `AUTH_RATE_LIMIT_*` for `/api/auth/*` brute-force
+  protection. All values in `backend/.env.example`.
+- **Request validation**: every mutating endpoint uses `express-validator`.
+
+Smoke-test the full flow:
 
 ```bash
-npm run build
-npm run lint
-npm start
+# with the backend running on :3001
+cd backend
+node tests/smoke-mvp.js
 ```
 
-## Backend (`backend/`)
+---
+
+## Running the whole stack with Docker Compose
+
+```bash
+docker compose up -d --build   # builds + starts everything
+docker compose ps              # status per service
+docker compose logs -f backend # tail logs
+docker compose down -v         # nuke data volumes
+```
+
+Ports (host-mapped):
+
+| Service       | URL                          |
+|---------------|------------------------------|
+| Frontend      | http://localhost:3000        |
+| Backend       | http://localhost:3001        |
+| AI service    | http://localhost:8001        |
+| ChromaDB      | http://localhost:8000        |
+| MinIO (S3)    | http://localhost:9000        |
+| MinIO console | http://localhost:9001        |
+| Postgres      | localhost:5432               |
+| Redis         | localhost:6379               |
+
+The `minio-bootstrap` one-shot container creates the `curavision` bucket on
+first run. Object-storage creds default to `curavision` / `curavision` and can
+be overridden via env.
+
+---
+
+## Tests
+
+Each service ships its own test suite. They all run in CI and can be run
+locally with the same commands:
+
+```bash
+# Backend — route tests (node:test + supertest, in-process, no network)
+cd backend && npm test
+
+# AI service — FastAPI contract tests (LLM/Chroma stubbed)
+cd ai-service
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+pytest -q tests/
+
+# Frontend — production smoke (builds standalone, boots, probes routes)
+cd frontend
+npm run build
+npm run test:smoke
+```
+
+### CI
+
+`.github/workflows/ci.yml` runs four parallel jobs on every push / PR:
+
+1. **backend** — `node --check` lint + route tests
+2. **ai-service** — `compileall` syntax check + pytest
+3. **frontend** — ESLint + `tsc --noEmit` + `next build` + smoke test
+4. **docker-build** — verifies every service image builds (buildx cache)
+
+---
+
+## Database — Prisma + PostgreSQL
+
+The Prisma schema (`backend/prisma/schema.prisma`) maps 1:1 to SDD §4:
+users, patients, doctors, scans, scan_analysis, reports, corrections,
+reservations, doctor_availability, audit_logs, chat_sessions, chat_messages.
 
 ```bash
 cd backend
-npm install
-cp .env.example .env
-npm run dev
+npx prisma migrate dev --name init   # apply schema
+npx prisma generate                  # regenerate typed client
+npm run db:seed                      # load demo users/reports into Postgres
 ```
 
-Production-style run:
+Until migrations are applied, the backend falls back to the in-memory
+fixtures under `backend/src/mockData/`, so the rest of the stack keeps
+working without Postgres.
 
-```bash
-npm start
+---
+
+## Async analysis (Celery + Redis)
+
+The Celery task graph that implements SDD §7 lives in
+`ai-service/app/worker/`:
+
+- `celery_app.py` — broker/backend configuration
+- `tasks.py` — `segmentation_task`, `gradcam_task`, `report_task`,
+  `run_full_analysis`
+
+Enqueue a job from any Python shell while the worker is running:
+
+```python
+from app.worker.tasks import run_full_analysis
+result = run_full_analysis.delay("scan-123", "storage/dicoms/scan-123/file.dcm")
+print(result.get(timeout=60))
 ```
+
+The Node backend currently calls the FastAPI `/ai/analyze` endpoint
+synchronously and falls back to a deterministic local stub if the
+service is unreachable. Switching to Celery is a one-line change in
+`backend/src/services/ScanService.js`.
+
+---
+
+## Frontend highlights
+
+- **Real auth**: `src/lib/apiClient.ts` attaches `Authorization: Bearer`
+  from `localStorage`. `src/lib/authContext.tsx` provides `useAuth()`
+  and `useRequireAuth(role)` helpers.
+- **Patient portal**: dashboard, reports (from `/api/patient/reports`),
+  and chatbot wired to `/api/chat/:reportId/message` with source citations.
+- **Doctor portal** (`/doctor`): dashboard, scan list, upload, review +
+  approve (with HITL corrections history panel), and appointment queue.
+  Grad-CAM heatmaps render beside the source DICOM.
+- **Patient portal** (`/patient`): reports, chatbot, **appointments**
+  (pick a doctor + open slot → PENDING request → doctor confirmation).
+- **DICOM viewer**: `src/components/medical/DicomViewer.tsx` dynamically
+  imports `@cornerstonejs/core` on the client and falls back to a plain
+  `<img>` for PNG/JPEG previews (e.g. Grad-CAM heatmaps).
+
+> **Note (Next.js 16):** dev/build use the webpack backend
+> (`next dev --webpack`, `next build --webpack`) because Cornerstone's WASM
+> codecs reference Node built-ins that need `resolve.fallback` — an option
+> Turbopack doesn't yet expose. Switch back to Turbopack once it does.
+
+---
 
 ## AI Service (`ai-service/`)
 
@@ -73,8 +259,35 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8001
 ```
+
+Endpoints:
+
+- `POST /ai/chatbot` — RAG-grounded answers for patient questions
+- `POST /ai/segmentation` — U-Net stub (returns deterministic mask path + volume)
+- `POST /ai/gradcam` — Grad-CAM stub
+- `POST /ai/report` — LLM report draft stub
+- `POST /ai/analyze` — full pipeline in one call
+
+Swap the stubs in `app/services/analysis_service.py` when the trained
+weights are ready.
+
+### LLM provider switch (Groq / Ollama)
+
+`app/services/llm_service.py` is provider-agnostic. Select a backend via
+the `LLM_PROVIDER` env var:
+
+- `LLM_PROVIDER=groq` (default) — hosted Groq API. Requires `GROQ_API_KEY`
+  and optionally `GROQ_MODEL`.
+- `LLM_PROVIDER=ollama` — local Ollama server (matches the on-prem story
+  in the PRD/SDD). Point `OLLAMA_BASE_URL` at a running `ollama serve`
+  and pick a pulled model via `OLLAMA_MODEL` (e.g. `llama3`, `mistral`).
+
+The chatbot code path is identical for both; only the completion call
+changes. See `ai-service/.env.example` for the full variable list.
+
+---
 
 ## ML Scripts (`ml/`)
 
@@ -83,43 +296,25 @@ cd ml
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-Example usage:
-
-```bash
 python src/run_train.py
 python src/run_test.py
 ```
 
-Notes:
+`ml/data/` and `ml/checkpoints/` are intentionally untracked.
 
-- `ml/data/` and `ml/checkpoints/` are intentionally untracked (see `.gitignore`).
-- Place the dataset under `ml/data/` before training.
+---
 
-## Scripts (`scripts/`)
-
-Standalone utilities and prototypes, for example `scripts/chatbot.py` (early chatbot script; production chatbot lives in `ai-service/`).
-
-## Documentation (`docs/`)
+## Documentation
 
 - [`docs/CuraVision-PRD.md`](docs/CuraVision-PRD.md) — Product Requirements Document
 - [`docs/CuraVision-SDD.md`](docs/CuraVision-SDD.md) — Software Design Document
 
----
-
 ## Environment and Secrets
 
-- Do not commit `.env` files; use `.env.example` as the template.
-- Services read configuration from their own `.env` files:
-  - `backend/.env`
-  - `ai-service/.env`
-
-## Repository Status
-
-- Main branches integrated into `main`.
-- Repository cleaned and reorganized into a service-oriented layout.
-- Large artifacts (datasets, checkpoints, vector DB) are kept out of Git.
+- Do not commit `.env` files; each service has `.env.example`.
+- `backend/storage/` is where DICOMs and generated masks/heatmaps land;
+  it is served read-only at `GET /storage/...` for the DICOM viewer in
+  local development. Replace with signed object-storage URLs for prod.
 
 ## License
 
