@@ -107,9 +107,10 @@ services:
     image: curavision/ai-service:dev
     container_name: curavision-ai-service
     restart: unless-stopped
+    env_file:
+      - ./ai-service/.env
     environment:
       LLM_PROVIDER: ${LLM_PROVIDER:-groq}
-      GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3}
@@ -124,6 +125,8 @@ services:
       chromadb:
         condition: service_healthy
     ports: ["8001:8001"]
+    volumes:
+      - curavision_backend_storage:/app/storage
 
   ai-worker:
     build:
@@ -132,9 +135,10 @@ services:
     container_name: curavision-ai-worker
     restart: unless-stopped
     command: ["celery", "-A", "app.worker.celery_app.celery", "worker", "--loglevel=info"]
+    env_file:
+      - ./ai-service/.env
     environment:
       LLM_PROVIDER: ${LLM_PROVIDER:-groq}
-      GROQ_API_KEY: ${GROQ_API_KEY:-}
       CHROMA_HOST: chromadb
       CHROMA_PORT: "8000"
       CELERY_BROKER_URL: redis://redis:6379/0
@@ -145,6 +149,8 @@ services:
         condition: service_healthy
       chromadb:
         condition: service_healthy
+    volumes:
+      - curavision_backend_storage:/app/storage
 
   backend:
     build:

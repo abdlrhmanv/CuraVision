@@ -64,7 +64,6 @@ def run_full_analysis(self, scan_id: str, dicom_path: str) -> dict[str, Any]:
     result = {"scan_id": scan_id, "segmentation": seg, "gradcam": cam, "report": rep}
 
     # Best-effort callback so the Node backend can persist the analysis.
-    # The backend route is NOT implemented yet — leave as a TODO marker.
     try:
         httpx.post(
             f"{BACKEND_CALLBACK_URL}/api/internal/scans/{scan_id}/analysis-complete",

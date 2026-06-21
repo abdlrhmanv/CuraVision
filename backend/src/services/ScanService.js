@@ -9,7 +9,7 @@ const {
   getAnalysisByScan,
 } = require("../mockData/scans");
 const { findUserById } = require("../mockData/users");
-const { createReport } = require("../mockData/reports");
+const { upsertDraftReport } = require("../mockData/reports");
 const AuditService = require("./AuditService");
 
 const SAMPLE_TUMOR_LOCATIONS = [
@@ -129,7 +129,7 @@ async function scheduleAnalysis(scanId) {
     inference_log: segmentation.inference_log,
   });
 
-  createReport({
+  upsertDraftReport({
     scan_id: scanId,
     patient_id: scan.patient_id,
     doctor_id: scan.doctor_id,
@@ -145,6 +145,45 @@ async function scheduleAnalysis(scanId) {
     entity_id: scanId,
     metadata: { tumor_volume_cc: segmentation.tumor_volume_cc },
   });
+}
+
+function completeAnalysis(scanId, payload) {
+  const scan = getScanById(scanId);
+  if (!scan) throw notFound("Scan not found.");
+
+  const segmentation = payload.segmentation ?? {};
+  const gradcam = payload.gradcam ?? {};
+  const report = payload.report ?? {};
+
+  upsertAnalysis(scanId, {
+    unet_mask_path: segmentation.mask_path,
+    gradcam_path: gradcam.gradcam_path,
+    tumor_volume_cc: segmentation.tumor_volume_cc,
+    tumor_location_description: segmentation.tumor_location_description,
+    inference_log: segmentation.inference_log,
+  });
+
+  upsertDraftReport({
+    scan_id: scanId,
+    patient_id: scan.patient_id,
+    doctor_id: scan.doctor_id,
+    ai_draft: report.ai_draft,
+  });
+
+  updateScanStatus(scanId, "ANALYSIS_COMPLETE");
+
+  AuditService.log({
+    user_id: null,
+    action: "ANALYSIS_COMPLETE_CALLBACK",
+    entity_type: "SCAN",
+    entity_id: scanId,
+    metadata: { tumor_volume_cc: segmentation.tumor_volume_cc ?? null },
+  });
+
+  return {
+    scan_id: scanId,
+    status: "ANALYSIS_COMPLETE",
+  };
 }
 
 function localStubAnalysis(scanId) {
@@ -221,6 +260,7 @@ function listByPatient(patientId) {
 module.exports = {
   uploadScan,
   scheduleAnalysis,
+  completeAnalysis,
   getScanSummary,
   getScanAnalysis,
   listByPatient,
