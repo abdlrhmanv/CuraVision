@@ -114,7 +114,8 @@ async function scheduleAnalysis(scanId) {
   } catch (err) {
     console.warn(
       "[ScanService] AI service unreachable, falling back to local stub:",
-      err.message
+      err.message,
+      "| detail:", err.response?.data?.detail ?? err.response?.data ?? "(no response body)"
     );
     result = localStubAnalysis(scanId);
   }
