@@ -20,6 +20,8 @@ const path = require("node:path");
 
 const request = require("supertest");
 const app = require("../src/server");
+const { createScan, getAnalysisByScan, getScanById } = require("../src/mockData/scans");
+const { getReportByScan } = require("../src/mockData/reports");
 
 async function login(email, password) {
   const res = await request(app)
@@ -93,6 +95,45 @@ test("POST /api/scans without file → 400", async () => {
     .field("patient_id", pat.user.id)
     .expect(400);
   assert.ok(res.body.code);
+});
+
+test("POST /api/internal/scans/:id/analysis-complete persists worker callback", async () => {
+  const scan = createScan({
+    patient_id: "patient-001",
+    doctor_id: "doctor-001",
+    dicom_path: "storage/dicoms/callback-test/scan.dcm",
+    modality: "MRI",
+  });
+
+  const payload = {
+    scan_id: scan.id,
+    segmentation: {
+      scan_id: scan.id,
+      mask_path: "storage/masks/callback-test.png",
+      tumor_volume_cc: 7.4,
+      tumor_location_description: "right temporal lobe",
+      inference_log: "test callback",
+    },
+    gradcam: {
+      scan_id: scan.id,
+      gradcam_path: "storage/heatmaps/callback-test.png",
+      activation_peak_region: "right temporal lobe",
+    },
+    report: {
+      scan_id: scan.id,
+      ai_draft: "FINDINGS:\nCallback draft.\n\nIMPRESSION:\nCallback impression.",
+    },
+  };
+
+  const res = await request(app)
+    .post(`/api/internal/scans/${scan.id}/analysis-complete`)
+    .send(payload)
+    .expect(200);
+
+  assert.equal(res.body.ok, true);
+  assert.equal(getScanById(scan.id).status, "ANALYSIS_COMPLETE");
+  assert.equal(getAnalysisByScan(scan.id).gradcam_path, payload.gradcam.gradcam_path);
+  assert.equal(getReportByScan(scan.id).ai_draft, payload.report.ai_draft);
 });
 
 test("full doctor flow: upload → analysis → report → approve", async (t) => {

@@ -16,6 +16,7 @@ const reservationsRoutes = require("./routes/reservations.routes");
 const doctorsRoutes = require("./routes/doctors.routes");
 const patientsRoutes = require("./routes/patients.routes");
 const adminRoutes = require("./routes/admin.routes");
+const internalRoutes = require("./routes/internal.routes");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -71,6 +72,7 @@ app.use("/api/doctors", doctorsRoutes);
 app.use("/api/patients", patientsRoutes);
 app.use("/api/patient", patientsRoutes); // SDD alias for patient-scoped views
 app.use("/api/admin", adminRoutes);
+app.use("/api/internal", internalRoutes);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "CuraVision Backend" });

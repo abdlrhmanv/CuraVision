@@ -16,7 +16,7 @@ router = APIRouter()
 
 @router.post("/segmentation", response_model=SegmentationResponse)
 async def segmentation(request: SegmentationRequest) -> SegmentationResponse:
-    """Run U-Net tumor segmentation on a DICOM scan (stubbed)."""
+    """Run interim tumor segmentation on a DICOM scan."""
     try:
         return analysis_service.run_segmentation(request.scan_id, request.dicom_path)
     except Exception as exc:
@@ -25,7 +25,7 @@ async def segmentation(request: SegmentationRequest) -> SegmentationResponse:
 
 @router.post("/gradcam", response_model=GradCamResponse)
 async def gradcam(request: GradCamRequest) -> GradCamResponse:
-    """Run Grad-CAM saliency for the classifier on a DICOM scan (stubbed)."""
+    """Generate an interim saliency heatmap for a DICOM scan."""
     try:
         return analysis_service.run_gradcam(request.scan_id, request.dicom_path)
     except Exception as exc:
@@ -34,7 +34,7 @@ async def gradcam(request: GradCamRequest) -> GradCamResponse:
 
 @router.post("/report", response_model=ReportResponse)
 async def report(request: ReportRequest) -> ReportResponse:
-    """Generate an AI draft radiology report from analysis features (stubbed)."""
+    """Generate an AI draft radiology report from analysis features."""
     try:
         return analysis_service.run_report(
             request.scan_id,

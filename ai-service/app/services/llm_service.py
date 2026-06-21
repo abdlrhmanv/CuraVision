@@ -153,6 +153,54 @@ def _generate_ollama(messages: list[dict[str, str]]) -> str:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+def _is_placeholder_groq_key(value: str) -> bool:
+    normalized = (value or "").strip().lower()
+    return normalized in {"", "test-key", "your_groq_api_key_here"}
+
+
+def generate_report_draft(
+    scan_id: str,
+    tumor_volume_cc: float,
+    tumor_location_description: str,
+    metadata_summary: str,
+) -> str:
+    """Generate a concise radiology report draft using the configured LLM."""
+    provider = settings.llm_provider.lower()
+    if provider == "groq" and _is_placeholder_groq_key(settings.groq_api_key):
+        raise RuntimeError("GROQ_API_KEY is not configured for report drafting.")
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You draft concise brain MRI radiology reports for radiologist review. "
+                "Use clinical language, do not invent patient identifiers, and keep the "
+                "output limited to FINDINGS and IMPRESSION sections."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                "Generate a concise radiology report draft for an MRI scan.\n"
+                f"Scan ID: {scan_id}\n"
+                f"Estimated tumor volume: {tumor_volume_cc:.1f} cc\n"
+                f"Estimated location: {tumor_location_description}\n"
+                f"DICOM metadata: {metadata_summary}\n"
+                "Format: FINDINGS section and IMPRESSION section only. "
+                "Use 3-5 sentences total."
+            ),
+        },
+    ]
+
+    if provider == "ollama":
+        return _generate_ollama(messages)
+    if provider == "groq":
+        return _generate_groq(messages)
+    raise RuntimeError(
+        f"Unknown LLM_PROVIDER={settings.llm_provider!r}. Use 'groq' or 'ollama'."
+    )
+
+
 def generate_response(
     report_text: str,
     patient_question: str,

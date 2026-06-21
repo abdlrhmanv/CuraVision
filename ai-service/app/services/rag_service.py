@@ -36,11 +36,7 @@ def _get_collection():
     if _collection is not None:
         return _collection
 
-<<<<<<< HEAD
-    _client = chromadb.Client(ChromaSettings(anonymized_telemetry=False, is_persistent=False))
-=======
     _client = _build_client()
->>>>>>> e9a48cb (Minor changes)
     _collection = _client.get_or_create_collection(
         name=COLLECTION_NAME,
         metadata={"hnsw:space": "cosine"},
@@ -97,7 +93,8 @@ def retrieve(query: str, n_results: int = 3) -> list[dict]:
         include=["documents", "metadatas", "distances"],
     )
 
-    MAX_DISTANCE = 0.5  
+    # Cosine distance: 0 = identical, 2 = opposite. Accept reasonably close hits.
+    max_distance = 1.5
     hits = []
     
     for doc, meta, distance in zip(
@@ -105,14 +102,7 @@ def retrieve(query: str, n_results: int = 3) -> list[dict]:
         results["metadatas"][0],
         results["distances"][0],
     ):
-<<<<<<< HEAD
-=======
-        # Cosine distance: 0 = identical, 2 = opposite. Accept reasonably close hits.
-        if distance < 1.5:
-            hits.append({"term": meta["term"], "text": doc})
->>>>>>> e9a48cb (Minor changes)
-
-        if distance < MAX_DISTANCE:
+        if distance < max_distance:
             hits.append({
                 "term": meta["term"],
                 "text": doc,

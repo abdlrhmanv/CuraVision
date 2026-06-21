@@ -14,15 +14,19 @@ WORKDIR /app
 # dumb-init for proper signal handling (pid 1)
 RUN apk add --no-cache dumb-init curl
 
-# non-root user
-RUN addgroup -S app && adduser -S app -G app
+# Non-root user — pin UID/GID to 1001 so the shared storage volume is
+# accessible by the ai-service container, which uses the same UID.
+RUN addgroup -S -g 1001 app && adduser -S -u 1001 -G app app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Only the storage dir needs to be writable by the app user. Recursively
-# chown'ing all of /app (node_modules included) would add minutes to builds.
-RUN mkdir -p /app/storage && chown app:app /app/storage
+# Pre-create every subdirectory the ai-service will write into.
+# When Docker initialises the named volume from this image the directories
+# already exist with the right ownership, so no container needs root to
+# mkdir them at runtime.
+RUN mkdir -p /app/storage/dicoms /app/storage/masks /app/storage/heatmaps \
+ && chown -R app:app /app/storage
 
 USER app
 EXPOSE 3001

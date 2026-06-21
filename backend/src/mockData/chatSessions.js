@@ -1,5 +1,3 @@
-const { v4: uuidv4 } = require("crypto");
-
 /**
  * In-memory store for chat sessions and messages.
  *

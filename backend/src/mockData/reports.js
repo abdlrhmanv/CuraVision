@@ -119,6 +119,16 @@ function createReport({ scan_id, patient_id, doctor_id, ai_draft }) {
   return report;
 }
 
+function upsertDraftReport({ scan_id, patient_id, doctor_id, ai_draft }) {
+  const existing = getReportByScan(scan_id);
+  if (existing) {
+    existing.ai_draft = ai_draft ?? existing.ai_draft ?? "";
+    existing.updated_at = new Date().toISOString();
+    return existing;
+  }
+  return createReport({ scan_id, patient_id, doctor_id, ai_draft });
+}
+
 function updateReport(reportId, patch) {
   const report = getReportById(reportId);
   if (!report) return null;
@@ -154,6 +164,7 @@ module.exports = {
   getReportByScan,
   getReportsByPatient,
   createReport,
+  upsertDraftReport,
   updateReport,
   addCorrection,
   getCorrections,
