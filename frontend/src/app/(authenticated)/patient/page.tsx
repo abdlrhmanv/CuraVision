@@ -1,7 +1,17 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { MessageSquare, Brain, FileText, Newspaper, User, Star, Upload } from 'lucide-react'
+import {
+  MessageSquare,
+  Brain,
+  FileText,
+  Newspaper,
+  User,
+  Star,
+  Upload,
+  Calendar,
+  Settings,
+} from 'lucide-react'
 
 export default function PatientDashboard() {
   const router = useRouter()
@@ -10,8 +20,10 @@ export default function PatientDashboard() {
     { id: 'chatbot', label: 'AI Chatbot', icon: MessageSquare, color: 'accent', href: '/patient/chatbot' },
     { id: 'scans', label: 'My Scans', icon: Brain, color: 'blue', href: '/patient/scans' },
     { id: 'reports', label: 'Reports', icon: FileText, color: 'purple', href: '/patient/reports' },
+    { id: 'appointments', label: 'Appointments', icon: Calendar, color: 'green', href: '/patient/appointments' },
     { id: 'articles', label: 'Articles', icon: Newspaper, color: 'green', href: '/patient/articles' },
     { id: 'profile', label: 'Profile', icon: User, color: 'warn', href: '/patient/profile' },
+    { id: 'settings', label: 'Settings', icon: Settings, color: 'muted', href: '/patient/settings' },
   ]
 
   const stats = [
@@ -47,7 +59,7 @@ export default function PatientDashboard() {
       </div>
 
       {/* Quick Menu */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
         {quickSections.map((item) => {
           const Icon = item.icon
           return (

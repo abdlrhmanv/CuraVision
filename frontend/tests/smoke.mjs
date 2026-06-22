@@ -25,11 +25,23 @@ import { existsSync } from "node:fs";
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.resolve(path.dirname(__filename), "..");
 
-const ROUTES = [
+const PUBLIC_ROUTES = [
   { path: "/", mustContain: ["CuraVision"] },
   { path: "/login", mustContain: ["Email", "Password"] },
   { path: "/register", mustContain: ["Password"] },
 ];
+
+// Auth-gated layouts render a client-side loading shell on first paint.
+const AUTH_ROUTES = [
+  { path: "/patient", mustContain: ["Loading"] },
+  { path: "/patient/appointments", mustContain: ["Loading"] },
+  { path: "/patient/settings", mustContain: ["Loading"] },
+  { path: "/doctor", mustContain: ["Loading"] },
+  { path: "/doctor/appointments", mustContain: ["Loading"] },
+  { path: "/admin", mustContain: ["Loading"] },
+];
+
+const ROUTES = [...PUBLIC_ROUTES, ...AUTH_ROUTES];
 
 async function findFreePort() {
   return new Promise((resolve, reject) => {
@@ -116,7 +128,7 @@ async function main() {
       passed += 1;
     }
 
-    console.log(`\n✓ Frontend smoke: ${passed}/${ROUTES.length} routes OK`);
+    console.log(`\n✓ Frontend smoke: ${passed}/${ROUTES.length} routes OK (${PUBLIC_ROUTES.length} public, ${AUTH_ROUTES.length} auth-gated)`);
   } catch (err) {
     console.error("✗ Frontend smoke failed:", err.message);
     cleanup();

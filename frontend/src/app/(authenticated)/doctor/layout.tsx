@@ -2,7 +2,16 @@
 
 import Link from 'next/link'
 import { Bell } from 'lucide-react'
+import {
+  Activity,
+  Brain,
+  Calendar,
+  Upload,
+  User,
+  Users,
+} from 'lucide-react'
 import { useRequireAuth } from '@/lib/authContext'
+import { PortalMobileNav, PortalSidebar } from '@/components/layout/PortalNav'
 
 function initials(name: string): string {
   return name
@@ -13,6 +22,15 @@ function initials(name: string): string {
     .join('')
     .toUpperCase()
 }
+
+const navItems = [
+  { label: 'Dashboard', href: '/doctor', icon: Activity },
+  { label: 'Upload Scan', href: '/doctor/upload', icon: Upload },
+  { label: 'All Scans', href: '/doctor/scans', icon: Brain },
+  { label: 'Patients', href: '/doctor/patients', icon: Users },
+  { label: 'Appointments', href: '/doctor/appointments', icon: Calendar },
+  { label: 'Profile', href: '/doctor/profile', icon: User },
+]
 
 export default function DoctorLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useRequireAuth('DOCTOR')
@@ -26,8 +44,8 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
   }
 
   return (
-    <div className="min-h-screen bg-bg">
-      <header className="h-[60px] border-b border-border bg-bg/95 backdrop-blur-sm px-4 md:px-8 flex items-center justify-between sticky top-0 z-50">
+    <div className="min-h-screen bg-bg flex flex-col">
+      <header className="h-[60px] border-b border-border bg-bg/95 backdrop-blur-sm px-4 md:px-6 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <Link href="/doctor" className="text-lg font-extrabold tracking-tight">
             Cura<span className="text-accent">Vision</span>
@@ -37,7 +55,11 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <button className="relative w-9 h-9 rounded-lg bg-card border border-border flex items-center justify-center hover:border-blue transition">
+          <button
+            type="button"
+            className="relative w-9 h-9 rounded-lg bg-card border border-border flex items-center justify-center hover:border-blue transition"
+            aria-label="Notifications"
+          >
             <Bell size={16} className="text-muted" />
           </button>
           <div className="text-xs text-muted hidden sm:block">{user.full_name}</div>
@@ -47,7 +69,15 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
         </div>
       </header>
 
-      <div className="flex min-h-[calc(100vh-60px)]">
+      <PortalMobileNav navItems={navItems} accent="blue" />
+
+      <div className="flex flex-1 min-h-0">
+        <PortalSidebar
+          user={user}
+          portalLabel="Doctor Portal"
+          accent="blue"
+          navItems={navItems}
+        />
         <main className="flex-1 p-5 md:p-8 lg:p-10 overflow-auto">{children}</main>
       </div>
     </div>

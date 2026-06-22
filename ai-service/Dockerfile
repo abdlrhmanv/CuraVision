@@ -34,7 +34,7 @@ COPY --chown=app:app . .
 USER app
 EXPOSE 8001
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=180s --retries=5 \
   CMD curl -fsS http://localhost:8001/health || exit 1
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]

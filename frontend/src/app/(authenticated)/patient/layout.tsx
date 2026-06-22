@@ -2,7 +2,18 @@
 
 import Link from 'next/link'
 import { Bell } from 'lucide-react'
+import {
+  Activity,
+  Brain,
+  Calendar,
+  FileText,
+  MessageSquare,
+  Newspaper,
+  Settings,
+  User,
+} from 'lucide-react'
 import { useRequireAuth } from '@/lib/authContext'
+import { PortalMobileNav, PortalSidebar } from '@/components/layout/PortalNav'
 
 function initials(name: string): string {
   return name
@@ -13,6 +24,17 @@ function initials(name: string): string {
     .join('')
     .toUpperCase()
 }
+
+const navItems = [
+  { label: 'Dashboard', href: '/patient', icon: Activity },
+  { label: 'Chatbot', href: '/patient/chatbot', icon: MessageSquare },
+  { label: 'My Scans', href: '/patient/scans', icon: Brain },
+  { label: 'Reports', href: '/patient/reports', icon: FileText },
+  { label: 'Appointments', href: '/patient/appointments', icon: Calendar },
+  { label: 'Articles', href: '/patient/articles', icon: Newspaper },
+  { label: 'Profile', href: '/patient/profile', icon: User },
+  { label: 'Settings', href: '/patient/settings', icon: Settings },
+]
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useRequireAuth('PATIENT')
@@ -26,8 +48,8 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
   }
 
   return (
-    <div className="min-h-screen bg-bg">
-      <header className="h-[60px] border-b border-border bg-bg/95 backdrop-blur-sm px-4 md:px-8 flex items-center justify-between sticky top-0 z-50">
+    <div className="min-h-screen bg-bg flex flex-col">
+      <header className="h-[60px] border-b border-border bg-bg/95 backdrop-blur-sm px-4 md:px-6 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <Link href="/patient" className="text-lg font-extrabold tracking-tight">
             Cura<span className="text-accent">Vision</span>
@@ -37,7 +59,11 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <button className="relative w-9 h-9 rounded-lg bg-card border border-border flex items-center justify-center hover:border-accent transition">
+          <button
+            type="button"
+            className="relative w-9 h-9 rounded-lg bg-card border border-border flex items-center justify-center hover:border-accent transition"
+            aria-label="Notifications"
+          >
             <Bell size={16} className="text-muted" />
             <div className="absolute top-1.5 right-2 w-1.5 h-1.5 rounded-full bg-warn border-2 border-bg" />
           </button>
@@ -48,7 +74,15 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
         </div>
       </header>
 
-      <div className="flex min-h-[calc(100vh-60px)]">
+      <PortalMobileNav navItems={navItems} accent="accent" />
+
+      <div className="flex flex-1 min-h-0">
+        <PortalSidebar
+          user={user}
+          portalLabel="Patient Portal"
+          accent="accent"
+          navItems={navItems}
+        />
         <main className="flex-1 p-5 md:p-8 lg:p-10 overflow-auto">{children}</main>
       </div>
     </div>

@@ -34,7 +34,7 @@ COPY --from=build --chown=app:app /app/public ./public
 USER app
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=5 \
   CMD curl -fsS http://localhost:3000/ || exit 1
 
 ENTRYPOINT ["dumb-init", "--"]
