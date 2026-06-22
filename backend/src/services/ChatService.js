@@ -1,5 +1,5 @@
 const { fastapiClient } = require("../integrations/fastapiClient");
-const { getReportById } = require("../mockData/reports");
+const ReportService = require("./ReportService");
 const {
   getOrCreateSession,
   addMessage,
@@ -18,7 +18,7 @@ const {
  */
 async function sendMessage(reportId, patientId, message) {
   // 1. Verify the report exists and belongs to this patient
-  const report = getReportById(reportId);
+  const report = await ReportService.getReportById(reportId);
   if (!report) {
     const err = new Error("Report not found.");
     err.status = 404;
@@ -80,8 +80,8 @@ async function sendMessage(reportId, patientId, message) {
  * @param {string} patientId
  * @returns {{ session_id: string|null, messages: object[] }}
  */
-function getHistory(reportId, patientId) {
-  const report = getReportById(reportId);
+async function getHistory(reportId, patientId) {
+  const report = await ReportService.getReportById(reportId);
   if (!report) {
     const err = new Error("Report not found.");
     err.status = 404;

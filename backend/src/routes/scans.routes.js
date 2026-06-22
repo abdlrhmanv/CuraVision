@@ -3,33 +3,21 @@ const multer = require("multer");
 const { authenticateJWT } = require("../middleware/authenticateJWT");
 const { authorizeRole } = require("../middleware/authorizeRole");
 const ScanService = require("../services/ScanService");
-const { listScansByDoctor } = require("../mockData/scans");
-const { findUserById } = require("../mockData/users");
-const { getReportByScan } = require("../mockData/reports");
+const ReportService = require("../services/ReportService");
 
 const router = express.Router();
 
 /**
  * GET /api/scans
- * Return scans belonging to the authenticated doctor, with a small bit of
- * patient context so the UI can render a table without extra fetches.
+ * Return scans belonging to the authenticated doctor, with patient context.
  */
 router.get(
   "/",
   authenticateJWT,
   authorizeRole("DOCTOR"),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
-      const scans = listScansByDoctor(req.user.sub).map((scan) => {
-        const patient = findUserById(scan.patient_id);
-        const report = getReportByScan(scan.id);
-        return {
-          ...scan,
-          patient_name: patient?.full_name ?? null,
-          report_id: report?.id ?? null,
-          report_status: report?.status ?? null,
-        };
-      });
+      const scans = await ScanService.listByDoctor(req.user.sub);
       res.json({ scans });
     } catch (err) {
       next(err);
@@ -39,13 +27,12 @@ router.get(
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 200 * 1024 * 1024 }, // 200 MB cap for DICOM buffers
+  limits: { fileSize: 200 * 1024 * 1024 },
 });
 
 /**
  * POST /api/scans
  * Doctor uploads a DICOM file and triggers analysis.
- * Multipart form: file (DICOM), patient_id
  */
 router.post(
   "/",
@@ -76,15 +63,14 @@ router.post(
 
 /**
  * GET /api/scans/:id
- * Return metadata and status for a scan.
  */
 router.get(
   "/:id",
   authenticateJWT,
   authorizeRole("DOCTOR"),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
-      const scan = ScanService.getScanSummary(req.params.id, {
+      const scan = await ScanService.getScanSummary(req.params.id, {
         requester: req.user,
       });
       req.audit?.({
@@ -101,15 +87,14 @@ router.get(
 
 /**
  * GET /api/scans/:id/analysis
- * Return segmentation + Grad-CAM analysis for a scan.
  */
 router.get(
   "/:id/analysis",
   authenticateJWT,
   authorizeRole("DOCTOR"),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
-      const analysis = ScanService.getScanAnalysis(req.params.id, {
+      const analysis = await ScanService.getScanAnalysis(req.params.id, {
         requester: req.user,
       });
       req.audit?.({
@@ -126,18 +111,17 @@ router.get(
 
 /**
  * GET /api/scans/:id/report
- * Return the draft/final report attached to a scan.
  */
 router.get(
   "/:id/report",
   authenticateJWT,
   authorizeRole("DOCTOR"),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
-      const scan = ScanService.getScanSummary(req.params.id, {
+      await ScanService.getScanSummary(req.params.id, {
         requester: req.user,
       });
-      const report = getReportByScan(scan.id);
+      const report = await ReportService.getReportByScan(req.params.id);
       if (!report) {
         return res.status(404).json({
           code: "REPORT_NOT_READY",

@@ -20,8 +20,9 @@ const path = require("node:path");
 
 const request = require("supertest");
 const app = require("../src/server");
-const { createScan, getAnalysisByScan, getScanById } = require("../src/mockData/scans");
-const { getReportByScan } = require("../src/mockData/reports");
+const prisma = require("../src/config/prisma");
+const ScanService = require("../src/services/ScanService");
+const ReportService = require("../src/services/ReportService");
 
 async function login(email, password) {
   const res = await request(app)
@@ -98,11 +99,14 @@ test("POST /api/scans without file → 400", async () => {
 });
 
 test("POST /api/internal/scans/:id/analysis-complete persists worker callback", async () => {
-  const scan = createScan({
-    patient_id: "patient-001",
-    doctor_id: "doctor-001",
-    dicom_path: "storage/dicoms/callback-test/scan.dcm",
-    modality: "MRI",
+  const scan = await prisma.scan.create({
+    data: {
+      patient_id: "patient-001",
+      doctor_id: "doctor-001",
+      dicom_path: "storage/dicoms/callback-test/scan.dcm",
+      modality: "MRI",
+      status: "ANALYSIS_RUNNING",
+    },
   });
 
   const payload = {
@@ -131,9 +135,18 @@ test("POST /api/internal/scans/:id/analysis-complete persists worker callback", 
     .expect(200);
 
   assert.equal(res.body.ok, true);
-  assert.equal(getScanById(scan.id).status, "ANALYSIS_COMPLETE");
-  assert.equal(getAnalysisByScan(scan.id).gradcam_path, payload.gradcam.gradcam_path);
-  assert.equal(getReportByScan(scan.id).ai_draft, payload.report.ai_draft);
+  const updatedScan = await ScanService.getScanRecord(scan.id);
+  assert.equal(updatedScan.status, "ANALYSIS_COMPLETE");
+  const analysis = await ScanService.getScanAnalysis(scan.id, {
+    requester: { role: "DOCTOR", sub: "doctor-001" },
+  });
+  assert.equal(analysis.gradcam_path, payload.gradcam.gradcam_path);
+  const report = await ReportService.getReportByScan(scan.id);
+  assert.equal(report.ai_draft, payload.report.ai_draft);
+
+  await prisma.report.deleteMany({ where: { scan_id: scan.id } });
+  await prisma.scanAnalysis.deleteMany({ where: { scan_id: scan.id } });
+  await prisma.scan.delete({ where: { id: scan.id } });
 });
 
 test("full doctor flow: upload → analysis → report → approve", async (t) => {
@@ -258,5 +271,5 @@ test("admin audit log requires admin role", async () => {
     .get("/api/admin/audit-logs")
     .set("Authorization", `Bearer ${admin.token}`)
     .expect(200);
-  assert.ok(Array.isArray(res.body.logs));
+  assert.ok(Array.isArray(res.body.items));
 });

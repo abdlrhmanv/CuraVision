@@ -19,12 +19,12 @@ async function postMessage(req, res, next) {
 /**
  * GET /api/chat/:reportId/history
  */
-function getChatHistory(req, res, next) {
+async function getChatHistory(req, res, next) {
   try {
     const { reportId } = req.params;
     const patientId = req.user.sub;
 
-    const result = getHistory(reportId, patientId);
+    const result = await getHistory(reportId, patientId);
     return res.status(200).json(result);
   } catch (err) {
     next(err);

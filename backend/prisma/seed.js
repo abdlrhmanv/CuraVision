@@ -62,6 +62,22 @@ async function main() {
       },
     });
 
+    await prisma.scanAnalysis.upsert({
+      where: { scan_id: r.scan_id },
+      update: {},
+      create: {
+        scan_id: r.scan_id,
+        unet_mask_path: `storage/masks/${r.scan_id}.png`,
+        gradcam_path: `storage/heatmaps/${r.scan_id}.png`,
+        tumor_volume_cc: r.scan_id === "scan-001" ? 12.3 : 2.1,
+        tumor_location_description:
+          r.scan_id === "scan-001"
+            ? "left frontal lobe"
+            : "right temporal lobe",
+        inference_log: "seed fixture",
+      },
+    });
+
     await prisma.report.upsert({
       where: { id: r.id },
       update: {},

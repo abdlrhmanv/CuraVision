@@ -1,15 +1,8 @@
+const prisma = require("../config/prisma");
 const { saveDicom, derivedPaths } = require("../integrations/storageClient");
 const { fastapiClient } = require("../integrations/fastapiClient");
-const {
-  createScan,
-  getScanById,
-  listScansByPatient,
-  updateScanStatus,
-  upsertAnalysis,
-  getAnalysisByScan,
-} = require("../mockData/scans");
-const { findUserById } = require("../mockData/users");
-const { upsertDraftReport } = require("../mockData/reports");
+const UserService = require("./UserService");
+const ReportService = require("./ReportService");
 const AuditService = require("./AuditService");
 
 const SAMPLE_TUMOR_LOCATIONS = [
@@ -34,35 +27,98 @@ function badRequest(message, code = "VALIDATION_ERROR") {
   return err;
 }
 
-/**
- * Accept a DICOM upload, persist it to local storage, record the scan,
- * and kick off a simulated async analysis pipeline. The stub mirrors the
- * contract of a future Celery worker / FastAPI `/ai/segmentation` call
- * so the end-to-end doctor flow can be demonstrated today.
- *
- * @param {object} params
- * @param {Express.Multer.File} params.file
- * @param {string} params.patientId
- * @param {string} params.doctorId
- */
+function serializeScan(scan) {
+  return {
+    id: scan.id,
+    patient_id: scan.patient_id,
+    doctor_id: scan.doctor_id,
+    dicom_path: scan.dicom_path,
+    modality: scan.modality,
+    status: scan.status,
+    uploaded_at: scan.uploaded_at.toISOString(),
+    updated_at: scan.updated_at.toISOString(),
+  };
+}
+
+function serializeAnalysis(analysis) {
+  if (!analysis) return null;
+  return {
+    id: analysis.id,
+    scan_id: analysis.scan_id,
+    unet_mask_path: analysis.unet_mask_path,
+    gradcam_path: analysis.gradcam_path,
+    tumor_volume_cc: analysis.tumor_volume_cc,
+    tumor_location_description: analysis.tumor_location_description,
+    inference_log: analysis.inference_log,
+    created_at: analysis.created_at.toISOString(),
+    updated_at: analysis.updated_at.toISOString(),
+  };
+}
+
+async function getScanRecord(scanId) {
+  const scan = await prisma.scan.findUnique({ where: { id: scanId } });
+  return scan ? serializeScan(scan) : null;
+}
+
+async function updateScanStatus(scanId, status) {
+  const scan = await prisma.scan.update({
+    where: { id: scanId },
+    data: { status },
+  });
+  return serializeScan(scan);
+}
+
+async function upsertAnalysis(scanId, payload) {
+  const analysis = await prisma.scanAnalysis.upsert({
+    where: { scan_id: scanId },
+    create: {
+      scan_id: scanId,
+      unet_mask_path: payload.unet_mask_path ?? null,
+      gradcam_path: payload.gradcam_path ?? null,
+      tumor_volume_cc: payload.tumor_volume_cc ?? null,
+      tumor_location_description: payload.tumor_location_description ?? null,
+      inference_log: payload.inference_log ?? null,
+    },
+    update: {
+      unet_mask_path: payload.unet_mask_path ?? undefined,
+      gradcam_path: payload.gradcam_path ?? undefined,
+      tumor_volume_cc: payload.tumor_volume_cc ?? undefined,
+      tumor_location_description: payload.tumor_location_description ?? undefined,
+      inference_log: payload.inference_log ?? undefined,
+    },
+  });
+  return serializeAnalysis(analysis);
+}
+
 async function uploadScan({ file, patientId, doctorId }) {
   if (!file) throw badRequest("DICOM file is required.", "FILE_REQUIRED");
 
-  const patient = findUserById(patientId);
+  const patient = await UserService.findUserById(patientId);
   if (!patient || patient.role !== "PATIENT") {
     throw notFound("Patient not found.", "PATIENT_NOT_FOUND");
   }
 
-  const scan = createScan({
-    patient_id: patientId,
-    doctor_id: doctorId,
-    dicom_path: null,
-    modality: "MRI",
+  const created = await prisma.scan.create({
+    data: {
+      patient_id: patientId,
+      doctor_id: doctorId,
+      modality: "MRI",
+      status: "UPLOADED",
+    },
   });
 
-  const { logicalPath } = await saveDicom(scan.id, file.originalname || "scan.dcm", file.buffer);
+  const { logicalPath } = await saveDicom(
+    created.id,
+    file.originalname || "scan.dcm",
+    file.buffer
+  );
+
+  const scan = await updateScanStatus(created.id, "ANALYSIS_PENDING");
+  await prisma.scan.update({
+    where: { id: created.id },
+    data: { dicom_path: logicalPath },
+  });
   scan.dicom_path = logicalPath;
-  updateScanStatus(scan.id, "ANALYSIS_PENDING");
 
   AuditService.log({
     user_id: doctorId,
@@ -72,10 +128,9 @@ async function uploadScan({ file, patientId, doctorId }) {
     metadata: { patient_id: patientId, status: "ANALYSIS_PENDING" },
   });
 
-  // Fire-and-forget: the HTTP caller returns immediately while analysis runs.
   scheduleAnalysis(scan.id).catch((err) => {
     console.error(`[ScanService] Analysis failed for scan ${scan.id}:`, err);
-    updateScanStatus(scan.id, "FAILED");
+    updateScanStatus(scan.id, "FAILED").catch(() => {});
     AuditService.log({
       user_id: null,
       action: "ANALYSIS_FAILED",
@@ -85,23 +140,13 @@ async function uploadScan({ file, patientId, doctorId }) {
     });
   });
 
-  return { scan_id: scan.id, status: scan.status };
+  return { scan_id: scan.id, status: "ANALYSIS_PENDING" };
 }
 
-/**
- * Trigger the full segmentation → Grad-CAM → report pipeline.
- *
- * Prefers the FastAPI AI microservice when reachable (`AI_SERVICE_URL`).
- * If it errors or is offline, falls back to a local deterministic stub so
- * the doctor flow remains demonstrable without the service running.
- *
- * In production this function will enqueue a Celery chain instead of
- * executing inline — see `ml/worker/tasks.py`.
- */
 async function scheduleAnalysis(scanId) {
-  updateScanStatus(scanId, "ANALYSIS_RUNNING");
+  await updateScanStatus(scanId, "ANALYSIS_RUNNING");
 
-  const scan = getScanById(scanId);
+  const scan = await getScanRecord(scanId);
   if (!scan) return;
 
   let result;
@@ -115,14 +160,15 @@ async function scheduleAnalysis(scanId) {
     console.warn(
       "[ScanService] AI service unreachable, falling back to local stub:",
       err.message,
-      "| detail:", err.response?.data?.detail ?? err.response?.data ?? "(no response body)"
+      "| detail:",
+      err.response?.data?.detail ?? err.response?.data ?? "(no response body)"
     );
     result = localStubAnalysis(scanId);
   }
 
   const { segmentation, gradcam, report } = result;
 
-  upsertAnalysis(scanId, {
+  await upsertAnalysis(scanId, {
     unet_mask_path: segmentation.mask_path,
     gradcam_path: gradcam.gradcam_path,
     tumor_volume_cc: segmentation.tumor_volume_cc,
@@ -130,14 +176,14 @@ async function scheduleAnalysis(scanId) {
     inference_log: segmentation.inference_log,
   });
 
-  upsertDraftReport({
+  await ReportService.upsertDraftReport({
     scan_id: scanId,
     patient_id: scan.patient_id,
     doctor_id: scan.doctor_id,
     ai_draft: report.ai_draft,
   });
 
-  updateScanStatus(scanId, "ANALYSIS_COMPLETE");
+  await updateScanStatus(scanId, "ANALYSIS_COMPLETE");
 
   AuditService.log({
     user_id: null,
@@ -148,15 +194,15 @@ async function scheduleAnalysis(scanId) {
   });
 }
 
-function completeAnalysis(scanId, payload) {
-  const scan = getScanById(scanId);
+async function completeAnalysis(scanId, payload) {
+  const scan = await getScanRecord(scanId);
   if (!scan) throw notFound("Scan not found.");
 
   const segmentation = payload.segmentation ?? {};
   const gradcam = payload.gradcam ?? {};
   const report = payload.report ?? {};
 
-  upsertAnalysis(scanId, {
+  await upsertAnalysis(scanId, {
     unet_mask_path: segmentation.mask_path,
     gradcam_path: gradcam.gradcam_path,
     tumor_volume_cc: segmentation.tumor_volume_cc,
@@ -164,14 +210,14 @@ function completeAnalysis(scanId, payload) {
     inference_log: segmentation.inference_log,
   });
 
-  upsertDraftReport({
+  await ReportService.upsertDraftReport({
     scan_id: scanId,
     patient_id: scan.patient_id,
     doctor_id: scan.doctor_id,
     ai_draft: report.ai_draft,
   });
 
-  updateScanStatus(scanId, "ANALYSIS_COMPLETE");
+  await updateScanStatus(scanId, "ANALYSIS_COMPLETE");
 
   AuditService.log({
     user_id: null,
@@ -230,8 +276,8 @@ function buildDraftReport({ volume, location }) {
   ].join("\n");
 }
 
-function getScanSummary(scanId, { requester }) {
-  const scan = getScanById(scanId);
+async function getScanSummary(scanId, { requester }) {
+  const scan = await getScanRecord(scanId);
   if (!scan) throw notFound("Scan not found.");
   if (requester.role === "DOCTOR" && scan.doctor_id !== requester.sub) {
     const err = new Error("You do not have access to this scan.");
@@ -242,20 +288,44 @@ function getScanSummary(scanId, { requester }) {
   return scan;
 }
 
-function getScanAnalysis(scanId, { requester }) {
-  const scan = getScanSummary(scanId, { requester });
-  const analysis = getAnalysisByScan(scanId);
+async function getScanAnalysis(scanId, { requester }) {
+  const scan = await getScanSummary(scanId, { requester });
+  const analysis = await prisma.scanAnalysis.findUnique({
+    where: { scan_id: scanId },
+  });
   if (!analysis) {
     const err = new Error("Analysis is not ready yet.");
     err.status = 409;
     err.code = "ANALYSIS_NOT_READY";
     throw err;
   }
-  return { scan_id: scan.id, ...analysis };
+  return { scan_id: scan.id, ...serializeAnalysis(analysis) };
 }
 
-function listByPatient(patientId) {
-  return listScansByPatient(patientId);
+async function listByPatient(patientId) {
+  const scans = await prisma.scan.findMany({
+    where: { patient_id: patientId },
+    orderBy: { uploaded_at: "desc" },
+  });
+  return scans.map(serializeScan);
+}
+
+async function listByDoctor(doctorId) {
+  const scans = await prisma.scan.findMany({
+    where: { doctor_id: doctorId },
+    include: {
+      patient: { select: { full_name: true } },
+      report: { select: { id: true, status: true } },
+    },
+    orderBy: { uploaded_at: "desc" },
+  });
+
+  return scans.map((scan) => ({
+    ...serializeScan(scan),
+    patient_name: scan.patient.full_name,
+    report_id: scan.report?.id ?? null,
+    report_status: scan.report?.status ?? null,
+  }));
 }
 
 module.exports = {
@@ -265,4 +335,6 @@ module.exports = {
   getScanSummary,
   getScanAnalysis,
   listByPatient,
+  listByDoctor,
+  getScanRecord,
 };

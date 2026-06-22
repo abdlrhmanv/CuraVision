@@ -1,12 +1,4 @@
-const {
-  getReportById,
-  getReportByScan,
-  getReportsByPatient,
-  updateReport,
-  addCorrection,
-  getCorrections,
-} = require("../mockData/reports");
-const { getScanById } = require("../mockData/scans");
+const prisma = require("../config/prisma");
 const AuditService = require("./AuditService");
 
 function httpError(status, code, message) {
@@ -16,32 +8,76 @@ function httpError(status, code, message) {
   return err;
 }
 
-function getReportForScan(scanId, { requester }) {
-  const scan = getScanById(scanId);
+function serializeReport(report) {
+  return {
+    id: report.id,
+    scan_id: report.scan_id,
+    patient_id: report.patient_id,
+    doctor_id: report.doctor_id,
+    status: report.status,
+    patient_visible: report.patient_visible,
+    ai_draft: report.ai_draft,
+    final_report: report.final_report,
+    created_at: report.created_at.toISOString(),
+    updated_at: report.updated_at.toISOString(),
+  };
+}
+
+function serializeCorrection(correction) {
+  return {
+    id: correction.id,
+    report_id: correction.report_id,
+    field: correction.field,
+    old_value: correction.old_value,
+    new_value: correction.new_value,
+    created_at: correction.created_at.toISOString(),
+  };
+}
+
+async function getReportById(reportId) {
+  const report = await prisma.report.findUnique({ where: { id: reportId } });
+  return report ? serializeReport(report) : null;
+}
+
+async function getReportByScan(scanId) {
+  const report = await prisma.report.findUnique({ where: { scan_id: scanId } });
+  return report ? serializeReport(report) : null;
+}
+
+async function upsertDraftReport({ scan_id, patient_id, doctor_id, ai_draft }) {
+  const report = await prisma.report.upsert({
+    where: { scan_id },
+    create: {
+      scan_id,
+      patient_id,
+      doctor_id,
+      status: "DRAFT",
+      patient_visible: false,
+      ai_draft: ai_draft ?? "",
+    },
+    update: {
+      ai_draft: ai_draft ?? undefined,
+    },
+  });
+  return serializeReport(report);
+}
+
+async function getReportForScan(scanId, { requester }) {
+  const scan = await prisma.scan.findUnique({ where: { id: scanId } });
   if (!scan) throw httpError(404, "SCAN_NOT_FOUND", "Scan not found.");
   if (requester.role === "DOCTOR" && scan.doctor_id !== requester.sub) {
     throw httpError(403, "FORBIDDEN", "You do not have access to this scan.");
   }
 
-  const report = getReportByScan(scanId);
+  const report = await getReportByScan(scanId);
   if (!report) {
     throw httpError(404, "REPORT_NOT_READY", "Report is not available yet.");
   }
   return report;
 }
 
-/**
- * Doctor edits a report.
- *
- * Two flavours of HITL corrections are supported:
- *   1. Explicit — client sends structured `corrections: [{ field, old_value, new_value }]`
- *      for fine-grained training labels (e.g. per-section edits).
- *   2. Implicit — whenever `final_report` changes we auto-log a correction
- *      with the previous vs new text so the ML team always has a training
- *      pair, even if the UI forgets to send structured diffs.
- */
-function editReport(reportId, { requester, final_report, corrections }) {
-  const report = getReportById(reportId);
+async function editReport(reportId, { requester, final_report, corrections }) {
+  const report = await getReportById(reportId);
   if (!report) throw httpError(404, "REPORT_NOT_FOUND", "Report not found.");
   if (report.doctor_id !== requester.sub) {
     throw httpError(403, "FORBIDDEN", "Only the assigned doctor can edit this report.");
@@ -50,43 +86,48 @@ function editReport(reportId, { requester, final_report, corrections }) {
     throw httpError(409, "REPORT_PUBLISHED", "Published reports cannot be edited.");
   }
 
-  const patch = {};
   const previousFinal = report.final_report;
   const finalReportChanged =
     typeof final_report === "string" && final_report !== previousFinal;
 
   if (finalReportChanged) {
-    patch.final_report = final_report;
-    patch.status = "REVIEWED";
+    await prisma.report.update({
+      where: { id: reportId },
+      data: {
+        final_report,
+        status: "REVIEWED",
+      },
+    });
   }
-  updateReport(reportId, patch);
 
   let autoCorrections = 0;
 
-  // Implicit: record a correction when the text actually changed.
   if (finalReportChanged) {
     const baseline = previousFinal ?? report.ai_draft ?? "";
     if (baseline !== final_report) {
-      addCorrection({
-        report_id: reportId,
-        field: "final_report",
-        old_value: baseline,
-        new_value: final_report,
+      await prisma.reportCorrection.create({
+        data: {
+          report_id: reportId,
+          field: "final_report",
+          old_value: baseline,
+          new_value: final_report,
+        },
       });
       autoCorrections += 1;
     }
   }
 
-  // Explicit: whatever the UI tagged (e.g. "impression" vs "findings").
   let explicitCorrections = 0;
   if (Array.isArray(corrections)) {
     for (const c of corrections) {
       if (c && typeof c.field === "string") {
-        addCorrection({
-          report_id: reportId,
-          field: c.field,
-          old_value: c.old_value ?? null,
-          new_value: c.new_value ?? null,
+        await prisma.reportCorrection.create({
+          data: {
+            report_id: reportId,
+            field: c.field,
+            old_value: c.old_value ?? null,
+            new_value: c.new_value ?? null,
+          },
         });
         explicitCorrections += 1;
       }
@@ -107,8 +148,8 @@ function editReport(reportId, { requester, final_report, corrections }) {
   return getReportById(reportId);
 }
 
-function approveReport(reportId, { requester }) {
-  const report = getReportById(reportId);
+async function approveReport(reportId, { requester }) {
+  const report = await getReportById(reportId);
   if (!report) throw httpError(404, "REPORT_NOT_FOUND", "Report not found.");
   if (report.doctor_id !== requester.sub) {
     throw httpError(403, "FORBIDDEN", "Only the assigned doctor can approve this report.");
@@ -117,9 +158,12 @@ function approveReport(reportId, { requester }) {
     throw httpError(400, "REPORT_EMPTY", "Finalize the report text before approval.");
   }
 
-  updateReport(reportId, {
-    status: "PUBLISHED",
-    patient_visible: true,
+  await prisma.report.update({
+    where: { id: reportId },
+    data: {
+      status: "PUBLISHED",
+      patient_visible: true,
+    },
   });
 
   AuditService.log({
@@ -133,19 +177,37 @@ function approveReport(reportId, { requester }) {
   return getReportById(reportId);
 }
 
-function listForPatient(patientId) {
-  return getReportsByPatient(patientId, { onlyVisible: true });
+async function listForPatient(patientId) {
+  const reports = await prisma.report.findMany({
+    where: {
+      patient_id: patientId,
+      patient_visible: true,
+    },
+    orderBy: { updated_at: "desc" },
+  });
+  return reports.map(serializeReport);
 }
 
-function getForPatient(reportId, patientId) {
-  const report = getReportById(reportId);
+async function getForPatient(reportId, patientId) {
+  const report = await getReportById(reportId);
   if (!report || !report.patient_visible || report.patient_id !== patientId) {
     throw httpError(404, "REPORT_NOT_FOUND", "Report not found.");
   }
   return report;
 }
 
+async function getCorrections(reportId) {
+  const corrections = await prisma.reportCorrection.findMany({
+    where: { report_id: reportId },
+    orderBy: { created_at: "asc" },
+  });
+  return corrections.map(serializeCorrection);
+}
+
 module.exports = {
+  getReportById,
+  getReportByScan,
+  upsertDraftReport,
   getReportForScan,
   editReport,
   approveReport,

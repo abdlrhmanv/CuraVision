@@ -35,4 +35,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -fsS http://localhost:3001/health || exit 1
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "src/server.js"]
+CMD ["sh", "docker-entrypoint.sh"]

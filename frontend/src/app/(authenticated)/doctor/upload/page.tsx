@@ -4,12 +4,12 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Upload } from 'lucide-react'
 import { useRequireAuth } from '@/lib/authContext'
-import { ApiError, AuthUser, api, scansApi } from '@/lib/apiClient'
+import { ApiError, patientsApi, scansApi } from '@/lib/apiClient'
 
 export default function DoctorUploadPage() {
   const { user, loading } = useRequireAuth('DOCTOR')
   const router = useRouter()
-  const [patients, setPatients] = useState<AuthUser[]>([])
+  const [patients, setPatients] = useState<{ id: string; full_name: string; email: string }[]>([])
   const [patientId, setPatientId] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -17,15 +17,14 @@ export default function DoctorUploadPage() {
 
   useEffect(() => {
     if (loading || !user) return
-    api
-      .get<{ users: AuthUser[] }>('/api/admin/users?role=PATIENT')
+    patientsApi
+      .list()
       .then((res) => {
-        setPatients(res.users)
-        if (res.users.length > 0) setPatientId(res.users[0].id)
+        setPatients(res.patients)
+        if (res.patients.length > 0) setPatientId(res.patients[0].id)
       })
       .catch(() => {
-        // Fallback: admin endpoint is gated; leave the list empty so the doctor can
-        // paste the patient ID manually.
+        // Leave empty so the doctor can paste a patient ID manually.
       })
   }, [loading, user])
 

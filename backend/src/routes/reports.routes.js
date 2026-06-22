@@ -15,11 +15,6 @@ function validate(req, res) {
   return true;
 }
 
-/**
- * PATCH /api/reports/:id
- * Doctor edits the final_report text and (optionally) logs corrections.
- * Body: { final_report: string, corrections?: [{ field, old_value, new_value }] }
- */
 router.patch(
   "/:id",
   authenticateJWT,
@@ -28,10 +23,10 @@ router.patch(
     body("final_report").optional().isString(),
     body("corrections").optional().isArray(),
   ],
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       if (!validate(req, res)) return;
-      const updated = ReportService.editReport(req.params.id, {
+      const updated = await ReportService.editReport(req.params.id, {
         requester: req.user,
         final_report: req.body.final_report,
         corrections: req.body.corrections,
@@ -43,17 +38,13 @@ router.patch(
   }
 );
 
-/**
- * POST /api/reports/:id/approve
- * Doctor approves and publishes the report.
- */
 router.post(
   "/:id/approve",
   authenticateJWT,
   authorizeRole("DOCTOR"),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
-      const approved = ReportService.approveReport(req.params.id, {
+      const approved = await ReportService.approveReport(req.params.id, {
         requester: req.user,
       });
       res.json(approved);
@@ -63,17 +54,13 @@ router.post(
   }
 );
 
-/**
- * GET /api/reports/:id/corrections
- * Doctor retrieves HITL corrections for a report.
- */
 router.get(
   "/:id/corrections",
   authenticateJWT,
   authorizeRole("DOCTOR"),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
-      const corrections = ReportService.getCorrections(req.params.id);
+      const corrections = await ReportService.getCorrections(req.params.id);
       res.json({ report_id: req.params.id, corrections });
     } catch (err) {
       next(err);
