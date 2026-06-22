@@ -275,5 +275,94 @@ export const reservationsApi = {
       slots: { start_time: string; end_time: string }[];
     }>(`/api/doctors/${doctorId}/availability?from=${from}&to=${to}`),
   listDoctors: () =>
-    api.get<{ doctors: AuthUser[] }>("/api/doctors"),
+    api.get<{ doctors: Array<{ id: string; full_name: string; email: string; role: "DOCTOR"; specialization?: string }> }>("/api/doctors"),
+};
+
+export interface User {
+  id: string;
+  email: string;
+  role: "PATIENT" | "DOCTOR" | "ADMIN";
+  full_name: string;
+  status?: "ACTIVE" | "DISABLED";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AuditLog {
+  id: string;
+  user_id: string;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  timestamp: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface Patient {
+  id: string;
+  full_name: string;
+  email: string;
+  phone?: string;
+  status?: "ACTIVE" | "INACTIVE";
+  created_at: string;
+  updated_at?: string;
+  last_scan_date?: string;
+  total_scans: number;
+  pending_reports: number;
+}
+
+export const patientsApi = {
+  list: () => api.get<{ patients: Patient[] }>("/api/patients"),
+  get: (id: string) => api.get<Patient>(`/api/patients/${id}`),
+  listForDoctor: (doctorId: string) =>
+    api.get<{ patients: Patient[] }>(`/api/doctors/${doctorId}/patients`),
+  update: (id: string, updates: Partial<Patient>) =>
+    api.patch<Patient>(`/api/patients/${id}`, updates),
+};
+
+export const adminApi = {
+  listUsers: (params?: {
+    query?: string;
+    role?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.query) searchParams.set('query', params.query);
+    if (params?.role) searchParams.set('role', params.role);
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.limit) searchParams.set('limit', params.limit.toString());
+    if (params?.offset) searchParams.set('offset', params.offset.toString());
+
+    const query = searchParams.toString();
+    return api.get<{ users: User[]; total: number }>(`/api/admin/users${query ? `?${query}` : ''}`);
+  },
+
+  updateUser: (userId: string, updates: Partial<User>) =>
+    api.patch<User>(`/api/admin/users/${userId}`, updates),
+
+  getAuditLogs: (params?: {
+    user_id?: string;
+    action?: string;
+    entity_type?: string;
+    entity_id?: string;
+    from?: string;
+    to?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.user_id) searchParams.set('user_id', params.user_id);
+    if (params?.action) searchParams.set('action', params.action);
+    if (params?.entity_type) searchParams.set('entity_type', params.entity_type);
+    if (params?.entity_id) searchParams.set('entity_id', params.entity_id);
+    if (params?.from) searchParams.set('from', params.from);
+    if (params?.to) searchParams.set('to', params.to);
+    if (params?.limit) searchParams.set('limit', params.limit.toString());
+    if (params?.offset) searchParams.set('offset', params.offset.toString());
+
+    const query = searchParams.toString();
+    return api.get<{ logs: AuditLog[]; total: number }>(`/api/admin/audit-logs${query ? `?${query}` : ''}`);
+  },
 };

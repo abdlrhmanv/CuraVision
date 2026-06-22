@@ -1,5 +1,18 @@
 const fs = require("fs");
 const path = require("path");
+const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
+
+const s3Client = process.env.S3_ENDPOINT ? new S3Client({
+  endpoint: process.env.S3_ENDPOINT,
+  region: process.env.S3_REGION || "us-east-1",
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY || "curavision",
+    secretAccessKey: process.env.S3_SECRET_KEY || "curavision",
+  },
+  forcePathStyle: true,
+}) : null;
+
+const S3_BUCKET = process.env.S3_BUCKET || "curavision";
 
 /**
  * Resolve the root directory used for local object storage.
@@ -26,11 +39,22 @@ function ensureDir(dirPath) {
  * @param {string} filename
  * @param {Buffer} buffer
  */
-function saveDicom(scanId, filename, buffer) {
+async function saveDicom(scanId, filename, buffer) {
+  const logicalPath = `storage/dicoms/${scanId}/${filename}`;
+  
+  if (s3Client) {
+    await s3Client.send(new PutObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: `dicoms/${scanId}/${filename}`,
+      Body: buffer,
+      ContentType: "application/dicom",
+    }));
+    return { absPath: null, logicalPath };
+  }
+
   const dir = ensureDir(path.join(getStorageRoot(), "dicoms", scanId));
   const absPath = path.join(dir, filename);
   fs.writeFileSync(absPath, buffer);
-  const logicalPath = `storage/dicoms/${scanId}/${filename}`;
   return { absPath, logicalPath };
 }
 

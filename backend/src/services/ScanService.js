@@ -45,7 +45,7 @@ function badRequest(message, code = "VALIDATION_ERROR") {
  * @param {string} params.patientId
  * @param {string} params.doctorId
  */
-function uploadScan({ file, patientId, doctorId }) {
+async function uploadScan({ file, patientId, doctorId }) {
   if (!file) throw badRequest("DICOM file is required.", "FILE_REQUIRED");
 
   const patient = findUserById(patientId);
@@ -60,7 +60,7 @@ function uploadScan({ file, patientId, doctorId }) {
     modality: "MRI",
   });
 
-  const { logicalPath } = saveDicom(scan.id, file.originalname || "scan.dcm", file.buffer);
+  const { logicalPath } = await saveDicom(scan.id, file.originalname || "scan.dcm", file.buffer);
   scan.dicom_path = logicalPath;
   updateScanStatus(scan.id, "ANALYSIS_PENDING");
 

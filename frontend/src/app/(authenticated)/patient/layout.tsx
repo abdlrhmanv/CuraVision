@@ -1,9 +1,7 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
-import { Menu, Bell } from 'lucide-react'
-import Sidebar from '@/components/layout/sidebar'
+import { Bell } from 'lucide-react'
 import { useRequireAuth } from '@/lib/authContext'
 
 function initials(name: string): string {
@@ -18,7 +16,6 @@ function initials(name: string): string {
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useRequireAuth('PATIENT')
-  const [collapsed, setCollapsed] = useState(false)
 
   if (loading || !user) {
     return (
@@ -32,12 +29,6 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
     <div className="min-h-screen bg-bg">
       <header className="h-[60px] border-b border-border bg-bg/95 backdrop-blur-sm px-4 md:px-8 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="w-8 h-8 rounded-md bg-card border border-border flex items-center justify-center text-muted hover:text-white hover:border-accent transition-all duration-200"
-          >
-            <Menu size={16} />
-          </button>
           <Link href="/patient" className="text-lg font-extrabold tracking-tight">
             Cura<span className="text-accent">Vision</span>
           </Link>
@@ -58,7 +49,6 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
       </header>
 
       <div className="flex min-h-[calc(100vh-60px)]">
-        <Sidebar role="patient" collapsed={collapsed} />
         <main className="flex-1 p-5 md:p-8 lg:p-10 overflow-auto">{children}</main>
       </div>
     </div>

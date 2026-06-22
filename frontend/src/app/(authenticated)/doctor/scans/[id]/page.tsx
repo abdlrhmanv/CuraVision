@@ -8,13 +8,13 @@ import {
   ApiError,
   Report,
   ReportCorrection,
-  Scan,
-  ScanAnalysis,
   API_BASE_URL,
   reportsApi,
   scansApi,
 } from '@/lib/apiClient'
 import DicomViewer from '@/components/medical/DicomViewer'
+import { useScanAnalysisStatus } from '@/hooks/useScanAnalysisStatus'
+import { ReportEditor } from '@/components/medical/ReportEditor'
 
 function storageUrl(path: string | null | undefined): string | null {
   if (!path) return null
@@ -26,8 +26,6 @@ export default function DoctorScanReviewPage() {
   const router = useRouter()
   const { user, loading } = useRequireAuth('DOCTOR')
 
-  const [scan, setScan] = useState<Scan | null>(null)
-  const [analysis, setAnalysis] = useState<ScanAnalysis | null>(null)
   const [report, setReport] = useState<Report | null>(null)
   const [draftText, setDraftText] = useState('')
   const [message, setMessage] = useState<string | null>(null)
@@ -45,90 +43,69 @@ export default function DoctorScanReviewPage() {
     }
   }
 
-  const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { scan, analysis, loading: pollingLoading, error: pollingError } = useScanAnalysisStatus(id);
 
-  const fetchAll = async () => {
-    if (!id) return
+  const fetchReport = async () => {
+    if (!id || !scan || scan.status !== 'ANALYSIS_COMPLETE') return;
     try {
-      const s = await scansApi.get(id)
-      setScan(s)
-
-      if (s.status === 'ANALYSIS_COMPLETE') {
-        const [a, r] = await Promise.all([
-          scansApi.analysis(id).catch(() => null),
-          scansApi.reportForScan(id).catch(() => null),
-        ])
-        setAnalysis(a)
-        setReport(r)
-        if (r && !draftText) setDraftText(r.final_report ?? r.ai_draft ?? '')
-        if (r) loadCorrections(r.id)
-      }
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load scan')
+      const r = await scansApi.reportForScan(id);
+      setReport(r);
+      if (r && !draftText) setDraftText(r.final_report ?? r.ai_draft ?? '');
+      if (r) loadCorrections(r.id);
+    } catch {
+      // ignore
     }
-  }
+  };
 
   useEffect(() => {
-    if (loading || !user) return
-    fetchAll()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, user, id])
+    fetchReport();
+  }, [scan?.status]);
 
-  // Poll while analysis is running.
-  useEffect(() => {
-    if (!scan) return
-    if (scan.status === 'ANALYSIS_COMPLETE' || scan.status === 'FAILED') return
-    pollingRef.current = setTimeout(fetchAll, 2000)
-    return () => {
-      if (pollingRef.current) clearTimeout(pollingRef.current)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scan?.status])
-
-  const handleSave = async () => {
-    if (!report) return
-    setBusy(true)
-    setError(null)
+  const handleSave = async (newText: string) => {
+    if (!report) return;
+    setBusy(true);
+    setError(null);
     try {
-      const updated = await reportsApi.patch(report.id, { final_report: draftText })
-      setReport(updated)
-      setMessage('Draft saved.')
-      loadCorrections(report.id)
+      const updated = await reportsApi.patch(report.id, { final_report: newText });
+      setReport(updated);
+      setDraftText(newText);
+      setMessage('Draft saved.');
+      loadCorrections(report.id);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to save')
+      setError(err instanceof ApiError ? err.message : 'Failed to save');
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
-  }
+  };
 
   const handleApprove = async () => {
-    if (!report) return
+    if (!report) return;
     if (!draftText.trim()) {
-      setError('Finalize the report text before approving.')
-      return
+      setError('Finalize the report text before approving.');
+      return;
     }
-    setBusy(true)
-    setError(null)
+    setBusy(true);
+    setError(null);
     try {
       if (report.final_report !== draftText) {
-        await reportsApi.patch(report.id, { final_report: draftText })
+        await reportsApi.patch(report.id, { final_report: draftText });
       }
-      const approved = await reportsApi.approve(report.id)
-      setReport(approved)
-      setMessage('Report approved and published to the patient.')
-      loadCorrections(report.id)
+      const approved = await reportsApi.approve(report.id);
+      setReport(approved);
+      setMessage('Report approved and published to the patient.');
+      loadCorrections(report.id);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to approve')
+      setError(err instanceof ApiError ? err.message : 'Failed to approve');
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
-  }
+  };
 
-  if (loading || !user) return <div className="p-6 text-sm text-muted">Loading...</div>
+  if (loading || pollingLoading || !user) return <div className="p-6 text-sm text-muted">Loading...</div>;
   if (!scan) {
     return (
       <div className="p-6 text-sm text-muted">
-        {error ?? 'Loading scan...'}
+        {pollingError?.message ?? error ?? 'Loading scan...'}
         <button
           onClick={() => router.back()}
           className="ml-4 text-blue hover:underline"
@@ -136,11 +113,11 @@ export default function DoctorScanReviewPage() {
           Go back
         </button>
       </div>
-    )
+    );
   }
 
-  const dicomSrc = storageUrl(scan.dicom_path)
-  const heatmapSrc = storageUrl(analysis?.gradcam_path)
+  const dicomSrc = storageUrl(scan.dicom_path);
+  const heatmapSrc = storageUrl(analysis?.gradcam_path);
 
   return (
     <>
@@ -159,7 +136,7 @@ export default function DoctorScanReviewPage() {
             {scan.status}
           </span>
           <button
-            onClick={fetchAll}
+            onClick={fetchReport}
             className="px-3 py-1.5 rounded-lg bg-surface border border-border text-xs text-muted hover:text-white hover:border-blue transition flex items-center gap-2"
           >
             <RefreshCw size={12} /> Refresh
@@ -202,48 +179,13 @@ export default function DoctorScanReviewPage() {
         </div>
       )}
 
-      <div className="bg-card border border-border rounded-xl p-5">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <div className="text-[10px] uppercase tracking-wide text-muted">
-              Report editor
-            </div>
-            <div className="text-sm">
-              Status:{' '}
-              <span className="font-semibold">
-                {report?.status ?? (scan.status === 'ANALYSIS_COMPLETE' ? 'loading...' : 'waiting for analysis')}
-              </span>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={handleSave}
-              disabled={!report || busy || report.status === 'PUBLISHED'}
-              className="px-3 py-1.5 rounded-lg bg-surface border border-border text-xs hover:border-blue transition disabled:opacity-50 flex items-center gap-2"
-            >
-              <Save size={12} /> Save draft
-            </button>
-            <button
-              onClick={handleApprove}
-              disabled={!report || busy || report.status === 'PUBLISHED'}
-              className="px-3 py-1.5 rounded-lg bg-accent text-[#050B18] text-xs font-bold hover:bg-[#00ddd4] transition disabled:opacity-50 flex items-center gap-2"
-            >
-              <CheckCircle2 size={12} /> Approve & publish
-            </button>
-          </div>
-        </div>
-
-        <textarea
-          value={draftText}
-          onChange={(e) => setDraftText(e.target.value)}
-          disabled={!report || report.status === 'PUBLISHED'}
-          rows={18}
-          className="w-full px-4 py-3 rounded-lg bg-surface border border-border text-sm font-mono leading-relaxed focus:outline-none focus:border-blue disabled:opacity-60"
-          placeholder={
-            scan.status === 'ANALYSIS_COMPLETE'
-              ? 'Report text'
-              : 'Report will appear here once analysis completes.'
-          }
+      <div className="mt-6">
+        <ReportEditor
+          initialReport={draftText}
+          onSave={handleSave}
+          onApprove={handleApprove}
+          isApproving={busy}
+          status={report?.status ?? (scan.status === 'ANALYSIS_COMPLETE' ? 'LOADING' : 'PENDING')}
         />
       </div>
 

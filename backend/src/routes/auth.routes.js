@@ -1,23 +1,10 @@
 const express = require("express");
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
 const { body, validationResult } = require("express-validator");
-const {
-  findUserByEmail,
-  createUser,
-  toPublicUser,
-} = require("../mockData/users");
+const AuthService = require("../services/AuthService");
+const UserService = require("../services/UserService");
 const AuditService = require("../services/AuditService");
 
 const router = express.Router();
-
-function signToken(user) {
-  return jwt.sign(
-    { sub: user.id, role: user.role, full_name: user.full_name },
-    process.env.JWT_SECRET,
-    { expiresIn: "8h" }
-  );
-}
 
 function handleValidation(req, res) {
   const errors = validationResult(req);
@@ -51,12 +38,12 @@ router.post(
       .isIn(["PATIENT", "DOCTOR"])
       .withMessage("Role must be PATIENT or DOCTOR."),
   ],
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       if (!handleValidation(req, res)) return;
 
       const { email, password, full_name, role = "PATIENT" } = req.body;
-      const user = createUser({ email, password, full_name, role });
+      const user = await AuthService.register({ email, password, full_name, role });
 
       AuditService.log({
         user_id: user.id,
@@ -66,9 +53,12 @@ router.post(
         metadata: { role: user.role },
       });
 
-      const token = signToken(user);
-      res.status(201).json({ token, user: toPublicUser(user) });
+      const token = AuthService.signToken(user);
+      res.status(201).json({ token, user: UserService.toPublicUser(user) });
     } catch (err) {
+      if (err.code === "EMAIL_IN_USE") {
+        return res.status(err.status).json({ code: err.code, message: err.message });
+      }
       next(err);
     }
   }
@@ -90,28 +80,7 @@ router.post(
       if (!handleValidation(req, res)) return;
 
       const { email, password } = req.body;
-      const user = findUserByEmail(email);
-      if (!user) {
-        return res.status(401).json({
-          code: "INVALID_CREDENTIALS",
-          message: "Email or password is incorrect.",
-        });
-      }
-
-      const passwordMatch = await bcrypt.compare(password, user.password_hash);
-      if (!passwordMatch) {
-        return res.status(401).json({
-          code: "INVALID_CREDENTIALS",
-          message: "Email or password is incorrect.",
-        });
-      }
-
-      if (user.status && user.status !== "ACTIVE") {
-        return res.status(403).json({
-          code: "ACCOUNT_DISABLED",
-          message: "This account is not active.",
-        });
-      }
+      const user = await AuthService.login({ email, password });
 
       AuditService.log({
         user_id: user.id,
@@ -120,12 +89,16 @@ router.post(
         entity_id: user.id,
       });
 
-      const token = signToken(user);
-      res.json({ token, user: toPublicUser(user) });
+      const token = AuthService.signToken(user);
+      res.json({ token, user: UserService.toPublicUser(user) });
     } catch (err) {
+      if (err.code === "INVALID_CREDENTIALS" || err.code === "ACCOUNT_DISABLED") {
+        return res.status(err.status).json({ code: err.code, message: err.message });
+      }
       next(err);
     }
   }
 );
 
 module.exports = router;
+

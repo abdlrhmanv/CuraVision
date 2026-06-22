@@ -3,7 +3,7 @@ const { body, validationResult } = require("express-validator");
 const { authenticateJWT } = require("../middleware/authenticateJWT");
 const { authorizeRole } = require("../middleware/authorizeRole");
 const AuditService = require("../services/AuditService");
-const { listUsers, updateUser, findUserById, toPublicUser } = require("../mockData/users");
+const UserService = require("../services/UserService");
 
 const router = express.Router();
 
@@ -24,7 +24,7 @@ router.get(
   "/audit-logs",
   authenticateJWT,
   authorizeRole("ADMIN"),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       const {
         user_id,
@@ -37,7 +37,7 @@ router.get(
         offset,
       } = req.query;
 
-      const result = AuditService.search({
+      const result = await AuditService.search({
         user_id,
         action,
         entity_type,
@@ -62,10 +62,10 @@ router.get(
   "/users",
   authenticateJWT,
   authorizeRole("ADMIN"),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       const { query, role, status, limit, offset } = req.query;
-      const result = listUsers({
+      const result = await UserService.listUsers({
         query,
         role,
         status,
@@ -92,11 +92,11 @@ router.patch(
     body("status").optional().isIn(["ACTIVE", "DISABLED"]),
     body("full_name").optional().isString().isLength({ min: 1, max: 255 }),
   ],
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       if (!validate(req, res)) return;
 
-      const user = findUserById(req.params.id);
+      const user = await UserService.findUserById(req.params.id);
       if (!user) {
         return res.status(404).json({
           code: "USER_NOT_FOUND",
@@ -104,7 +104,7 @@ router.patch(
         });
       }
 
-      const updated = updateUser(req.params.id, {
+      const updated = await UserService.updateUser(req.params.id, {
         role: req.body.role,
         status: req.body.status,
         full_name: req.body.full_name,
@@ -121,7 +121,7 @@ router.patch(
         },
       });
 
-      res.json(toPublicUser(updated));
+      res.json(updated);
     } catch (err) {
       next(err);
     }

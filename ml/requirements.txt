@@ -3,3 +3,13 @@ torchvision==0.26.0
 timm==1.0.26
 pillow==12.2.0
 split-folders==0.6.1
+pyyaml
+scipy
+h5py
+onnxruntime
+onnx
+fastapi
+uvicorn
+matplotlib
+scikit-learn
+python-multipart

@@ -52,7 +52,7 @@ router.post(
   authenticateJWT,
   authorizeRole("DOCTOR"),
   upload.single("file"),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       const patientId = req.body.patient_id;
       if (!patientId) {
@@ -62,7 +62,7 @@ router.post(
         });
       }
 
-      const result = ScanService.uploadScan({
+      const result = await ScanService.uploadScan({
         file: req.file,
         patientId,
         doctorId: req.user.sub,
