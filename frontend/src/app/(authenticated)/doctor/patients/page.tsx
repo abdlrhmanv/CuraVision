@@ -20,7 +20,7 @@ interface Patient {
 }
 
 export default function DoctorPatientsPage() {
-  const { user } = useRequireAuth('DOCTOR');
+  useRequireAuth('DOCTOR');
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

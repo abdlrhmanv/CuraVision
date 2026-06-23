@@ -15,7 +15,7 @@ interface DashboardStats {
 }
 
 export default function AdminDashboard() {
-  const { user } = useRequireAuth('ADMIN');
+  useRequireAuth('ADMIN');
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
     totalScans: 0,

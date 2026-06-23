@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../../../components
 import { Button } from '../../../../components/ui/Button';
 import { adminApi, AuditLog } from '../../../../lib/apiClient';
 import { useRequireAuth } from '../../../../lib/authContext';
-import { Calendar, Download, Filter, Search } from 'lucide-react';
+import { Download, Filter } from 'lucide-react';
 
 interface AuditLogWithUser extends AuditLog {
   user_name?: string;
@@ -13,7 +13,7 @@ interface AuditLogWithUser extends AuditLog {
 }
 
 export default function AdminSettingsPage() {
-  const { user: currentUser } = useRequireAuth('ADMIN');
+  useRequireAuth('ADMIN');
   const [auditLogs, setAuditLogs] = useState<AuditLogWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

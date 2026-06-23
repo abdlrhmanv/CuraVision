@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { LogOut, Settings, MoreVertical } from 'lucide-react';
+import { LogOut, Settings } from 'lucide-react';
 import { AuthUser, clearSession } from '@/lib/apiClient';
 
 interface TopNavProps {
