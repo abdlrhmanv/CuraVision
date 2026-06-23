@@ -4,6 +4,7 @@ const { fastapiClient } = require("../integrations/fastapiClient");
 const UserService = require("./UserService");
 const ReportService = require("./ReportService");
 const AuditService = require("./AuditService");
+const logger = require("../utils/logger");
 
 const SAMPLE_TUMOR_LOCATIONS = [
   "Left frontal lobe, parasagittal region",
@@ -129,7 +130,7 @@ async function uploadScan({ file, patientId, doctorId }) {
   });
 
   scheduleAnalysis(scan.id).catch((err) => {
-    console.error(`[ScanService] Analysis failed for scan ${scan.id}:`, err);
+    logger.error({ err }, `[ScanService] Analysis failed for scan ${scan.id}`);
     updateScanStatus(scan.id, "FAILED").catch(() => {});
     AuditService.log({
       user_id: null,
@@ -157,11 +158,12 @@ async function scheduleAnalysis(scanId) {
     });
     result = data;
   } catch (err) {
-    console.warn(
-      "[ScanService] AI service unreachable, falling back to local stub:",
-      err.message,
-      "| detail:",
-      err.response?.data?.detail ?? err.response?.data ?? "(no response body)"
+    logger.warn(
+      {
+        error: err.message,
+        detail: err.response?.data?.detail ?? err.response?.data ?? "(no response body)",
+      },
+      `[ScanService] AI service unreachable, falling back to local stub for scan ${scanId}`
     );
     result = localStubAnalysis(scanId);
   }
@@ -178,12 +180,12 @@ async function scheduleAnalysis(scanId) {
 
   if (segmentation.mask_path) {
     await uploadLocalFile(segmentation.mask_path).catch((err) =>
-      console.error(`[ScanService] failed to upload mask to S3 for scan ${scanId}:`, err)
+      logger.error({ err }, `[ScanService] failed to upload mask to S3 for scan ${scanId}`)
     );
   }
   if (gradcam.gradcam_path) {
     await uploadLocalFile(gradcam.gradcam_path).catch((err) =>
-      console.error(`[ScanService] failed to upload gradcam to S3 for scan ${scanId}:`, err)
+      logger.error({ err }, `[ScanService] failed to upload gradcam to S3 for scan ${scanId}`)
     );
   }
 
@@ -223,12 +225,12 @@ async function completeAnalysis(scanId, payload) {
 
   if (segmentation.mask_path) {
     await uploadLocalFile(segmentation.mask_path).catch((err) =>
-      console.error(`[ScanService] failed to upload mask callback to S3 for scan ${scanId}:`, err)
+      logger.error({ err }, `[ScanService] failed to upload mask callback to S3 for scan ${scanId}`)
     );
   }
   if (gradcam.gradcam_path) {
     await uploadLocalFile(gradcam.gradcam_path).catch((err) =>
-      console.error(`[ScanService] failed to upload gradcam callback to S3 for scan ${scanId}:`, err)
+      logger.error({ err }, `[ScanService] failed to upload gradcam callback to S3 for scan ${scanId}`)
     );
   }
 

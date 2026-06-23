@@ -21,9 +21,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+from app.core.config import settings
+
+# Parse comma-separated origins from settings
+allowed_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3001"],  # Node.js backend
+    allow_origins=allowed_origins,
+    allow_credentials=True,
     allow_methods=["POST", "GET"],
     allow_headers=["*"],
 )

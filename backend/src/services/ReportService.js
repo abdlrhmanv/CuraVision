@@ -1,5 +1,6 @@
 const prisma = require("../config/prisma");
 const AuditService = require("./AuditService");
+const logger = require("../utils/logger");
 
 function httpError(status, code, message) {
   const err = new Error(message);
@@ -136,14 +137,14 @@ async function editReport(reportId, { requester, final_report, corrections }) {
             where: { scan_id: report.scan_id },
             data: { tumor_volume_cc: parseFloat(c.new_value) || null },
           }).catch((err) => {
-            console.error("[ReportService] failed to update tumor_volume_cc correction:", err.message);
+            logger.error({ err }, "[ReportService] failed to update tumor_volume_cc correction");
           });
         } else if (c.field === "tumor_location_description") {
           await prisma.scanAnalysis.update({
             where: { scan_id: report.scan_id },
             data: { tumor_location_description: c.new_value ?? null },
           }).catch((err) => {
-            console.error("[ReportService] failed to update tumor_location_description correction:", err.message);
+            logger.error({ err }, "[ReportService] failed to update tumor_location_description correction");
           });
         }
       }

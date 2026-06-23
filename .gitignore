@@ -68,3 +68,13 @@ backend/storage/
 *.pkl
 *.sqlite3
 *.bin
+
+# production reverse proxy certificates
+nginx/certs/*
+!nginx/certs/.gitkeep
+
+# database backups
+backups/
+
+# downloaded production ML model weights
+ai-service/app/ml_models/

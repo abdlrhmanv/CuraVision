@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { S3Client, PutObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
+const logger = require("../utils/logger");
 
 const s3Client = process.env.S3_ENDPOINT ? new S3Client({
   endpoint: process.env.S3_ENDPOINT,
@@ -69,7 +70,7 @@ async function uploadLocalFile(logicalPath) {
   const key = logicalPath.replace(/^storage\//, "");
   const localPath = path.join(getStorageRoot(), key);
   if (!fs.existsSync(localPath)) {
-    console.warn(`[storageClient] Local file not found for S3 upload: ${localPath}`);
+    logger.warn(`[storageClient] Local file not found for S3 upload: ${localPath}`);
     return;
   }
   const buffer = fs.readFileSync(localPath);

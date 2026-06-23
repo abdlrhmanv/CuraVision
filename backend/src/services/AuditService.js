@@ -1,4 +1,5 @@
 const prisma = require("../config/prisma");
+const logger = require("../utils/logger");
 
 /**
  * Record a single audit event.
@@ -25,7 +26,7 @@ async function log(event) {
       },
     });
   } catch (err) {
-    console.error("[AuditService] Failed to record audit log:", err.message);
+    logger.error({ err }, "[AuditService] Failed to record audit log");
   }
 }
 

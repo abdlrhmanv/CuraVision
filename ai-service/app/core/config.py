@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     chroma_host: str = ""
     chroma_port: int = 8000
 
+    # CORS ---------------------------------------------------------------
+    # Comma-separated list of allowed origins.
+    cors_origins: str = "http://localhost:3001"
+
     # Service ------------------------------------------------------------
     port: int = 8001
 

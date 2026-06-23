@@ -1,11 +1,12 @@
 const Redis = require("ioredis");
+const logger = require("../utils/logger");
 
 // Default to Redis database 1 for celery task results, as configured in worker.
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379/1";
 const redisClient = new Redis(redisUrl);
 
 redisClient.on("error", (err) => {
-  console.error("[Redis] Client Error:", err);
+  logger.error({ err }, "[Redis] Client Error");
 });
 
 /**
@@ -20,7 +21,7 @@ async function getTaskStatus(taskId) {
     if (!rawData) return null;
     return JSON.parse(rawData);
   } catch (err) {
-    console.error(`[Redis] Failed to get task status for ${taskId}:`, err);
+    logger.error({ err }, `[Redis] Failed to get task status for ${taskId}`);
     return null;
   }
 }
@@ -35,7 +36,7 @@ async function getQueueLength(queueName = "celery") {
   try {
     return await redisClient.llen(queueName);
   } catch (err) {
-    console.error(`[Redis] Failed to get queue length for ${queueName}:`, err);
+    logger.error({ err }, `[Redis] Failed to get queue length for ${queueName}`);
     return 0;
   }
 }

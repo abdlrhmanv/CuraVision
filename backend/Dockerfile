@@ -21,6 +21,9 @@ RUN addgroup -S -g 1001 app && adduser -S -u 1001 -G app app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Generate Prisma Client
+RUN npx prisma generate
+
 # Pre-create every subdirectory the ai-service will write into.
 # When Docker initialises the named volume from this image the directories
 # already exist with the right ownership, so no container needs root to

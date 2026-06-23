@@ -316,6 +316,55 @@ python src/run_test.py
   it is served read-only at `GET /storage/...` for the DICOM viewer in
   local development. Replace with signed object-storage URLs for prod.
 
+## Production Deployment
+
+CuraVision can be run in production using the production Docker Compose configurations, which set up a secure reverse proxy (Nginx) terminating SSL/TLS and route requests internally without exposing backend ports directly.
+
+### 1. Nginx Reverse Proxy & TLS Configuration
+A reverse proxy is defined in `docker-compose.prod.yml` to terminate TLS/SSL.
+1. Place your SSL certificate and private key in the `nginx/certs/` directory as `curavision.crt` and `curavision.key`.
+   - For local verification, you can generate self-signed certificates:
+     ```bash
+     mkdir -p nginx/certs
+     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+       -keyout nginx/certs/curavision.key \
+       -out nginx/certs/curavision.crt \
+       -subj "/CN=localhost"
+     ```
+2. Start the stack in production mode (this will pull in the base configurations but ignore port exposures, routing everything through Nginx on ports 80/443 instead):
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+   ```
+
+### 2. Environment Variables & Secrets Management
+In production, do not use fallback defaults. You must set the following environment variables (e.g., in a `.env` file in the root):
+- `POSTGRES_USER`: The production database username.
+- `POSTGRES_PASSWORD`: A secure database password.
+- `POSTGRES_DB`: The production database name.
+- `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD`: Secure root credentials for MinIO object storage.
+- `JWT_SECRET`: A secure, random string used to sign JWT tokens. **The backend will fail to start if this is unset or set to development placeholders.**
+- `CORS_ORIGIN`: Comma-separated list of allowed origins.
+- `CORS_ORIGINS` (AI Service): Comma-separated list of allowed origins (the backend host).
+
+### 3. ML Model Weights
+To-be-trained weights or production model files (ONNX/PyTorch) can be integrated automatically using the download script:
+```bash
+export MODEL_WEIGHTS_URL="https://your-storage-bucket.com/models/weights.tar.gz"
+./scripts/download_weights.sh
+```
+This downloads and extracts the model weights into `ai-service/app/ml_models/`.
+
+### 4. Database Backups
+Automated database backups can be scheduled using the backup script:
+```bash
+export POSTGRES_PASSWORD="your-secure-password"
+./scripts/backup_db.sh
+```
+This generates a compressed SQL dump inside `backups/` and automatically purges backups older than 30 days. You can schedule this via a cron job on the host machine.
+
+### 5. CD Deployment Pipeline
+A deployment pipeline is defined in `.github/workflows/cd.yml`. It runs automatically when version tags matching `v*.*.*` are pushed to the repository. It builds minimal Docker images for all services and pushes them to GitHub Container Registry (GHCR).
+
 ## License
 
 Maintained for educational and collaborative purposes.

@@ -3,6 +3,14 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const helmet = require("helmet");
+const logger = require("./utils/logger");
+
+// Validate critical environment variables
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === "" || process.env.JWT_SECRET === "change-me-in-prod" || process.env.JWT_SECRET === "curavision_dev_secret_change_in_production") {
+  logger.error("FATAL ERROR: JWT_SECRET environment variable is missing, empty, or insecure!");
+  process.exit(1);
+}
 
 const { auditLogger } = require("./middleware/auditLogger");
 const { globalLimiter, authLimiter } = require("./middleware/rateLimit");
@@ -45,6 +53,9 @@ const corsOptions = {
 };
 
 // ── Middleware ────────────────────────────────────────────────────────────────
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "2mb" }));
 app.use(auditLogger);
@@ -70,7 +81,7 @@ app.use(
           return stream.pipe(res);
         }
       } catch (err) {
-        console.error(`[Server] Failed to stream from S3:`, err);
+        logger.error({ err }, "[Server] Failed to stream from S3");
       }
     }
     next();
@@ -113,7 +124,7 @@ app.use((err, _req, res, _next) => {
   const message = err.message || "An unexpected error occurred.";
 
   if (status >= 500) {
-    console.error("[ERROR]", err);
+    logger.error({ err }, `Unexpected server error: ${message}`);
   }
 
   res.status(status).json({ code, message });
@@ -122,8 +133,8 @@ app.use((err, _req, res, _next) => {
 // ── Start ─────────────────────────────────────────────────────────────────────
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`CuraVision Backend running on http://localhost:${PORT}`);
-    console.log(`  AI Service URL: ${process.env.AI_SERVICE_URL || "http://localhost:8001"}`);
+    logger.info(`CuraVision Backend running on http://localhost:${PORT}`);
+    logger.info(`  AI Service URL: ${process.env.AI_SERVICE_URL || "http://localhost:8001"}`);
   });
 }
 

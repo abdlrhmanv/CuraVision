@@ -1,0 +1,33 @@
+# Local development overrides for CuraVision stack.
+# Exposes internal services to the host machine for local development and testing.
+# Loaded automatically by Docker Compose when running `docker compose up` without specific files.
+
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  chromadb:
+    ports:
+      - "8000:8000"
+
+  minio:
+    ports:
+      - "9000:9000" # S3 API
+      - "9001:9001" # web console
+
+  ai-service:
+    ports:
+      - "8001:8001"
+
+  backend:
+    ports:
+      - "3001:3001"
+
+  frontend:
+    ports:
+      - "3000:3000"
