@@ -1,5 +1,5 @@
 const prisma = require("../config/prisma");
-const { saveDicom, derivedPaths } = require("../integrations/storageClient");
+const { saveDicom, derivedPaths, uploadLocalFile } = require("../integrations/storageClient");
 const { fastapiClient } = require("../integrations/fastapiClient");
 const UserService = require("./UserService");
 const ReportService = require("./ReportService");
@@ -176,6 +176,17 @@ async function scheduleAnalysis(scanId) {
     inference_log: segmentation.inference_log,
   });
 
+  if (segmentation.mask_path) {
+    await uploadLocalFile(segmentation.mask_path).catch((err) =>
+      console.error(`[ScanService] failed to upload mask to S3 for scan ${scanId}:`, err)
+    );
+  }
+  if (gradcam.gradcam_path) {
+    await uploadLocalFile(gradcam.gradcam_path).catch((err) =>
+      console.error(`[ScanService] failed to upload gradcam to S3 for scan ${scanId}:`, err)
+    );
+  }
+
   await ReportService.upsertDraftReport({
     scan_id: scanId,
     patient_id: scan.patient_id,
@@ -209,6 +220,17 @@ async function completeAnalysis(scanId, payload) {
     tumor_location_description: segmentation.tumor_location_description,
     inference_log: segmentation.inference_log,
   });
+
+  if (segmentation.mask_path) {
+    await uploadLocalFile(segmentation.mask_path).catch((err) =>
+      console.error(`[ScanService] failed to upload mask callback to S3 for scan ${scanId}:`, err)
+    );
+  }
+  if (gradcam.gradcam_path) {
+    await uploadLocalFile(gradcam.gradcam_path).catch((err) =>
+      console.error(`[ScanService] failed to upload gradcam callback to S3 for scan ${scanId}:`, err)
+    );
+  }
 
   await ReportService.upsertDraftReport({
     scan_id: scanId,

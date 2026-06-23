@@ -6,7 +6,7 @@ const path = require("path");
 
 const { auditLogger } = require("./middleware/auditLogger");
 const { globalLimiter, authLimiter } = require("./middleware/rateLimit");
-const { getStorageRoot } = require("./integrations/storageClient");
+const { getStorageRoot, isS3Enabled, getObjectStream } = require("./integrations/storageClient");
 
 const authRoutes = require("./routes/auth.routes");
 const chatRoutes = require("./routes/chat.routes");
@@ -49,10 +49,32 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: "2mb" }));
 app.use(auditLogger);
 
-// Serve uploaded DICOMs + derived assets for the doctor viewer.
-// In production this should be replaced by signed URLs against S3/Azure Blob.
+// Serve uploaded DICOMs + derived assets.
+// If S3/MinIO is enabled, retrieve them from the bucket. Fallback to local files.
 app.use(
   "/storage",
+  async (req, res, next) => {
+    if (isS3Enabled()) {
+      try {
+        const logicalPath = `storage${req.path}`;
+        const stream = await getObjectStream(logicalPath);
+        if (stream) {
+          if (req.path.endsWith(".png")) {
+            res.setHeader("Content-Type", "image/png");
+          } else if (req.path.endsWith(".nii.gz")) {
+            res.setHeader("Content-Type", "application/gzip");
+          } else if (req.path.endsWith(".dcm")) {
+            res.setHeader("Content-Type", "application/dicom");
+          }
+          res.setHeader("Cache-Control", "public, max-age=3600");
+          return stream.pipe(res);
+        }
+      } catch (err) {
+        console.error(`[Server] Failed to stream from S3:`, err);
+      }
+    }
+    next();
+  },
   express.static(getStorageRoot(), {
     fallthrough: false,
     maxAge: "1h",
