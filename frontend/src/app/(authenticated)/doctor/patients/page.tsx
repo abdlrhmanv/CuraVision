@@ -73,8 +73,8 @@ export default function DoctorPatientsPage() {
             pending_reports: 0,
           },
         ]);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load patients');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load patients');
       } finally {
         setLoading(false);
       }

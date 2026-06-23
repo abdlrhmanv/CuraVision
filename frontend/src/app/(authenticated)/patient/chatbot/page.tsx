@@ -44,28 +44,37 @@ export default function PatientChatbot() {
 
   useEffect(() => {
     if (authLoading || !user) return
-    setReportsLoading(true)
-    reportsApi
-      .listForPatient()
-      .then((res) => {
+    const fetchReports = async () => {
+      setReportsLoading(true)
+      try {
+        const res = await reportsApi.listForPatient()
         setReports(res.reports)
         if (res.reports.length > 0 && !activeReportId) {
           setActiveReportId(res.reports[0].id)
         }
-      })
-      .catch((err) => setError(err instanceof ApiError ? err.message : 'Failed to load reports'))
-      .finally(() => setReportsLoading(false))
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'Failed to load reports')
+      } finally {
+        setReportsLoading(false)
+      }
+    }
+    fetchReports()
   }, [authLoading, user, activeReportId])
 
   useEffect(() => {
-    if (!activeReportId) {
-      setMessages([])
-      return
+    const fetchHistory = async () => {
+      if (!activeReportId) {
+        setMessages([])
+        return
+      }
+      try {
+        const res = await chatApi.history(activeReportId)
+        setMessages(apiToUi(res.messages))
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'Failed to load chat history')
+      }
     }
-    chatApi
-      .history(activeReportId)
-      .then((res) => setMessages(apiToUi(res.messages)))
-      .catch((err) => setError(err instanceof ApiError ? err.message : 'Failed to load chat history'))
+    fetchHistory()
   }, [activeReportId])
 
   useEffect(() => {

@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { chatApi, ChatMessage } from '../lib/apiClient';
 
 export function useChatbot(reportId: string | undefined) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const sessionIdRef = useRef<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!reportId) return;
@@ -14,10 +14,10 @@ export function useChatbot(reportId: string | undefined) {
       setLoading(true);
       try {
         const res = await chatApi.history(reportId);
-        sessionIdRef.current = res.session_id;
+        setSessionId(res.session_id);
         setMessages(res.messages);
-      } catch (err: any) {
-        setError(err);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error(String(err)));
       } finally {
         setLoading(false);
       }
@@ -51,13 +51,13 @@ export function useChatbot(reportId: string | undefined) {
       };
       
       setMessages(prev => [...prev, botMsg]);
-      sessionIdRef.current = res.session_id;
-    } catch (err: any) {
-      setError(err);
+      setSessionId(res.session_id);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setLoading(false);
     }
   };
 
-  return { messages, loading, error, sendMessage, sessionId: sessionIdRef.current };
+  return { messages, loading, error, sendMessage, sessionId };
 }

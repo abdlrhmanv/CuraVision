@@ -11,8 +11,8 @@ export function useReports() {
       try {
         const res = await reportsApi.listForPatient();
         setReports(res.reports);
-      } catch (err: any) {
-        setError(err);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error(String(err)));
       } finally {
         setLoading(false);
       }
@@ -26,8 +26,8 @@ export function useReports() {
     try {
       const res = await reportsApi.listForPatient();
       setReports(res.reports);
-    } catch (err: any) {
-      setError(err);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setLoading(false);
     }

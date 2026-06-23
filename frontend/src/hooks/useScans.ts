@@ -17,8 +17,8 @@ export function useScans(patientId?: string) {
           const res = await scansApi.listForDoctor();
           setScans(res.scans);
         }
-      } catch (err: any) {
-        setError(err);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error(String(err)));
       } finally {
         setLoading(false);
       }
@@ -37,8 +37,8 @@ export function useScans(patientId?: string) {
         const res = await scansApi.listForDoctor();
         setScans(res.scans);
       }
-    } catch (err: any) {
-      setError(err);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setLoading(false);
     }

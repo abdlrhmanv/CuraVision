@@ -49,7 +49,7 @@ export function ChatbotPanel({ reportId }: ChatbotPanelProps) {
       <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
           <div className="text-center text-sm text-gray-500 mt-10">
-            Hello! I'm here to help you understand your medical report. Ask me anything.
+            Hello! I&apos;m here to help you understand your medical report. Ask me anything.
           </div>
         ) : (
           messages.map((msg, idx) => (

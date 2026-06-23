@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { CheckCircle2, History, RefreshCw, Save } from 'lucide-react'
+import { History, RefreshCw } from 'lucide-react'
 import { useRequireAuth } from '@/lib/authContext'
 import {
   ApiError,
@@ -34,18 +34,18 @@ export default function DoctorScanReviewPage() {
   const [corrections, setCorrections] = useState<ReportCorrection[]>([])
   const [correctionsOpen, setCorrectionsOpen] = useState(false)
 
-  const loadCorrections = async (reportId: string) => {
+  const loadCorrections = useCallback(async (reportId: string) => {
     try {
       const res = await reportsApi.corrections(reportId)
       setCorrections(res.corrections)
     } catch {
       // HITL history is optional info; ignore errors silently.
     }
-  }
+  }, [])
 
   const { scan, analysis, loading: pollingLoading, error: pollingError } = useScanAnalysisStatus(id);
 
-  const fetchReport = async () => {
+  const fetchReport = useCallback(async () => {
     if (!id || !scan || scan.status !== 'ANALYSIS_COMPLETE') return;
     try {
       const r = await scansApi.reportForScan(id);
@@ -55,11 +55,15 @@ export default function DoctorScanReviewPage() {
     } catch {
       // ignore
     }
-  };
+  }, [id, scan, draftText, loadCorrections]);
 
   useEffect(() => {
-    fetchReport();
-  }, [scan?.status]);
+    const init = async () => {
+      await Promise.resolve();
+      fetchReport();
+    };
+    init();
+  }, [fetchReport]);
 
   const handleSave = async (newText: string) => {
     if (!report) return;

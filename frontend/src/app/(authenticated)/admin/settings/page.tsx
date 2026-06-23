@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
 import { adminApi, AuditLog } from '../../../../lib/apiClient';
@@ -28,7 +28,7 @@ export default function AdminSettingsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const logsPerPage = 50;
 
-  const fetchAuditLogs = async () => {
+  const fetchAuditLogs = useCallback(async () => {
     try {
       setLoading(true);
       const response = await adminApi.getAuditLogs({
@@ -38,16 +38,20 @@ export default function AdminSettingsPage() {
       });
       setAuditLogs(response.logs);
       setTotalPages(Math.ceil(response.total / logsPerPage));
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, currentPage]);
 
   useEffect(() => {
-    fetchAuditLogs();
-  }, [filters, currentPage]);
+    const init = async () => {
+      await Promise.resolve();
+      fetchAuditLogs();
+    };
+    init();
+  }, [fetchAuditLogs]);
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));

@@ -11,8 +11,8 @@ export function useReservations() {
       try {
         const res = await reservationsApi.list();
         setReservations(res.reservations);
-      } catch (err: any) {
-        setError(err);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error(String(err)));
       } finally {
         setLoading(false);
       }
@@ -26,8 +26,8 @@ export function useReservations() {
     try {
       const res = await reservationsApi.list();
       setReservations(res.reservations);
-    } catch (err: any) {
-      setError(err);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setLoading(false);
     }
@@ -37,8 +37,8 @@ export function useReservations() {
     try {
       await reservationsApi.updateStatus(id, status);
       await refresh();
-    } catch (err: any) {
-      throw err;
+    } catch (err) {
+      throw err instanceof Error ? err : new Error(String(err));
     }
   };
 

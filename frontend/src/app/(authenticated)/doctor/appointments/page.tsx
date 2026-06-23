@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Calendar, CheckCircle2, RefreshCw, XCircle } from 'lucide-react'
 import { useRequireAuth } from '@/lib/authContext'
 import {
@@ -135,7 +135,7 @@ export default function DoctorAppointmentsPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
 
-  const fetchReservations = async () => {
+  const fetchReservations = useCallback(async () => {
     try {
       const res = await reservationsApi.list()
       setReservations(
@@ -146,13 +146,15 @@ export default function DoctorAppointmentsPage() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load reservations')
     }
-  }
+  }, [])
 
   useEffect(() => {
     if (loading || !user) return
-    fetchReservations()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, user])
+    const init = async () => {
+      await fetchReservations()
+    }
+    init()
+  }, [loading, user, fetchReservations])
 
   const update = async (id: string, status: Reservation['status']) => {
     setBusy(id)

@@ -64,5 +64,5 @@ export interface AuditLog {
   action: string;
   entity_type: string | null;
   entity_id: string | null;
-  metadata: any;
+  metadata: Record<string, unknown>;
 }

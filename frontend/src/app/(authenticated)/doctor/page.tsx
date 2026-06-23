@@ -21,14 +21,18 @@ export default function DoctorDashboard() {
 
   useEffect(() => {
     if (loading || !user) return
-    setFetching(true)
-    scansApi
-      .listForDoctor()
-      .then((res) => setScans(res.scans))
-      .catch((err) =>
+    const fetchScans = async () => {
+      setFetching(true)
+      try {
+        const res = await scansApi.listForDoctor()
+        setScans(res.scans)
+      } catch (err) {
         setError(err instanceof ApiError ? err.message : 'Failed to load scans')
-      )
-      .finally(() => setFetching(false))
+      } finally {
+        setFetching(false)
+      }
+    }
+    fetchScans()
   }, [loading, user])
 
   if (loading || !user) return <div className="p-6 text-sm text-muted">Loading...</div>

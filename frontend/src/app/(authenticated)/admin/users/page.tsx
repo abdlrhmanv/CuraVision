@@ -15,7 +15,7 @@ interface UserWithStats extends User {
 }
 
 export default function AdminUsersPage() {
-  const { user: currentUser } = useRequireAuth('ADMIN');
+  useRequireAuth('ADMIN');
   const [users, setUsers] = useState<UserWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +24,7 @@ export default function AdminUsersPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [editingUser, setEditingUser] = useState<UserWithStats | null>(null);
 
-  const fetchUsers = async () => {
+  const fetchUsers = React.useCallback(async () => {
     try {
       setLoading(true);
       const response = await adminApi.listUsers({
@@ -33,24 +33,28 @@ export default function AdminUsersPage() {
         status: selectedStatus !== 'ALL' ? selectedStatus : undefined,
       });
       setUsers(response.users);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchQuery, selectedRole, selectedStatus]);
 
   useEffect(() => {
-    fetchUsers();
-  }, [searchQuery, selectedRole, selectedStatus]);
+    const init = async () => {
+      await Promise.resolve();
+      fetchUsers();
+    };
+    init();
+  }, [fetchUsers]);
 
   const handleUpdateUser = async (userId: string, updates: Partial<User>) => {
     try {
       await adminApi.updateUser(userId, updates);
       await fetchUsers(); // Refresh the list
       setEditingUser(null);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -208,7 +212,7 @@ export default function AdminUsersPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     defaultValue={editingUser.role}
                     onChange={(e) => {
-                      const updatedUser = { ...editingUser, role: e.target.value as any };
+                      const updatedUser = { ...editingUser, role: e.target.value as User['role'] };
                       setEditingUser(updatedUser);
                     }}
                   >
@@ -225,7 +229,7 @@ export default function AdminUsersPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     defaultValue={editingUser.status || 'ACTIVE'}
                     onChange={(e) => {
-                      const updatedUser = { ...editingUser, status: e.target.value as any };
+                      const updatedUser = { ...editingUser, status: e.target.value as 'ACTIVE' | 'DISABLED' };
                       setEditingUser(updatedUser);
                     }}
                   >

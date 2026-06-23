@@ -8,7 +8,7 @@ export function useScanAnalysisStatus(scanId: string) {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    let intervalId: NodeJS.Timeout;
+    let intervalId: NodeJS.Timeout | undefined = undefined;
 
     const fetchStatus = async () => {
       try {
@@ -28,8 +28,8 @@ export function useScanAnalysisStatus(scanId: string) {
           // Keep polling if status is ANALYSIS_PENDING or ANALYSIS_RUNNING
           setLoading(true);
         }
-      } catch (err: any) {
-        setError(err);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error(String(err)));
         setLoading(false);
         if (intervalId) clearInterval(intervalId);
       }

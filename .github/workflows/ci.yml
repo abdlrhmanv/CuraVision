@@ -17,6 +17,20 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: curavision
+          POSTGRES_PASSWORD: curavision
+          POSTGRES_DB: curavision
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -32,10 +46,18 @@ jobs:
       - name: Lint (node --check on every source file)
         run: npm run lint
 
+      - name: Migrate and Seed Database
+        env:
+          DATABASE_URL: postgresql://curavision:curavision@localhost:5432/curavision
+        run: |
+          npx prisma db push --accept-data-loss
+          npx prisma db seed
+
       - name: Route tests
         env:
           JWT_SECRET: ci-secret
           CORS_ORIGIN: "*"
+          DATABASE_URL: postgresql://curavision:curavision@localhost:5432/curavision
         run: npm test
 
   ai-service:

@@ -15,15 +15,19 @@ export default function PatientReportsPage() {
 
   useEffect(() => {
     if (loading || !user) return
-    setFetching(true)
-    reportsApi
-      .listForPatient()
-      .then((res) => {
+    const fetchReports = async () => {
+      setFetching(true)
+      try {
+        const res = await reportsApi.listForPatient()
         setReports(res.reports)
         if (res.reports.length > 0) setSelected(res.reports[0])
-      })
-      .catch((err) => setError(err instanceof ApiError ? err.message : 'Failed to load'))
-      .finally(() => setFetching(false))
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'Failed to load')
+      } finally {
+        setFetching(false)
+      }
+    }
+    fetchReports()
   }, [loading, user])
 
   if (loading || !user) {

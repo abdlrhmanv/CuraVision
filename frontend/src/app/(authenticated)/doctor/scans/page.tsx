@@ -21,12 +21,18 @@ export default function DoctorScansPage() {
 
   useEffect(() => {
     if (loading || !user) return
-    setFetching(true)
-    scansApi
-      .listForDoctor()
-      .then((res) => setScans(res.scans))
-      .catch((err) => setError(err instanceof ApiError ? err.message : 'Failed to load'))
-      .finally(() => setFetching(false))
+    const fetchScans = async () => {
+      setFetching(true)
+      try {
+        const res = await scansApi.listForDoctor()
+        setScans(res.scans)
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'Failed to load')
+      } finally {
+        setFetching(false)
+      }
+    }
+    fetchScans()
   }, [loading, user])
 
   if (loading || !user) return <div className="p-6 text-sm text-muted">Loading...</div>

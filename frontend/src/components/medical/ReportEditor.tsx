@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
 
@@ -12,11 +12,13 @@ interface ReportEditorProps {
 
 export function ReportEditor({ initialReport, onSave, onApprove, isApproving, status }: ReportEditorProps) {
   const [reportText, setReportText] = useState(initialReport);
+  const [prevInitialReport, setPrevInitialReport] = useState(initialReport);
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
+  if (initialReport !== prevInitialReport) {
+    setPrevInitialReport(initialReport);
     setReportText(initialReport);
-  }, [initialReport]);
+  }
 
   const handleSave = async () => {
     setIsSaving(true);
