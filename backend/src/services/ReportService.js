@@ -130,6 +130,22 @@ async function editReport(reportId, { requester, final_report, corrections }) {
           },
         });
         explicitCorrections += 1;
+
+        if (c.field === "tumor_volume_cc") {
+          await prisma.scanAnalysis.update({
+            where: { scan_id: report.scan_id },
+            data: { tumor_volume_cc: parseFloat(c.new_value) || null },
+          }).catch((err) => {
+            console.error("[ReportService] failed to update tumor_volume_cc correction:", err.message);
+          });
+        } else if (c.field === "tumor_location_description") {
+          await prisma.scanAnalysis.update({
+            where: { scan_id: report.scan_id },
+            data: { tumor_location_description: c.new_value ?? null },
+          }).catch((err) => {
+            console.error("[ReportService] failed to update tumor_location_description correction:", err.message);
+          });
+        }
       }
     }
   }

@@ -15,6 +15,7 @@ import {
 import DicomViewer from '@/components/medical/DicomViewer'
 import { useScanAnalysisStatus } from '@/hooks/useScanAnalysisStatus'
 import { ReportEditor } from '@/components/medical/ReportEditor'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 function storageUrl(path: string | null | undefined): string | null {
   if (!path) return null
@@ -33,6 +34,12 @@ export default function DoctorScanReviewPage() {
   const [busy, setBusy] = useState(false)
   const [corrections, setCorrections] = useState<ReportCorrection[]>([])
   const [correctionsOpen, setCorrectionsOpen] = useState(false)
+
+  // HITL Corrections state
+  const [editMetrics, setEditMetrics] = useState(false)
+  const [correctedVolume, setCorrectedVolume] = useState('')
+  const [correctedLocation, setCorrectedLocation] = useState('')
+  const [savingMetrics, setSavingMetrics] = useState(false)
 
   const loadCorrections = useCallback(async (reportId: string) => {
     try {
@@ -105,21 +112,74 @@ export default function DoctorScanReviewPage() {
     }
   };
 
-  if (loading || pollingLoading || !user) return <div className="p-6 text-sm text-muted">Loading...</div>;
+  const handleSaveMetrics = async () => {
+    if (!report || !analysis) return;
+    const correctionsList: Array<{ field: string; old_value: string; new_value: string }> = [];
+    if (correctedVolume !== String(analysis.tumor_volume_cc ?? '')) {
+      correctionsList.push({
+        field: 'tumor_volume_cc',
+        old_value: String(analysis.tumor_volume_cc ?? ''),
+        new_value: correctedVolume,
+      });
+    }
+    if (correctedLocation !== (analysis.tumor_location_description ?? '')) {
+      correctionsList.push({
+        field: 'tumor_location_description',
+        old_value: analysis.tumor_location_description ?? '',
+        new_value: correctedLocation,
+      });
+    }
+
+    if (correctionsList.length === 0) {
+      setEditMetrics(false);
+      return;
+    }
+
+    setSavingMetrics(true);
+    setError(null);
+    try {
+      await reportsApi.patch(report.id, { corrections: correctionsList });
+      setMessage('AI metrics corrected and saved.');
+      // Re-fetch report and corrections history
+      const r = await scansApi.reportForScan(id);
+      setReport(r);
+      loadCorrections(r.id);
+
+      setEditMetrics(false);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to save corrections');
+    } finally {
+      setSavingMetrics(false);
+    }
+  };
+
+  if (loading || !user) return <div className="p-6 text-sm text-muted">Loading...</div>;
+
   if (!scan) {
     return (
       <div className="p-6 text-sm text-muted">
-        {pollingError?.message ?? error ?? 'Loading scan...'}
-        <button
-          onClick={() => router.back()}
-          className="ml-4 text-blue hover:underline"
-        >
-          Go back
-        </button>
+        {pollingLoading ? (
+          <div className="animate-pulse flex flex-col gap-4">
+            <div className="h-6 w-1/3 bg-surface/40 rounded" />
+            <div className="h-10 w-full bg-surface/40 rounded" />
+            <div className="h-64 w-full bg-surface/40 rounded" />
+          </div>
+        ) : (
+          <>
+            {pollingError?.message ?? error ?? 'Scan not found.'}
+            <button
+              onClick={() => router.back()}
+              className="ml-4 text-blue hover:underline"
+            >
+              Go back
+            </button>
+          </>
+        )}
       </div>
     );
   }
 
+  const isAnalysisComplete = scan.status === 'ANALYSIS_COMPLETE';
   const dicomSrc = storageUrl(scan.dicom_path);
   const heatmapSrc = storageUrl(analysis?.gradcam_path);
 
@@ -161,37 +221,137 @@ export default function DoctorScanReviewPage() {
 
       <div className="grid lg:grid-cols-2 gap-4 mb-6">
         <DicomViewer src={dicomSrc} caption="Source DICOM" />
-        <DicomViewer src={heatmapSrc} caption="Grad-CAM heatmap" />
+        {isAnalysisComplete && analysis ? (
+          <DicomViewer src={heatmapSrc} caption="Grad-CAM heatmap" />
+        ) : (
+          <div className="aspect-square bg-card border border-border rounded-xl flex flex-col items-center justify-center p-6 text-muted relative overflow-hidden">
+            <Skeleton className="absolute inset-0 bg-surface/10" />
+            <div className="relative z-10 flex flex-col items-center gap-3 text-center">
+              <RefreshCw size={24} className="animate-spin text-blue-500" />
+              <p className="text-sm font-semibold">AI analysis in progress...</p>
+              <p className="text-xs text-muted">Running segmentation and Grad-CAM overlays</p>
+            </div>
+          </div>
+        )}
       </div>
 
-      {analysis && (
-        <div className="bg-card border border-border rounded-xl p-5 mb-6 grid sm:grid-cols-3 gap-4 text-sm">
-          <div>
+      {isAnalysisComplete && analysis ? (
+        <div className="bg-card border border-border rounded-xl p-5 mb-6 grid sm:grid-cols-3 gap-4 text-sm relative">
+          {editMetrics ? (
+            <div className="sm:col-span-3 space-y-4">
+              <h3 className="text-xs uppercase tracking-wide font-semibold text-muted">Correct AI Metrics</h3>
+              <div className="grid sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs text-muted mb-1">Tumor Volume (cc)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    className="w-full bg-surface border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue"
+                    value={correctedVolume}
+                    onChange={(e) => setCorrectedVolume(e.target.value)}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs text-muted mb-1">Location Description</label>
+                  <input
+                    type="text"
+                    className="w-full bg-surface border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue"
+                    value={correctedLocation}
+                    onChange={(e) => setCorrectedLocation(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setEditMetrics(false)}
+                  className="px-3 py-1.5 rounded bg-surface border border-border text-xs hover:text-white transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={savingMetrics}
+                  onClick={handleSaveMetrics}
+                  className="px-3 py-1.5 rounded bg-blue text-xs hover:bg-blue-600 text-white font-semibold transition"
+                >
+                  {savingMetrics ? 'Saving...' : 'Save Metrics'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-muted mb-1">
+                  Tumor volume
+                </div>
+                <div className="text-xl font-mono font-bold">
+                  {analysis.tumor_volume_cc ?? '—'} <span className="text-xs text-muted">cc</span>
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-muted mb-1">
+                  Location
+                </div>
+                <div>{analysis.tumor_location_description ?? '—'}</div>
+              </div>
+              <div className="flex items-end justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCorrectedVolume(String(analysis.tumor_volume_cc ?? ''));
+                    setCorrectedLocation(analysis.tumor_location_description ?? '');
+                    setEditMetrics(true);
+                  }}
+                  className="px-3 py-1.5 rounded bg-surface border border-border text-xs text-muted hover:text-white hover:border-blue transition"
+                >
+                  Correct Metrics
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      ) : !isAnalysisComplete ? (
+        <div className="bg-card border border-border rounded-xl p-5 mb-6 grid sm:grid-cols-3 gap-4 text-sm relative overflow-hidden">
+          <Skeleton className="absolute inset-0 bg-surface/10" />
+          <div className="relative z-10">
             <div className="text-[10px] uppercase tracking-wide text-muted mb-1">
               Tumor volume
             </div>
-            <div className="text-xl font-mono font-bold">
-              {analysis.tumor_volume_cc ?? '—'} <span className="text-xs text-muted">cc</span>
-            </div>
+            <div className="h-6 w-16 bg-surface/50 rounded animate-pulse" />
           </div>
-          <div className="sm:col-span-2">
+          <div className="relative z-10 sm:col-span-2">
             <div className="text-[10px] uppercase tracking-wide text-muted mb-1">
               Location
             </div>
-            <div>{analysis.tumor_location_description ?? '—'}</div>
+            <div className="h-6 w-48 bg-surface/50 rounded animate-pulse" />
+          </div>
+        </div>
+      ) : null}
+
+      {isAnalysisComplete ? (
+        <div className="mt-6">
+          <ReportEditor
+            initialReport={draftText}
+            onSave={handleSave}
+            onApprove={handleApprove}
+            isApproving={busy}
+            status={report?.status ?? 'LOADING'}
+          />
+        </div>
+      ) : (
+        <div className="bg-card border border-border rounded-xl p-6 relative overflow-hidden mt-6">
+          <Skeleton className="absolute inset-0 bg-surface/10" />
+          <div className="relative z-10 space-y-4">
+            <div className="h-5 w-1/4 bg-surface/50 rounded animate-pulse" />
+            <div className="space-y-2">
+              <div className="h-4 w-full bg-surface/40 rounded animate-pulse" />
+              <div className="h-4 w-5/6 bg-surface/40 rounded animate-pulse" />
+              <div className="h-4 w-4/6 bg-surface/40 rounded animate-pulse" />
+            </div>
           </div>
         </div>
       )}
-
-      <div className="mt-6">
-        <ReportEditor
-          initialReport={draftText}
-          onSave={handleSave}
-          onApprove={handleApprove}
-          isApproving={busy}
-          status={report?.status ?? (scan.status === 'ANALYSIS_COMPLETE' ? 'LOADING' : 'PENDING')}
-        />
-      </div>
 
       {report && (
         <div className="bg-card border border-border rounded-xl p-5 mt-6">
