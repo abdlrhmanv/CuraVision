@@ -34,7 +34,12 @@ async function login(email, password) {
 
 test("GET /health → 200 ok", async () => {
   const res = await request(app).get("/health").expect(200);
-  assert.equal(res.body.status, "ok");
+  // "ok" when all deps are up; "degraded" when AI service is unavailable (e.g. CI).
+  // Both are valid — only "unhealthy" (DB down) returns 503.
+  assert.ok(
+    res.body.status === "ok" || res.body.status === "degraded",
+    `expected status ok|degraded, got "${res.body.status}"`
+  );
   assert.equal(res.body.service, "CuraVision Backend");
 });
 
