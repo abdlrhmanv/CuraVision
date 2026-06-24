@@ -128,7 +128,8 @@ app.get("/health", async (_req, res) => {
     await prisma.$queryRaw`SELECT 1`;
     health.checks.database = "up";
   } catch (err) {
-    health.status = "degraded";
+    // Database down → hard failure, return 503
+    health.status = "unhealthy";
     health.checks.database = "down";
     logger.error({ err }, "[Health] Database check failed");
   }
@@ -137,15 +138,17 @@ app.get("/health", async (_req, res) => {
     const { fastapiClient } = require("./integrations/fastapiClient");
     await fastapiClient.get("/health", { timeout: 2000 });
     health.checks.ai_service = "up";
-  } catch (err) {
-    // If AI service is down, the system is degraded, but still alive
-    health.status = "degraded";
+  } catch (_err) {
+    // AI service down → degraded but backend is still alive, keep 200
+    if (health.status === "ok") health.status = "degraded";
     health.checks.ai_service = "down";
   }
 
-  const statusCode = health.status === "ok" ? 200 : 503;
+  // Only return 503 for a hard database failure; degraded (AI down) keeps 200
+  const statusCode = health.status === "unhealthy" ? 503 : 200;
   res.status(statusCode).json(health);
 });
+
 
 // ── Catch-all 404 ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {
