@@ -27,7 +27,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U curavision -d curavision"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -168,6 +168,10 @@ jobs:
           export JWT_SECRET="ci-secret"
           export DATABASE_URL="postgresql://curavision:curavision@postgres:5432/curavision"
           export GROQ_API_KEY="test-key"
+          
+          touch ai-service/.env
+          touch backend/.env
+          touch frontend/.env.local
           
           docker compose up -d
           
