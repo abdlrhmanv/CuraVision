@@ -5,16 +5,21 @@ const jwt = require("jsonwebtoken");
  * Attaches the decoded payload to `req.user` on success.
  */
 function authenticateJWT(req, res, next) {
+  let token;
   const authHeader = req.headers["authorization"];
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.slice(7);
+  } else if (req.query.token) {
+    token = req.query.token;
+  }
+
+  if (!token) {
     return res.status(401).json({
       code: "MISSING_TOKEN",
       message: "Authorization header with Bearer token is required.",
     });
   }
-
-  const token = authHeader.slice(7); // strip "Bearer "
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);

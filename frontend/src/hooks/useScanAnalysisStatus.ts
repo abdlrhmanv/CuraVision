@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { scansApi, Scan, ScanAnalysis } from '../lib/apiClient';
+import { scansApi, Scan, ScanAnalysis, API_BASE_URL } from '../lib/apiClient';
 
 export function useScanAnalysisStatus(scanId: string) {
   const [scan, setScan] = useState<Scan | null>(null);
@@ -8,38 +8,66 @@ export function useScanAnalysisStatus(scanId: string) {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    let intervalId: NodeJS.Timeout | undefined = undefined;
+    let es: EventSource | null = null;
+    let isActive = true;
 
-    const fetchStatus = async () => {
+    const fetchInitial = async () => {
       try {
         const scanData = await scansApi.get(scanId);
+        if (!isActive) return;
         setScan(scanData);
 
         if (scanData.status === 'ANALYSIS_COMPLETE') {
           const analysisData = await scansApi.analysis(scanId);
+          if (!isActive) return;
           setAnalysis(analysisData);
           setLoading(false);
-          if (intervalId) clearInterval(intervalId);
         } else if (scanData.status === 'FAILED') {
           setError(new Error('Analysis failed'));
           setLoading(false);
-          if (intervalId) clearInterval(intervalId);
         } else {
-          // Keep polling if status is ANALYSIS_PENDING or ANALYSIS_RUNNING
-          setLoading(true);
+          // If still running, connect to SSE
+          const token = localStorage.getItem('token') || '';
+          es = new EventSource(`${API_BASE_URL}/api/scans/${scanId}/status-stream?token=${token}`);
+          
+          es.onmessage = async (event) => {
+            const data = JSON.parse(event.data);
+            setScan((prev) => prev ? { ...prev, status: data.status } : null);
+            
+            if (data.status === 'ANALYSIS_COMPLETE') {
+              const analysisData = await scansApi.analysis(scanId);
+              if (isActive) {
+                setAnalysis(analysisData);
+                setLoading(false);
+              }
+              es?.close();
+            } else if (data.status === 'FAILED') {
+              setError(new Error('Analysis failed'));
+              setLoading(false);
+              es?.close();
+            }
+          };
+
+          es.onerror = () => {
+            if (isActive && es?.readyState === EventSource.CLOSED) {
+              // reconnect logic if desired or just let it be
+            }
+          };
         }
       } catch (err) {
+        if (!isActive) return;
         setError(err instanceof Error ? err : new Error(String(err)));
         setLoading(false);
-        if (intervalId) clearInterval(intervalId);
       }
     };
-
-    fetchStatus(); // Initial fetch
-    intervalId = setInterval(fetchStatus, 3000); // Poll every 3 seconds
+    
+    fetchInitial();
 
     return () => {
-      if (intervalId) clearInterval(intervalId);
+      isActive = false;
+      if (es) {
+        es.close();
+      }
     };
   }, [scanId]);
 

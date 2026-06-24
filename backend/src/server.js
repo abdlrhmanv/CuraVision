@@ -13,7 +13,7 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === "" || process.e
 }
 
 const { auditLogger } = require("./middleware/auditLogger");
-const { globalLimiter, authLimiter } = require("./middleware/rateLimit");
+const { globalLimiter, authLimiter, chatLimiter } = require("./middleware/rateLimit");
 const { getStorageRoot, isS3Enabled, getObjectStream } = require("./integrations/storageClient");
 
 const authRoutes = require("./routes/auth.routes");
@@ -95,9 +95,10 @@ app.use(
 // ── Routes ────────────────────────────────────────────────────────────────────
 // Auth endpoints get a stricter limiter to slow brute-force attempts.
 app.use("/api/auth", authLimiter, authRoutes);
+// Chat endpoints get strict rate limits
+app.use("/api/chat", chatLimiter, chatRoutes);
 // All other /api/* traffic gets the generic limiter.
 app.use("/api", globalLimiter);
-app.use("/api/chat", chatRoutes);
 app.use("/api/scans", scansRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/reservations", reservationsRoutes);
@@ -105,10 +106,44 @@ app.use("/api/doctors", doctorsRoutes);
 app.use("/api/patients", patientsRoutes);
 app.use("/api/patient", patientsRoutes); // SDD alias for patient-scoped views
 app.use("/api/admin", adminRoutes);
-app.use("/api/internal", internalRoutes);
+const swaggerUi = require("swagger-ui-express");
+const swaggerDocument = require("./swagger.json");
 
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok", service: "CuraVision Backend" });
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+app.get("/health", async (_req, res) => {
+  const health = {
+    status: "ok",
+    service: "CuraVision Backend",
+    timestamp: new Date().toISOString(),
+    checks: {
+      database: "unknown",
+      ai_service: "unknown",
+    }
+  };
+
+  try {
+    const prisma = require("./config/prisma");
+    await prisma.$queryRaw`SELECT 1`;
+    health.checks.database = "up";
+  } catch (err) {
+    health.status = "degraded";
+    health.checks.database = "down";
+    logger.error({ err }, "[Health] Database check failed");
+  }
+
+  try {
+    const { fastapiClient } = require("./integrations/fastapiClient");
+    await fastapiClient.get("/health", { timeout: 2000 });
+    health.checks.ai_service = "up";
+  } catch (err) {
+    // If AI service is down, the system is degraded, but still alive
+    health.status = "degraded";
+    health.checks.ai_service = "down";
+  }
+
+  const statusCode = health.status === "ok" ? 200 : 503;
+  res.status(statusCode).json(health);
 });
 
 // ── Catch-all 404 ─────────────────────────────────────────────────────────────

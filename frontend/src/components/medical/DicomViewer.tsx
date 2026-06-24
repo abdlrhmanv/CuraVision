@@ -10,6 +10,8 @@ interface DicomViewerProps {
   caption?: string
   /** Optional height override (px or CSS length). */
   height?: number | string
+  /** Optional overlay image URL */
+  overlaySrc?: string | null
 }
 
 /**
@@ -24,10 +26,11 @@ interface DicomViewerProps {
  * The Cornerstone bundle is loaded dynamically so that it does not bloat
  * the initial client JS, and so Next.js SSR never touches it.
  */
-export default function DicomViewer({ src, caption, height = 360 }: DicomViewerProps) {
+export default function DicomViewer({ src, caption, height = 360, overlaySrc }: DicomViewerProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [initialised, setInitialised] = useState(false)
+  const [opacity, setOpacity] = useState(100)
 
   const isDicom =
     !!src &&
@@ -128,10 +131,33 @@ export default function DicomViewer({ src, caption, height = 360 }: DicomViewerP
             className="max-h-full max-w-full object-contain"
           />
         )}
+        
+        {overlaySrc && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={overlaySrc}
+            alt="heatmap overlay"
+            className="absolute inset-0 max-h-full max-w-full m-auto object-contain pointer-events-none transition-opacity duration-200"
+            style={{ opacity: opacity / 100 }}
+          />
+        )}
       </div>
-      {caption && (
-        <div className="px-4 py-2 text-xs text-muted border-t border-border">
-          {caption}
+      {(caption || overlaySrc) && (
+        <div className="px-4 py-3 text-xs border-t border-border flex items-center justify-between bg-surface/50">
+          <span className="text-muted">{caption}</span>
+          {overlaySrc && (
+            <div className="flex items-center gap-3 bg-surface px-3 py-1.5 rounded-md border border-border">
+              <span className="text-muted font-semibold">Grad-CAM Opacity: {opacity}%</span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={opacity}
+                onChange={(e) => setOpacity(parseInt(e.target.value))}
+                className="w-24 md:w-32 accent-blue cursor-pointer"
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

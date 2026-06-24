@@ -1,11 +1,13 @@
 const { fastapiClient } = require("../integrations/fastapiClient");
 const ReportService = require("./ReportService");
-const {
-  getOrCreateSession,
-  addMessage,
-  getMessages,
-  toAiHistory,
-} = require("../mockData/chatSessions");
+const ChatRepository = require("../repositories/ChatRepository");
+
+function toAiHistory(msgs) {
+  return msgs.map((m) => ({
+    role: m.sender === "PATIENT" ? "user" : "assistant",
+    content: m.message,
+  }));
+}
 
 /**
  * Send a patient message to the AI microservice and persist both sides
@@ -39,10 +41,11 @@ async function sendMessage(reportId, patientId, message) {
   }
 
   // 2. Get or create the chat session
-  const session = getOrCreateSession(reportId, patientId);
+  const session = await ChatRepository.getOrCreateSession(reportId, patientId);
 
   // 3. Build the chat history for the AI service (exclude current question)
-  const history = toAiHistory(getMessages(session.id));
+  const msgs = await ChatRepository.getMessages(session.id);
+  const history = toAiHistory(msgs);
 
   // 4. Call the FastAPI AI microservice
   let aiResponse;
@@ -63,8 +66,8 @@ async function sendMessage(reportId, patientId, message) {
   }
 
   // 5. Persist both turns
-  addMessage(session.id, "PATIENT", message);
-  addMessage(session.id, "BOT", aiResponse.answer);
+  await ChatRepository.addMessage(session.id, "PATIENT", message);
+  await ChatRepository.addMessage(session.id, "BOT", aiResponse.answer);
 
   return {
     session_id: session.id,
@@ -95,8 +98,8 @@ async function getHistory(reportId, patientId) {
     throw err;
   }
 
-  const session = getOrCreateSession(reportId, patientId);
-  const msgs = getMessages(session.id);
+  const session = await ChatRepository.getOrCreateSession(reportId, patientId);
+  const msgs = await ChatRepository.getMessages(session.id);
 
   return {
     session_id: session.id,

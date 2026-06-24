@@ -92,7 +92,7 @@ router.get(
   "/:id/availability",
   authenticateJWT,
   authorizeRole("PATIENT", "DOCTOR"),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       const now = new Date();
       const defaultTo = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -113,7 +113,7 @@ router.get(
         });
       }
 
-      const slots = ReservationService.getAvailability(req.params.id, {
+      const slots = await ReservationService.getAvailability(req.params.id, {
         from: from.toISOString(),
         to: to.toISOString(),
       });

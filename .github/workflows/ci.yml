@@ -155,3 +155,27 @@ jobs:
           tags: curavision/frontend:ci
           build-args: |
             NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+
+  integration-tests:
+    name: End-to-End Integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start services with docker-compose
+        run: |
+          # Use placeholder keys for testing
+          export JWT_SECRET="ci-secret"
+          export DATABASE_URL="postgresql://curavision:curavision@postgres:5432/curavision"
+          export GROQ_API_KEY="test-key"
+          
+          docker compose up -d
+          
+          # Wait for backend to be healthy
+          echo "Waiting for backend to be ready..."
+          timeout 60 bash -c 'until curl -s http://localhost:3001/health | grep "healthy"; do sleep 2; done'
+          
+      - name: Run smoke tests
+        run: |
+          cd backend
+          bash tests/smoke-mvp.sh

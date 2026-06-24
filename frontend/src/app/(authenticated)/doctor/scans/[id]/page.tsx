@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { History, RefreshCw } from 'lucide-react'
+import { History, RefreshCw, Download } from 'lucide-react'
 import { useRequireAuth } from '@/lib/authContext'
 import {
   ApiError,
@@ -199,6 +199,14 @@ export default function DoctorScanReviewPage() {
           <span className="text-[10px] px-2 py-1 rounded bg-surface border border-border text-muted">
             {scan.status}
           </span>
+          {report?.status === 'PUBLISHED' && (
+            <button
+              onClick={() => window.print()}
+              className="px-3 py-1.5 rounded-lg bg-surface border border-border text-xs hover:text-white transition flex items-center gap-2"
+            >
+              <Download size={12} /> Export PDF
+            </button>
+          )}
           <button
             onClick={fetchReport}
             className="px-3 py-1.5 rounded-lg bg-surface border border-border text-xs text-muted hover:text-white hover:border-blue transition flex items-center gap-2"
@@ -219,21 +227,25 @@ export default function DoctorScanReviewPage() {
         </div>
       )}
 
-      <div className="grid lg:grid-cols-2 gap-4 mb-6">
-        <DicomViewer src={dicomSrc} caption="Source DICOM" />
-        {isAnalysisComplete && analysis ? (
-          <DicomViewer src={heatmapSrc} caption="Grad-CAM heatmap" />
-        ) : (
-          <div className="aspect-square bg-card border border-border rounded-xl flex flex-col items-center justify-center p-6 text-muted relative overflow-hidden">
-            <Skeleton className="absolute inset-0 bg-surface/10" />
-            <div className="relative z-10 flex flex-col items-center gap-3 text-center">
-              <RefreshCw size={24} className="animate-spin text-blue-500" />
-              <p className="text-sm font-semibold">AI analysis in progress...</p>
-              <p className="text-xs text-muted">Running segmentation and Grad-CAM overlays</p>
-            </div>
-          </div>
-        )}
+      <div className="mb-6">
+        <DicomViewer
+          src={dicomSrc}
+          overlaySrc={isAnalysisComplete && analysis ? heatmapSrc : null}
+          caption={isAnalysisComplete ? "Source DICOM with Grad-CAM overlay" : "Source DICOM"}
+          height={500}
+        />
       </div>
+
+      {!isAnalysisComplete && (
+        <div className="bg-card border border-border rounded-xl flex flex-col items-center justify-center p-6 text-muted relative overflow-hidden mb-6 h-32">
+          <Skeleton className="absolute inset-0 bg-surface/10" />
+          <div className="relative z-10 flex flex-col items-center gap-3 text-center">
+            <RefreshCw size={24} className="animate-spin text-blue-500" />
+            <p className="text-sm font-semibold">AI analysis in progress...</p>
+            <p className="text-xs text-muted">Running segmentation and Grad-CAM overlays</p>
+          </div>
+        </div>
+      )}
 
       {isAnalysisComplete && analysis ? (
         <div className="bg-card border border-border rounded-xl p-5 mb-6 grid sm:grid-cols-3 gap-4 text-sm relative">

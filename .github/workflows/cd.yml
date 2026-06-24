@@ -92,11 +92,19 @@ jobs:
             NEXT_PUBLIC_API_BASE_URL=${{ secrets.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001' }}
 
   deploy:
-    name: Deploy
+    name: Deploy to Production
     needs: publish
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     steps:
-      - name: Deployment Placeholder
-        run: |
-          echo "Production deployment step placeholder."
-          echo "Images successfully published to GHCR. Trigger cloud update (e.g. Azure/AWS webhook or SSH script)."
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            cd /opt/curavision
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker system prune -af

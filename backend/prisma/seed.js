@@ -94,6 +94,33 @@ async function main() {
     });
   }
 
+  console.log("Seeding extra realistic demo scans (Pending/Failed)...");
+  await prisma.scan.upsert({
+    where: { id: "scan-003" },
+    update: {},
+    create: {
+      id: "scan-003",
+      patient_id: "patient-001",
+      doctor_id: "doctor-001",
+      dicom_path: null,
+      modality: "CT",
+      status: "ANALYSIS_PENDING",
+    },
+  });
+
+  await prisma.scan.upsert({
+    where: { id: "scan-004" },
+    update: {},
+    create: {
+      id: "scan-004",
+      patient_id: "patient-002",
+      doctor_id: "doctor-001",
+      dicom_path: null,
+      modality: "MRI",
+      status: "FAILED",
+    },
+  });
+
   console.log("Seed complete.");
 }
 

@@ -140,4 +140,53 @@ router.get(
   }
 );
 
+/**
+ * GET /api/scans/:id/status-stream
+ * SSE endpoint for real-time analysis status updates.
+ */
+router.get(
+  "/:id/status-stream",
+  authenticateJWT,
+  async (req, res, next) => {
+    try {
+      const scanId = req.params.id;
+      // verify access
+      await ScanService.getScanSummary(scanId, { requester: req.user });
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.flushHeaders();
+
+      let lastStatus = null;
+
+      const checkStatus = async () => {
+        try {
+          const scan = await ScanService.getScanRecord(scanId);
+          if (scan && scan.status !== lastStatus) {
+            lastStatus = scan.status;
+            res.write(`data: ${JSON.stringify({ status: scan.status })}\n\n`);
+            if (["ANALYSIS_COMPLETE", "FAILED"].includes(scan.status)) {
+              clearInterval(interval);
+              res.end();
+            }
+          }
+        } catch (err) {
+          clearInterval(interval);
+          res.end();
+        }
+      };
+
+      await checkStatus();
+      const interval = setInterval(checkStatus, 2000);
+
+      req.on("close", () => {
+        clearInterval(interval);
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 module.exports = router;

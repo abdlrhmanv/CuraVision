@@ -1,51 +1,38 @@
-const {
-  computeAvailableSlots,
-  hasConflict,
-  createReservation,
-  getReservationById,
-  updateReservationStatus,
-  listReservationsForUser,
-} = require("../mockData/reservations");
-const { findUserById } = require("../mockData/users");
+const ReservationRepository = require("../repositories/ReservationRepository");
+const prisma = require("../config/prisma");
 const AuditService = require("./AuditService");
 
-function httpError(status, code, message) {
-  const err = new Error(message);
-  err.status = status;
-  err.code = code;
-  return err;
-}
-
-function getAvailability(doctorId, { from, to }) {
-  const doctor = findUserById(doctorId);
+const { notFound, forbidden, conflict, badRequest } = require("../utils/AppError");
+async function getAvailability(doctorId, { from, to }) {
+  const doctor = await prisma.user.findUnique({ where: { id: doctorId } });
   if (!doctor || doctor.role !== "DOCTOR") {
-    throw httpError(404, "DOCTOR_NOT_FOUND", "Doctor not found.");
+    throw notFound("Doctor not found.", "DOCTOR_NOT_FOUND");
   }
-  return computeAvailableSlots(doctorId, from, to);
+  return ReservationRepository.computeAvailableSlots(doctorId, from, to);
 }
 
-function book({ requester, doctor_id, start_time, end_time }) {
-  const doctor = findUserById(doctor_id);
+async function book({ requester, doctor_id, start_time, end_time }) {
+  const doctor = await prisma.user.findUnique({ where: { id: doctor_id } });
   if (!doctor || doctor.role !== "DOCTOR") {
-    throw httpError(404, "DOCTOR_NOT_FOUND", "Doctor not found.");
+    throw notFound("Doctor not found.", "DOCTOR_NOT_FOUND");
   }
 
   const start = new Date(start_time);
   const end = new Date(end_time);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    throw httpError(400, "INVALID_TIME", "start_time and end_time must be valid ISO datetimes.");
+    throw badRequest("start_time and end_time must be valid ISO datetimes.", "INVALID_TIME");
   }
   if (end <= start) {
-    throw httpError(400, "INVALID_RANGE", "end_time must be after start_time.");
+    throw badRequest("end_time must be after start_time.", "INVALID_RANGE");
   }
   if (start.getTime() < Date.now()) {
-    throw httpError(400, "PAST_TIME", "Cannot book an appointment in the past.");
+    throw badRequest("Cannot book an appointment in the past.", "PAST_TIME");
   }
-  if (hasConflict(doctor_id, start_time, end_time)) {
-    throw httpError(409, "SLOT_UNAVAILABLE", "This slot is no longer available.");
+  if (await ReservationRepository.hasConflict(doctor_id, start_time, end_time)) {
+    throw conflict("This slot is no longer available.", "SLOT_UNAVAILABLE");
   }
 
-  const reservation = createReservation({
+  const reservation = await ReservationRepository.createReservation({
     doctor_id,
     patient_id: requester.sub,
     start_time,
@@ -63,28 +50,28 @@ function book({ requester, doctor_id, start_time, end_time }) {
   return reservation;
 }
 
-function updateStatus(reservationId, { requester, status }) {
+async function updateStatus(reservationId, { requester, status }) {
   const allowed = ["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"];
   if (!allowed.includes(status)) {
-    throw httpError(400, "INVALID_STATUS", `Status must be one of: ${allowed.join(", ")}.`);
+    throw badRequest(`Status must be one of: ${allowed.join(", ")}.`, "INVALID_STATUS");
   }
 
-  const reservation = getReservationById(reservationId);
+  const reservation = await ReservationRepository.getReservationById(reservationId);
   if (!reservation) {
-    throw httpError(404, "RESERVATION_NOT_FOUND", "Reservation not found.");
+    throw notFound("Reservation not found.", "RESERVATION_NOT_FOUND");
   }
 
   const isDoctor = requester.role === "DOCTOR" && reservation.doctor_id === requester.sub;
   const isPatient = requester.role === "PATIENT" && reservation.patient_id === requester.sub;
   if (!isDoctor && !isPatient) {
-    throw httpError(403, "FORBIDDEN", "You cannot modify this reservation.");
+    throw forbidden("You cannot modify this reservation.");
   }
 
   if (status === "CONFIRMED" && !isDoctor) {
-    throw httpError(403, "FORBIDDEN", "Only the doctor can confirm a reservation.");
+    throw forbidden("Only the doctor can confirm a reservation.");
   }
 
-  const updated = updateReservationStatus(reservationId, status);
+  const updated = await ReservationRepository.updateReservationStatus(reservationId, status);
 
   AuditService.log({
     user_id: requester.sub,
@@ -97,8 +84,8 @@ function updateStatus(reservationId, { requester, status }) {
   return updated;
 }
 
-function listForUser(requester) {
-  return listReservationsForUser(requester.sub, requester.role);
+async function listForUser(requester) {
+  return ReservationRepository.listReservationsForUser(requester.sub, requester.role);
 }
 
 module.exports = {

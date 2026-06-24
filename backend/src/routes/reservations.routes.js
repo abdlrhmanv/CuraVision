@@ -23,9 +23,9 @@ router.get(
   "/",
   authenticateJWT,
   authorizeRole("PATIENT", "DOCTOR"),
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
-      const list = ReservationService.listForUser(req.user);
+      const list = await ReservationService.listForUser(req.user);
       res.json({ reservations: list });
     } catch (err) {
       next(err);
@@ -47,10 +47,10 @@ router.post(
     body("start_time").isISO8601().withMessage("start_time must be ISO-8601."),
     body("end_time").isISO8601().withMessage("end_time must be ISO-8601."),
   ],
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       if (!validate(req, res)) return;
-      const reservation = ReservationService.book({
+      const reservation = await ReservationService.book({
         requester: req.user,
         doctor_id: req.body.doctor_id,
         start_time: req.body.start_time,
@@ -73,10 +73,10 @@ router.patch(
   authenticateJWT,
   authorizeRole("PATIENT", "DOCTOR"),
   [body("status").isString().notEmpty().withMessage("status is required.")],
-  (req, res, next) => {
+  async (req, res, next) => {
     try {
       if (!validate(req, res)) return;
-      const updated = ReservationService.updateStatus(req.params.id, {
+      const updated = await ReservationService.updateStatus(req.params.id, {
         requester: req.user,
         status: req.body.status,
       });

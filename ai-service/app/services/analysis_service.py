@@ -318,12 +318,6 @@ def run_report(
 
 
 def run_full_analysis(scan_id: str, dicom_path: str) -> dict[str, Any]:
-    seg = run_segmentation(scan_id, dicom_path)
-    cam = run_gradcam(scan_id, dicom_path)
-    rep = run_report(
-        scan_id,
-        tumor_volume_cc=seg["tumor_volume_cc"],
-        tumor_location_description=seg["tumor_location_description"],
-        dicom_path=dicom_path,
-    )
-    return {"scan_id": scan_id, "segmentation": seg, "gradcam": cam, "report": rep}
+    from app.services.inference_strategy import get_inference_strategy
+    strategy = get_inference_strategy()
+    return strategy.run_full_analysis(scan_id, dicom_path)

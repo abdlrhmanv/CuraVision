@@ -34,4 +34,20 @@ const authLimiter = rateLimit({
   },
 });
 
-module.exports = { globalLimiter, authLimiter };
+});
+
+/**
+ * Strict limiter for AI chatbot to prevent excessive LLM/API usage.
+ */
+const chatLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // max 10 messages per minute per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    code: "RATE_LIMITED",
+    message: "You are sending messages too quickly. Please wait a moment.",
+  },
+});
+
+module.exports = { globalLimiter, authLimiter, chatLimiter };

@@ -5,6 +5,7 @@ const UserService = require("./UserService");
 const ReportService = require("./ReportService");
 const AuditService = require("./AuditService");
 const logger = require("../utils/logger");
+const { notFound, badRequest, forbidden, conflict } = require("../utils/AppError");
 
 const SAMPLE_TUMOR_LOCATIONS = [
   "Left frontal lobe, parasagittal region",
@@ -13,20 +14,6 @@ const SAMPLE_TUMOR_LOCATIONS = [
   "Right occipital lobe, periventricular white matter",
   "Brainstem, pontine region",
 ];
-
-function notFound(message, code = "SCAN_NOT_FOUND") {
-  const err = new Error(message);
-  err.status = 404;
-  err.code = code;
-  return err;
-}
-
-function badRequest(message, code = "VALIDATION_ERROR") {
-  const err = new Error(message);
-  err.status = 400;
-  err.code = code;
-  return err;
-}
 
 function serializeScan(scan) {
   return {
@@ -209,7 +196,7 @@ async function scheduleAnalysis(scanId) {
 
 async function completeAnalysis(scanId, payload) {
   const scan = await getScanRecord(scanId);
-  if (!scan) throw notFound("Scan not found.");
+  if (!scan) throw notFound("Scan not found.", "SCAN_NOT_FOUND");
 
   const segmentation = payload.segmentation ?? {};
   const gradcam = payload.gradcam ?? {};
@@ -302,12 +289,9 @@ function buildDraftReport({ volume, location }) {
 
 async function getScanSummary(scanId, { requester }) {
   const scan = await getScanRecord(scanId);
-  if (!scan) throw notFound("Scan not found.");
+  if (!scan) throw notFound("Scan not found.", "SCAN_NOT_FOUND");
   if (requester.role === "DOCTOR" && scan.doctor_id !== requester.sub) {
-    const err = new Error("You do not have access to this scan.");
-    err.status = 403;
-    err.code = "FORBIDDEN";
-    throw err;
+    throw forbidden("You do not have access to this scan.");
   }
   return scan;
 }
@@ -318,10 +302,7 @@ async function getScanAnalysis(scanId, { requester }) {
     where: { scan_id: scanId },
   });
   if (!analysis) {
-    const err = new Error("Analysis is not ready yet.");
-    err.status = 409;
-    err.code = "ANALYSIS_NOT_READY";
-    throw err;
+    throw conflict("Analysis is not ready yet.", "ANALYSIS_NOT_READY");
   }
   return { scan_id: scan.id, ...serializeAnalysis(analysis) };
 }
