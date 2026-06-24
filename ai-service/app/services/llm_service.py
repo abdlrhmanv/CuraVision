@@ -208,6 +208,14 @@ def generate_response(
     chat_history: list[dict],
 ) -> str:
     """Generate a chatbot reply using the configured LLM provider."""
+    provider = settings.llm_provider.lower()
+    if provider == "groq" and _is_placeholder_groq_key(settings.groq_api_key):
+        # Return a stubbed response if API key is a placeholder or missing
+        return (
+            "CuraVision Assistant stub response: I see your report mentions "
+            f"'{report_text[:80]}...'. For professional medical advice, please consult your doctor."
+        )
+
     messages = _build_messages(
         report_text=report_text,
         patient_question=patient_question,
@@ -215,7 +223,6 @@ def generate_response(
         chat_history=chat_history,
     )
 
-    provider = settings.llm_provider.lower()
     if provider == "ollama":
         return _generate_ollama(messages)
     if provider == "groq":

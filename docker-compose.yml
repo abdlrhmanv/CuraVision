@@ -104,6 +104,7 @@ services:
       - ./ai-service/.env
     environment:
       LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+      GROQ_API_KEY: ${GROQ_API_KEY}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3}
@@ -131,6 +132,7 @@ services:
       - ./ai-service/.env
     environment:
       LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+      GROQ_API_KEY: ${GROQ_API_KEY}
       CHROMA_HOST: chromadb
       CHROMA_PORT: "8000"
       CELERY_BROKER_URL: redis://redis:6379/0

@@ -39,7 +39,7 @@ class OnnxPipelineStrategy(InferenceStrategy):
     def __init__(self, config: dict):
         # Dynamically import ml module to avoid breaking if not present
         import sys
-        repo_root = Path(__file__).resolve().parents[4]
+        repo_root = Path(__file__).resolve().parents[3]
         ml_path = repo_root / "ml"
         if str(ml_path) not in sys.path:
             sys.path.append(str(ml_path))
