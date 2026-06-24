@@ -159,27 +159,26 @@ jobs:
   integration-tests:
     name: End-to-End Integration
     runs-on: ubuntu-latest
+    env:
+      JWT_SECRET: ci-secret
+      GROQ_API_KEY: test-key
+      CORS_ORIGIN: "*"
     steps:
       - uses: actions/checkout@v4
 
       - name: Start services with docker-compose
         run: |
-          # Use placeholder keys for testing
-          export JWT_SECRET="ci-secret"
-          export DATABASE_URL="postgresql://curavision:curavision@postgres:5432/curavision"
-          export GROQ_API_KEY="test-key"
-          
           touch ai-service/.env
           touch backend/.env
           touch frontend/.env.local
-          
+
           docker compose up -d
-          
-          # Wait for backend to be healthy
+
+          # Wait for backend to be healthy (ok = all up, degraded = AI service down)
           echo "Waiting for backend to be ready..."
           timeout 60 bash -c 'until curl -sf http://localhost:3001/health | grep -qE "\"status\":\"(ok|degraded)\""; do sleep 2; done'
-          
+
       - name: Run smoke tests
         run: |
           cd backend
-          bash tests/smoke-mvp.sh
+          BASE_URL=http://localhost:3001 bash tests/smoke-mvp.sh

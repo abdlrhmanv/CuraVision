@@ -153,6 +153,7 @@ services:
     environment:
       PORT: "3001"
       NODE_ENV: production
+      RUN_DB_SEED: "true"
       JWT_SECRET: ${JWT_SECRET}
       DATABASE_URL: postgresql://${POSTGRES_USER:-curavision}:${POSTGRES_PASSWORD:-curavision}@postgres:5432/${POSTGRES_DB:-curavision}?schema=public
       AI_SERVICE_URL: http://ai-service:8001
