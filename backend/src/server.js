@@ -106,6 +106,7 @@ app.use("/api/doctors", doctorsRoutes);
 app.use("/api/patients", patientsRoutes);
 app.use("/api/patient", patientsRoutes); // SDD alias for patient-scoped views
 app.use("/api/admin", adminRoutes);
+app.use("/api/internal", internalRoutes);
 const swaggerUi = require("swagger-ui-express");
 const swaggerDocument = require("./swagger.json");
 

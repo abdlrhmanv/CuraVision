@@ -34,8 +34,6 @@ const authLimiter = rateLimit({
   },
 });
 
-});
-
 /**
  * Strict limiter for AI chatbot to prevent excessive LLM/API usage.
  */
