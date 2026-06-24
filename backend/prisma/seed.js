@@ -10,7 +10,31 @@
 const { PrismaClient } = require("@prisma/client");
 const { USERS } = require("../src/mockData/users");
 const { REPORTS } = require("../src/mockData/reports");
-const { AVAILABILITY } = require("../src/mockData/reservations");
+
+// Inline availability fixtures (reservations.js was removed from mockData)
+const AVAILABILITY = [
+  {
+    id: "avail-001",
+    doctor_id: "doctor-001",
+    day_of_week: 1, // Monday
+    start_time: "09:00",
+    end_time: "17:00",
+  },
+  {
+    id: "avail-002",
+    doctor_id: "doctor-001",
+    day_of_week: 3, // Wednesday
+    start_time: "09:00",
+    end_time: "17:00",
+  },
+  {
+    id: "avail-003",
+    doctor_id: "doctor-001",
+    day_of_week: 5, // Friday
+    start_time: "10:00",
+    end_time: "15:00",
+  },
+];
 
 const prisma = new PrismaClient();
 
