@@ -98,6 +98,44 @@ test.describe("AuthService Unit Tests", () => {
     assert.equal(typeof token, "string");
   });
 
+  test("forgotPassword() should return a token when user exists", async () => {
+    const result = await AuthService.forgotPassword(uniqueEmail);
+    assert.ok(result);
+    assert.ok(result.token);
+    assert.equal(result.user.id, createdUser.id);
+  });
+
+  test("forgotPassword() should return null when user does not exist", async () => {
+    const result = await AuthService.forgotPassword("non-existent@example.com");
+    assert.equal(result, null);
+  });
+
+  test("resetPassword() should successfully update user password with valid token", async () => {
+    const reset = await AuthService.forgotPassword(uniqueEmail);
+    const success = await AuthService.resetPassword(reset.token, "NewPassword@123");
+    assert.equal(success, true);
+
+    // Verify login with new password works
+    const loggedIn = await AuthService.login({
+      email: uniqueEmail,
+      password: "NewPassword@123",
+    });
+    assert.ok(loggedIn);
+  });
+
+  test("resetPassword() should fail with an invalid token", async () => {
+    await assert.rejects(
+      async () => {
+        await AuthService.resetPassword("invalid-token-string", "NewPassword@123");
+      },
+      (err) => {
+        assert.equal(err.code, "INVALID_TOKEN");
+        assert.equal(err.status, 401);
+        return true;
+      }
+    );
+  });
+
   // Cleanup testing user
   test.after(async () => {
     if (createdUser) {
