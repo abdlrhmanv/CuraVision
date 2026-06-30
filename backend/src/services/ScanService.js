@@ -1,5 +1,5 @@
 const prisma = require("../config/prisma");
-const { saveDicom, derivedPaths, uploadLocalFile } = require("../integrations/storageClient");
+const { saveDicom, derivedPaths, uploadLocalFile, getPresignedGetUrl, getPresignedPutUrl } = require("../integrations/storageClient");
 const { fastapiClient } = require("../integrations/fastapiClient");
 const UserService = require("./UserService");
 const ReportService = require("./ReportService");
@@ -149,11 +149,20 @@ async function scheduleAnalysis(scanId) {
   const scan = await getScanRecord(scanId);
   if (!scan) return;
 
+  const { mask_path, gradcam_path } = derivedPaths(scanId);
+
+  const dicomUrl = await getPresignedGetUrl(scan.dicom_path).catch(() => null);
+  const maskPutUrl = await getPresignedPutUrl(mask_path, "image/png").catch(() => null);
+  const gradcamPutUrl = await getPresignedPutUrl(gradcam_path, "image/png").catch(() => null);
+
   let result;
   try {
     const { data } = await fastapiClient.post("/ai/analyze", {
       scan_id: scanId,
       dicom_path: scan.dicom_path ?? "",
+      dicom_url: dicomUrl ?? undefined,
+      mask_put_url: maskPutUrl ?? undefined,
+      gradcam_put_url: gradcamPutUrl ?? undefined,
     });
     if (data && data.status === "QUEUED") {
       logger.info(`[ScanService] AI analysis enqueued to Celery queue with task_id: ${data.task_id} for scan ${scanId}`);

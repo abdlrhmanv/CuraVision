@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { S3Client, PutObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const logger = require("../utils/logger");
 
 const s3Client = process.env.S3_ENDPOINT ? new S3Client({
@@ -134,6 +135,27 @@ function derivedPaths(scanId) {
   };
 }
 
+async function getPresignedGetUrl(logicalPath, expiresInSeconds = 3600) {
+  if (!s3Client) return null;
+  const key = logicalPath.replace(/^storage\//, "");
+  const command = new GetObjectCommand({
+    Bucket: S3_BUCKET,
+    Key: key,
+  });
+  return getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+}
+
+async function getPresignedPutUrl(logicalPath, contentType = "image/png", expiresInSeconds = 3600) {
+  if (!s3Client) return null;
+  const key = logicalPath.replace(/^storage\//, "");
+  const command = new PutObjectCommand({
+    Bucket: S3_BUCKET,
+    Key: key,
+    ContentType: contentType,
+  });
+  return getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+}
+
 module.exports = {
   getStorageRoot,
   saveDicom,
@@ -141,4 +163,6 @@ module.exports = {
   getObjectStream,
   isS3Enabled,
   derivedPaths,
+  getPresignedGetUrl,
+  getPresignedPutUrl,
 };

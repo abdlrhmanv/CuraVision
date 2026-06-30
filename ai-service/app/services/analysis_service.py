@@ -90,7 +90,11 @@ def load_dicom_as_image(dicom_path: str) -> Image.Image:
     """Load a DICOM pixel array as an RGB PIL image."""
     import pydicom
 
-    ds = pydicom.dcmread(_resolve_path(dicom_path))
+    p = Path(dicom_path)
+    if p.is_absolute() and p.exists():
+        ds = pydicom.dcmread(p)
+    else:
+        ds = pydicom.dcmread(_resolve_path(dicom_path))
     arr = ds.pixel_array.astype(np.float32)
     arr = (arr - arr.min()) / (arr.max() - arr.min() + 1e-8) * 255
     return Image.fromarray(arr.astype(np.uint8)).convert("RGB")
@@ -100,7 +104,11 @@ def _dicom_metadata(dicom_path: str) -> dict[str, Any]:
     try:
         import pydicom
 
-        ds = pydicom.dcmread(_resolve_path(dicom_path), stop_before_pixels=True)
+        p = Path(dicom_path)
+        if p.is_absolute() and p.exists():
+            ds = pydicom.dcmread(p, stop_before_pixels=True)
+        else:
+            ds = pydicom.dcmread(_resolve_path(dicom_path), stop_before_pixels=True)
     except Exception as exc:
         return {
             "source_path": dicom_path,
@@ -144,10 +152,25 @@ def _synthetic_image(scan_id: str, size: int = 224) -> Image.Image:
     return Image.fromarray(arr).convert("RGB")
 
 
-def _load_image(scan_id: str, dicom_path: str) -> tuple[Image.Image, dict[str, Any], bool]:
-    metadata = _dicom_metadata(dicom_path)
+def _load_image(scan_id: str, dicom_path: str, dicom_url: str | None = None) -> tuple[Image.Image, dict[str, Any], bool]:
+    path_to_read = dicom_path
+    if dicom_url:
+        import tempfile
+        import httpx
+        try:
+            tmp_dir = tempfile.gettempdir()
+            local_path = Path(tmp_dir) / f"{scan_id}.dcm"
+            with httpx.Client(timeout=30.0) as client:
+                resp = client.get(dicom_url)
+                resp.raise_for_status()
+                local_path.write_bytes(resp.content)
+            path_to_read = str(local_path)
+        except Exception as e:
+            pass
+
+    metadata = _dicom_metadata(path_to_read)
     try:
-        return load_dicom_as_image(dicom_path), metadata, True
+        return load_dicom_as_image(path_to_read), metadata, True
     except Exception as exc:
         metadata["pixel_warning"] = str(exc)
         return _synthetic_image(scan_id), metadata, False
@@ -215,13 +238,25 @@ def _describe_location(mask: np.ndarray, scan_id: str) -> str:
     return f"{side} {region}"
 
 
-def _save_mask(mask: np.ndarray, scan_id: str) -> str:
+def _save_mask(mask: np.ndarray, scan_id: str, put_url: str | None = None) -> str:
     abs_path, logical_path = _artifact_path("masks", scan_id, ".png")
     Image.fromarray((mask.astype(np.uint8) * 255)).save(abs_path)
+    
+    if put_url:
+        import httpx
+        try:
+            with open(abs_path, "rb") as f:
+                data = f.read()
+            with httpx.Client(timeout=30.0) as client:
+                resp = client.put(put_url, content=data, headers={"Content-Type": "image/png"})
+                resp.raise_for_status()
+        except Exception as e:
+            pass
+            
     return logical_path
 
 
-def _save_heatmap(image: Image.Image, mask: np.ndarray, scan_id: str) -> str:
+def _save_heatmap(image: Image.Image, mask: np.ndarray, scan_id: str, put_url: str | None = None) -> str:
     abs_path, logical_path = _artifact_path("heatmaps", scan_id, ".png")
     base = np.asarray(image.resize((512, 512)).convert("RGB"), dtype=np.float32) / 255
     resized_mask = Image.fromarray((mask.astype(np.uint8) * 255)).resize((512, 512))
@@ -234,6 +269,18 @@ def _save_heatmap(image: Image.Image, mask: np.ndarray, scan_id: str) -> str:
 
     overlay = np.clip(base * 0.62 + heat * 0.38, 0, 1)
     Image.fromarray((overlay * 255).astype(np.uint8)).save(abs_path)
+    
+    if put_url:
+        import httpx
+        try:
+            with open(abs_path, "rb") as f:
+                data = f.read()
+            with httpx.Client(timeout=30.0) as client:
+                resp = client.put(put_url, content=data, headers={"Content-Type": "image/png"})
+                resp.raise_for_status()
+        except Exception as e:
+            pass
+            
     return logical_path
 
 
@@ -263,12 +310,12 @@ def _fallback_report(scan_id: str, volume: float, location: str, metadata: dict[
     )
 
 
-def run_segmentation(scan_id: str, dicom_path: str) -> dict[str, Any]:
-    image, metadata, loaded_dicom = _load_image(scan_id, dicom_path)
+def run_segmentation(scan_id: str, dicom_path: str, dicom_url: str | None = None, put_url: str | None = None) -> dict[str, Any]:
+    image, metadata, loaded_dicom = _load_image(scan_id, dicom_path, dicom_url)
     mask = _lesion_mask(image)
     volume = _estimate_volume_cc(mask, metadata, scan_id)
     location = _describe_location(mask, scan_id)
-    mask_path = _save_mask(mask, scan_id)
+    mask_path = _save_mask(mask, scan_id, put_url)
 
     source = "dicom" if loaded_dicom else "synthetic-fallback"
     return {
@@ -283,13 +330,13 @@ def run_segmentation(scan_id: str, dicom_path: str) -> dict[str, Any]:
     }
 
 
-def run_gradcam(scan_id: str, dicom_path: str) -> dict[str, Any]:
-    image, _metadata, _loaded_dicom = _load_image(scan_id, dicom_path)
+def run_gradcam(scan_id: str, dicom_path: str, dicom_url: str | None = None, put_url: str | None = None) -> dict[str, Any]:
+    image, _metadata, _loaded_dicom = _load_image(scan_id, dicom_path, dicom_url)
     mask = _lesion_mask(image)
     location = _describe_location(mask, scan_id)
     return {
         "scan_id": scan_id,
-        "gradcam_path": _save_heatmap(image, mask, scan_id),
+        "gradcam_path": _save_heatmap(image, mask, scan_id, put_url),
         "activation_peak_region": location,
     }
 
@@ -317,7 +364,19 @@ def run_report(
     return {"scan_id": scan_id, "ai_draft": draft}
 
 
-def run_full_analysis(scan_id: str, dicom_path: str) -> dict[str, Any]:
+def run_full_analysis(
+    scan_id: str,
+    dicom_path: str,
+    dicom_url: str | None = None,
+    mask_put_url: str | None = None,
+    gradcam_put_url: str | None = None,
+) -> dict[str, Any]:
     from app.services.inference_strategy import get_inference_strategy
     strategy = get_inference_strategy()
-    return strategy.run_full_analysis(scan_id, dicom_path)
+    return strategy.run_full_analysis(
+        scan_id,
+        dicom_path,
+        dicom_url=dicom_url,
+        mask_put_url=mask_put_url,
+        gradcam_put_url=gradcam_put_url,
+    )

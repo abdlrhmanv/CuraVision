@@ -51,7 +51,13 @@ async def analyze(request: SegmentationRequest) -> AsyncAnalysisResponse:
     """Run the full segmentation → Grad-CAM → report chain asynchronously in the background."""
     try:
         from app.worker.tasks import run_full_analysis
-        task = run_full_analysis.delay(request.scan_id, request.dicom_path)
+        task = run_full_analysis.delay(
+            request.scan_id,
+            request.dicom_path,
+            dicom_url=request.dicom_url,
+            mask_put_url=request.mask_put_url,
+            gradcam_put_url=request.gradcam_put_url,
+        )
         return AsyncAnalysisResponse(
             scan_id=request.scan_id,
             task_id=task.id,

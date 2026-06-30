@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class InferenceStrategy(abc.ABC):
     @abc.abstractmethod
-    def run_full_analysis(self, scan_id: str, dicom_path: str) -> dict[str, Any]:
+    def run_full_analysis(self, scan_id: str, dicom_path: str, dicom_url: str | None = None, mask_put_url: str | None = None, gradcam_put_url: str | None = None) -> dict[str, Any]:
         pass
 
 class InterimDicomStrategy(InferenceStrategy):
@@ -21,9 +21,9 @@ class InterimDicomStrategy(InferenceStrategy):
     Fallback strategy that uses synthetic/interim analysis
     when ONNX models are not available.
     """
-    def run_full_analysis(self, scan_id: str, dicom_path: str) -> dict[str, Any]:
-        seg = analysis_service.run_segmentation(scan_id, dicom_path)
-        cam = analysis_service.run_gradcam(scan_id, dicom_path)
+    def run_full_analysis(self, scan_id: str, dicom_path: str, dicom_url: str | None = None, mask_put_url: str | None = None, gradcam_put_url: str | None = None) -> dict[str, Any]:
+        seg = analysis_service.run_segmentation(scan_id, dicom_path, dicom_url, mask_put_url)
+        cam = analysis_service.run_gradcam(scan_id, dicom_path, dicom_url, gradcam_put_url)
         rep = analysis_service.run_report(
             scan_id,
             tumor_volume_cc=seg["tumor_volume_cc"],
@@ -53,14 +53,14 @@ class OnnxPipelineStrategy(InferenceStrategy):
         mlflow.set_tracking_uri("sqlite:///mlruns.db")
         mlflow.set_experiment("CuraVision-Tumor-Segmentation")
 
-    def run_full_analysis(self, scan_id: str, dicom_path: str) -> dict[str, Any]:
+    def run_full_analysis(self, scan_id: str, dicom_path: str, dicom_url: str | None = None, mask_put_url: str | None = None, gradcam_put_url: str | None = None) -> dict[str, Any]:
         from PIL import Image
         import importlib
         schemas_mod = importlib.import_module("src.inference.schemas")
         ClassificationResult = schemas_mod.ClassificationResult
         
         # Load image (we reuse analysis_service's loader which returns PIL Image)
-        image, metadata, _ = analysis_service._load_image(scan_id, dicom_path)
+        image, metadata, _ = analysis_service._load_image(scan_id, dicom_path, dicom_url)
         
         # Run classification model
         cls_raw = self.pipeline.classifier.predict(image)
@@ -98,8 +98,8 @@ class OnnxPipelineStrategy(InferenceStrategy):
             if seg_raw["mask_found"]:
                 mask = seg_raw["mask"]
                 # Save mask and gradcam using analysis_service helpers
-                mask_path = analysis_service._save_mask(mask, scan_id)
-                gradcam_path = analysis_service._save_heatmap(image, mask, scan_id)
+                mask_path = analysis_service._save_mask(mask, scan_id, mask_put_url)
+                gradcam_path = analysis_service._save_heatmap(image, mask, scan_id, gradcam_put_url)
                 volume = analysis_service._estimate_volume_cc(mask, metadata, scan_id)
                 location = analysis_service._describe_location(mask, scan_id)
             else:

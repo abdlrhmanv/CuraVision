@@ -4,6 +4,9 @@ from pydantic import BaseModel, Field
 class SegmentationRequest(BaseModel):
     scan_id: str = Field(..., description="Scan identifier supplied by the backend.")
     dicom_path: str = Field(..., description="Logical storage path to the DICOM file.")
+    dicom_url: str | None = Field(None, description="Presigned GET URL for input DICOM file.")
+    mask_put_url: str | None = Field(None, description="Presigned PUT URL for output mask file.")
+    gradcam_put_url: str | None = Field(None, description="Presigned PUT URL for output gradcam overlay.")
 
 
 class SegmentationResponse(BaseModel):
