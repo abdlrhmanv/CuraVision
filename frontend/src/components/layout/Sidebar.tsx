@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import {
+  LucideIcon,
   LayoutDashboard,
   MessageSquare,
   Brain,
@@ -17,13 +18,13 @@ import { useAuth } from "@/lib/authContext";
 interface NavItem {
   label: string;
   href: string;
-  icon: any;
+  icon: LucideIcon;
 }
 
 interface MenuItem {
   id: string;
   label: string;
-  icon: any;
+  icon: LucideIcon;
   href: string;
 }
 
@@ -31,11 +32,11 @@ interface SidebarProps {
   role?: "patient" | "doctor" | "admin";
   collapsed?: boolean;
   onNavigate?: () => void;
-  user?: any;
+  user?: unknown;
   navItems?: NavItem[];
 }
 
-export default function Sidebar({ role, collapsed = false, onNavigate, user, navItems }: SidebarProps) {
+export default function Sidebar({ role, collapsed = false, onNavigate, navItems }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const authContext = useAuth();
