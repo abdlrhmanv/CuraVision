@@ -86,65 +86,64 @@ async function editReport(reportId, { requester, final_report, corrections }) {
   const finalReportChanged =
     typeof final_report === "string" && final_report !== previousFinal;
 
-  if (finalReportChanged) {
-    await prisma.report.update({
-      where: { id: reportId },
-      data: {
-        final_report,
-        status: "REVIEWED",
-      },
-    });
-  }
-
-  let autoCorrections = 0;
-
-  if (finalReportChanged) {
-    const baseline = previousFinal ?? report.ai_draft ?? "";
-    if (baseline !== final_report) {
-      await prisma.reportCorrection.create({
+  const result = await prisma.$transaction(async (tx) => {
+    if (finalReportChanged) {
+      await tx.report.update({
+        where: { id: reportId },
         data: {
-          report_id: reportId,
-          field: "final_report",
-          old_value: baseline,
-          new_value: final_report,
+          final_report,
+          status: "REVIEWED",
         },
       });
-      autoCorrections += 1;
     }
-  }
 
-  let explicitCorrections = 0;
-  if (Array.isArray(corrections)) {
-    for (const c of corrections) {
-      if (c && typeof c.field === "string") {
-        await prisma.reportCorrection.create({
+    let autoCorrections = 0;
+    if (finalReportChanged) {
+      const baseline = previousFinal ?? report.ai_draft ?? "";
+      if (baseline !== final_report) {
+        await tx.reportCorrection.create({
           data: {
             report_id: reportId,
-            field: c.field,
-            old_value: c.old_value ?? null,
-            new_value: c.new_value ?? null,
+            field: "final_report",
+            old_value: baseline,
+            new_value: final_report,
           },
         });
-        explicitCorrections += 1;
+        autoCorrections += 1;
+      }
+    }
 
-        if (c.field === "tumor_volume_cc") {
-          await prisma.scanAnalysis.update({
-            where: { scan_id: report.scan_id },
-            data: { tumor_volume_cc: parseFloat(c.new_value) || null },
-          }).catch((err) => {
-            logger.error({ err }, "[ReportService] failed to update tumor_volume_cc correction");
+    let explicitCorrections = 0;
+    if (Array.isArray(corrections)) {
+      for (const c of corrections) {
+        if (c && typeof c.field === "string") {
+          await tx.reportCorrection.create({
+            data: {
+              report_id: reportId,
+              field: c.field,
+              old_value: c.old_value ?? null,
+              new_value: c.new_value ?? null,
+            },
           });
-        } else if (c.field === "tumor_location_description") {
-          await prisma.scanAnalysis.update({
-            where: { scan_id: report.scan_id },
-            data: { tumor_location_description: c.new_value ?? null },
-          }).catch((err) => {
-            logger.error({ err }, "[ReportService] failed to update tumor_location_description correction");
-          });
+          explicitCorrections += 1;
+
+          if (c.field === "tumor_volume_cc") {
+            await tx.scanAnalysis.update({
+              where: { scan_id: report.scan_id },
+              data: { tumor_volume_cc: parseFloat(c.new_value) || null },
+            });
+          } else if (c.field === "tumor_location_description") {
+            await tx.scanAnalysis.update({
+              where: { scan_id: report.scan_id },
+              data: { tumor_location_description: c.new_value ?? null },
+            });
+          }
         }
       }
     }
-  }
+
+    return { autoCorrections, explicitCorrections };
+  });
 
   AuditService.log({
     user_id: requester.sub,
@@ -152,8 +151,8 @@ async function editReport(reportId, { requester, final_report, corrections }) {
     entity_type: "REPORT",
     entity_id: reportId,
     metadata: {
-      auto_corrections: autoCorrections,
-      explicit_corrections: explicitCorrections,
+      auto_corrections: result.autoCorrections,
+      explicit_corrections: result.explicitCorrections,
     },
   });
 
