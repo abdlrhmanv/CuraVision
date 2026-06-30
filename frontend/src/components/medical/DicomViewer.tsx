@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Brain, AlertTriangle } from 'lucide-react'
+import type { RenderingEngine } from '@cornerstonejs/core'
 
 interface DicomViewerProps {
   /** HTTPS/HTTP URL to a DICOM file OR a preview image (png/jpg). */
@@ -28,6 +29,7 @@ interface DicomViewerProps {
  */
 export default function DicomViewer({ src, caption, height = 360, overlaySrc }: DicomViewerProps) {
   const hostRef = useRef<HTMLDivElement>(null)
+  const engineRef = useRef<RenderingEngine | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [initialised, setInitialised] = useState(false)
   const [opacity, setOpacity] = useState(100)
@@ -66,6 +68,7 @@ export default function DicomViewer({ src, caption, height = 360, overlaySrc }: 
         const viewportId = 'curavision-viewport'
 
         const engine = new RenderingEngine(renderingEngineId)
+        engineRef.current = engine
         engine.enableElement({
           viewportId,
           element: hostRef.current as HTMLDivElement,
@@ -81,14 +84,6 @@ export default function DicomViewer({ src, caption, height = 360, overlaySrc }: 
         await imageLoader.loadImage(imageId)
         await viewport.setStack([imageId])
         viewport.render()
-
-        return () => {
-          try {
-            engine.destroy()
-          } catch {
-            /* ignore */
-          }
-        }
       } catch (err) {
         if (!disposed) {
           const message = err instanceof Error ? err.message : 'Failed to render DICOM'
@@ -99,6 +94,14 @@ export default function DicomViewer({ src, caption, height = 360, overlaySrc }: 
 
     return () => {
       disposed = true
+      if (engineRef.current) {
+        try {
+          engineRef.current.destroy()
+        } catch {
+          /* ignore */
+        }
+        engineRef.current = null
+      }
     }
   }, [src, isDicom, initialised])
 

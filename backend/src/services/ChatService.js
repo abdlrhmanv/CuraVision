@@ -2,6 +2,7 @@ const { fastapiClient } = require("../integrations/fastapiClient");
 const ReportService = require("./ReportService");
 const ChatRepository = require("../repositories/ChatRepository");
 const logger = require("../utils/logger");
+const { notFound, forbidden } = require("../utils/AppError");
 
 function toAiHistory(msgs) {
   return msgs.map((m) => ({
@@ -23,22 +24,13 @@ async function sendMessage(reportId, patientId, message) {
   // 1. Verify the report exists and belongs to this patient
   const report = await ReportService.getReportById(reportId);
   if (!report) {
-    const err = new Error("Report not found.");
-    err.status = 404;
-    err.code = "REPORT_NOT_FOUND";
-    throw err;
+    throw notFound("Report not found.", "REPORT_NOT_FOUND");
   }
   if (report.patient_id !== patientId) {
-    const err = new Error("You do not have access to this report.");
-    err.status = 403;
-    err.code = "FORBIDDEN";
-    throw err;
+    throw forbidden("You do not have access to this report.");
   }
   if (!report.patient_visible) {
-    const err = new Error("This report has not been published yet.");
-    err.status = 403;
-    err.code = "REPORT_NOT_PUBLISHED";
-    throw err;
+    throw forbidden("This report has not been published yet.", "REPORT_NOT_PUBLISHED");
   }
 
   // 2. Get or create the chat session
@@ -89,16 +81,10 @@ async function sendMessage(reportId, patientId, message) {
 async function getHistory(reportId, patientId) {
   const report = await ReportService.getReportById(reportId);
   if (!report) {
-    const err = new Error("Report not found.");
-    err.status = 404;
-    err.code = "REPORT_NOT_FOUND";
-    throw err;
+    throw notFound("Report not found.", "REPORT_NOT_FOUND");
   }
   if (report.patient_id !== patientId) {
-    const err = new Error("You do not have access to this report.");
-    err.status = 403;
-    err.code = "FORBIDDEN";
-    throw err;
+    throw forbidden("You do not have access to this report.");
   }
 
   const session = await ChatRepository.getOrCreateSession(reportId, patientId);

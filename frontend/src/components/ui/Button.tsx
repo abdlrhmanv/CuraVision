@@ -8,20 +8,20 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className = '', variant = 'primary', size = 'md', isLoading, children, disabled, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-white';
+    const baseStyles = 'inline-flex items-center justify-center rounded-md font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-bg';
     
     const variants = {
-      primary: 'bg-blue-600 text-white hover:bg-blue-700',
-      secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200',
-      outline: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
-      danger: 'bg-red-600 text-white hover:bg-red-700',
-      ghost: 'hover:bg-gray-100 hover:text-gray-900 text-gray-600',
+      primary: 'bg-blue text-bg hover:bg-blue/90 active:scale-95 transition-all duration-150',
+      secondary: 'bg-surface text-text hover:bg-surface/80',
+      outline: 'border border-border bg-transparent text-text hover:bg-surface',
+      danger: 'bg-warn text-text hover:bg-warn/90',
+      ghost: 'hover:bg-surface hover:text-text text-muted',
     };
 
     const sizes = {
-      sm: 'h-9 px-3 text-sm',
-      md: 'h-10 py-2 px-4',
-      lg: 'h-11 px-8 rounded-md',
+      sm: 'h-9 px-3 text-xs',
+      md: 'h-10 py-2 px-4 text-sm',
+      lg: 'h-11 px-8 rounded-md text-base',
     };
 
     return (

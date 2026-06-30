@@ -11,7 +11,9 @@ from src.classification.augmentations import IMAGENET_MEAN, IMAGENET_STD
 class ClassificationONNXPredictor:
     def __init__(self, onnx_path: str, image_size: int, class_names: list[str]):
         self.class_names = class_names
-        self.session = ort.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
+        available = ort.get_available_providers()
+        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"] if "CUDAExecutionProvider" in available else ["CPUExecutionProvider"]
+        self.session = ort.InferenceSession(onnx_path, providers=providers)
         self.transform = transforms.Compose([
             transforms.Resize((image_size, image_size)),
             transforms.ToTensor(),

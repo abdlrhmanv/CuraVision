@@ -60,7 +60,9 @@ router.get(
   authorizeRole("DOCTOR"),
   async (req, res, next) => {
     try {
-      const corrections = await ReportService.getCorrections(req.params.id);
+      const corrections = await ReportService.getCorrections(req.params.id, {
+        requester: req.user,
+      });
       res.json({ report_id: req.params.id, corrections });
     } catch (err) {
       next(err);

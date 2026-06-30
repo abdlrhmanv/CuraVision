@@ -7,11 +7,20 @@ const jwt = require("jsonwebtoken");
 function authenticateJWT(req, res, next) {
   let token;
   const authHeader = req.headers["authorization"];
+  const cookieHeader = req.headers["cookie"];
+  const cookies = {};
+
+  if (cookieHeader) {
+    cookieHeader.split(";").forEach((cookie) => {
+      const parts = cookie.split("=");
+      cookies[parts[0].trim()] = (parts[1] || "").trim();
+    });
+  }
 
   if (authHeader && authHeader.startsWith("Bearer ")) {
     token = authHeader.slice(7);
-  } else if (req.query.token) {
-    token = req.query.token;
+  } else if (cookies.token) {
+    token = cookies.token;
   }
 
   if (!token) {

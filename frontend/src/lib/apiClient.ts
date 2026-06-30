@@ -37,14 +37,11 @@ export class ApiError extends Error {
 }
 
 export function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(TOKEN_STORAGE_KEY);
+  return null;
 }
 
 export function setToken(token: string | null): void {
-  if (typeof window === "undefined") return;
-  if (token) window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
-  else window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+  // Rely on HttpOnly cookies, do not persist token in LocalStorage to prevent XSS
 }
 
 export function getStoredUser(): AuthUser | null {
@@ -94,6 +91,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     ...rest,
     headers: requestHeaders,
     body: payload,
+    credentials: "include",
   });
 
   let data: unknown = null;
@@ -151,6 +149,8 @@ export const authApi = {
     full_name: string;
     role?: "PATIENT" | "DOCTOR";
   }) => api.post<LoginResponse>("/api/auth/register", input),
+
+  logout: () => api.post<{ ok: boolean }>("/api/auth/logout"),
 };
 
 export interface Scan {
@@ -318,6 +318,17 @@ export const patientsApi = {
     api.get<{ patients: Patient[] }>(`/api/doctors/${doctorId}/patients`),
   update: (id: string, updates: Partial<Patient>) =>
     api.patch<Patient>(`/api/patients/${id}`, updates),
+};
+
+export interface PatientStats {
+  total_scans: number;
+  total_reports: number;
+  total_appointments: number;
+}
+
+export const patientApi = {
+  getStats: () => api.get<PatientStats>("/api/patient/stats"),
+  getReports: () => reportsApi.listForPatient(),
 };
 
 export const adminApi = {

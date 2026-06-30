@@ -130,4 +130,35 @@ function stripClinical(report) {
   return rest;
 }
 
+/**
+ * GET /api/patient/stats
+ * Returns real aggregate stats for the authenticated patient's dashboard.
+ */
+router.get(
+  "/stats",
+  authenticateJWT,
+  authorizeRole("PATIENT"),
+  async (req, res, next) => {
+    try {
+      const patientId = req.user.sub;
+
+      const [totalScans, totalReports, totalAppointments] = await Promise.all([
+        prisma.scan.count({ where: { patient_id: patientId } }),
+        prisma.report.count({
+          where: { patient_id: patientId, patient_visible: true },
+        }),
+        prisma.reservation.count({ where: { patient_id: patientId } }),
+      ]);
+
+      res.json({
+        total_scans: totalScans,
+        total_reports: totalReports,
+        total_appointments: totalAppointments,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 module.exports = router;

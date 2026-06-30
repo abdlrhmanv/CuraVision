@@ -25,8 +25,11 @@ router.get(
   }
 );
 
+const fs = require("fs");
+const os = require("os");
+
 const upload = multer({
-  storage: multer.memoryStorage(),
+  dest: os.tmpdir(),
   limits: { fileSize: 200 * 1024 * 1024 },
 });
 
@@ -43,19 +46,40 @@ router.post(
     try {
       const patientId = req.body.patient_id;
       if (!patientId) {
+        if (req.file) {
+          fs.unlink(req.file.path, () => {});
+        }
         return res.status(400).json({
           code: "VALIDATION_ERROR",
           message: "patient_id is required.",
         });
       }
 
+      if (!req.file) {
+        return res.status(400).json({
+          code: "FILE_REQUIRED",
+          message: "DICOM file is required.",
+        });
+      }
+
+      const fileBuffer = fs.readFileSync(req.file.path);
+      const fileObj = {
+        buffer: fileBuffer,
+        originalname: req.file.originalname,
+      };
+
       const result = await ScanService.uploadScan({
-        file: req.file,
+        file: fileObj,
         patientId,
         doctorId: req.user.sub,
       });
+
+      fs.unlink(req.file.path, () => {});
       res.status(201).json(result);
     } catch (err) {
+      if (req.file) {
+        fs.unlink(req.file.path, () => {});
+      }
       next(err);
     }
   }

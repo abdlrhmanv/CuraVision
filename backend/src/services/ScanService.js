@@ -318,6 +318,9 @@ async function getScanSummary(scanId, { requester }) {
   if (requester.role === "DOCTOR" && scan.doctor_id !== requester.sub) {
     throw forbidden("You do not have access to this scan.");
   }
+  if (requester.role === "PATIENT" && scan.patient_id !== requester.sub) {
+    throw forbidden("You do not have access to this scan.");
+  }
   return scan;
 }
 

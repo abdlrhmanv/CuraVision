@@ -9,7 +9,9 @@ from src.segmentation.augmentations import SegmentationInferenceTransform
 
 class SegmentationONNXPredictor:
     def __init__(self, onnx_path: str, image_size: int, positive_threshold: float = 0.5):
-        self.session = ort.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
+        available = ort.get_available_providers()
+        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"] if "CUDAExecutionProvider" in available else ["CPUExecutionProvider"]
+        self.session = ort.InferenceSession(onnx_path, providers=providers)
         self.transform = SegmentationInferenceTransform(image_size=image_size)
         self.positive_threshold = positive_threshold
 

@@ -66,3 +66,10 @@ export interface AuditLog {
   entity_id: string | null;
   metadata: Record<string, unknown>;
 }
+
+export interface PatientStats {
+  total_scans: number;
+  total_reports: number;
+  total_appointments: number;
+}
+

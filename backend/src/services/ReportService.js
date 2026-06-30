@@ -242,7 +242,15 @@ async function getForPatient(reportId, patientId) {
   return report;
 }
 
-async function getCorrections(reportId) {
+async function getCorrections(reportId, { requester }) {
+  const report = await getReportById(reportId);
+  if (!report) throw notFound("Report not found.", "REPORT_NOT_FOUND");
+  if (requester.role === "DOCTOR" && report.doctor_id !== requester.sub) {
+    throw forbidden("You do not have access to this report's corrections.");
+  }
+  if (requester.role === "PATIENT" && report.patient_id !== requester.sub) {
+    throw forbidden("You do not have access to this report's corrections.");
+  }
   const corrections = await prisma.reportCorrection.findMany({
     where: { report_id: reportId },
     orderBy: { created_at: "asc" },

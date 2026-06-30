@@ -42,6 +42,26 @@ def build_query(request: ChatbotRequest) -> str:
     
     return " ".join(query_parts)
 
+import re
+
+def detect_prompt_injection(text: str) -> bool:
+    patterns = [
+        r"ignore (your )?instructions",
+        r"ignore previous",
+        r"you are now a",
+        r"act as a",
+        r"simulate a",
+        r"system prompt",
+        r"jailbreak",
+        r"new role",
+        r"developer mode",
+        r"system constraints",
+        r"bypass safety",
+        r"override rules"
+    ]
+    combined = re.compile("|".join(patterns), re.IGNORECASE)
+    return bool(combined.search(text))
+
 @router.post("/chatbot", response_model=ChatbotResponse)
 async def chatbot(request: ChatbotRequest) -> ChatbotResponse:
     request_id = str(uuid.uuid4())
@@ -49,6 +69,17 @@ async def chatbot(request: ChatbotRequest) -> ChatbotResponse:
     try:
         # Log incoming request
         logger.info(f"[{request_id}] Incoming question: {request.patient_question}")
+
+        # Check for prompt injection
+        has_injection = detect_prompt_injection(request.patient_question) or any(
+            detect_prompt_injection(msg.content) for msg in request.chat_history
+        )
+        if has_injection:
+            logger.warning(f"[{request_id}] Prompt injection attempt blocked: '{request.patient_question}'")
+            return ChatbotResponse(
+                answer="I can only help explain the findings in your current report. For any other requests, please contact your medical team.",
+                sources=["Security Guardrail: Prompt Injection Filter"]
+            )
 
         # Step 1 — Build retrieval query
         query = build_query(request)

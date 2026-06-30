@@ -42,6 +42,23 @@ def report_task(
     )
 
 
+@celery.task(
+    name="curavision.send_callback",
+    bind=True,
+    autoretry_for=(httpx.HTTPError, Exception),
+    retry_backoff=True,
+    max_retries=3
+)
+def send_callback_task(self, scan_id: str, result: dict[str, Any]) -> None:
+    """Send back results to Node.js backend. Retries on failure."""
+    resp = httpx.post(
+        f"{BACKEND_CALLBACK_URL}/api/internal/scans/{scan_id}/analysis-complete",
+        json=result,
+        timeout=10.0,
+    )
+    resp.raise_for_status()
+
+
 @celery.task(name="curavision.run_full_analysis", bind=True)
 def run_full_analysis(
     self,
@@ -62,14 +79,7 @@ def run_full_analysis(
         gradcam_put_url=gradcam_put_url,
     )
 
-    # Best-effort callback so the Node backend can persist the analysis.
-    try:
-        httpx.post(
-            f"{BACKEND_CALLBACK_URL}/api/internal/scans/{scan_id}/analysis-complete",
-            json=result,
-            timeout=5,
-        )
-    except Exception:  # pragma: no cover — best-effort callback
-        pass
+    # Asynchronously trigger the callback task with retry configurations
+    send_callback_task.delay(scan_id, result)
 
     return result

@@ -54,6 +54,13 @@ router.post(
       });
 
       const token = AuthService.signToken(user);
+      const isProd = process.env.NODE_ENV === "production";
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: isProd ? "strict" : "lax",
+        maxAge: 8 * 60 * 60 * 1000, // 8h — matches JWT expiresIn
+      });
       res.status(201).json({ token, user: UserService.toPublicUser(user) });
     } catch (err) {
       if (err.code === "EMAIL_IN_USE") {
@@ -90,6 +97,13 @@ router.post(
       });
 
       const token = AuthService.signToken(user);
+      const isProd = process.env.NODE_ENV === "production";
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: isProd ? "strict" : "lax",
+        maxAge: 8 * 60 * 60 * 1000, // 8h — matches JWT expiresIn
+      });
       res.json({ token, user: UserService.toPublicUser(user) });
     } catch (err) {
       if (err.code === "INVALID_CREDENTIALS" || err.code === "ACCOUNT_DISABLED") {
@@ -99,6 +113,15 @@ router.post(
     }
   }
 );
+
+/**
+ * POST /api/auth/logout
+ * Clears the HttpOnly authentication token cookie.
+ */
+router.post("/logout", (req, res) => {
+  res.clearCookie("token");
+  res.json({ ok: true });
+});
 
 module.exports = router;
 
