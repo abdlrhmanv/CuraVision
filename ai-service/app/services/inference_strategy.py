@@ -39,12 +39,14 @@ class OnnxPipelineStrategy(InferenceStrategy):
     def __init__(self, config: dict):
         # Dynamically import ml module to avoid breaking if not present
         import sys
+        import importlib
         repo_root = Path(__file__).resolve().parents[3]
         ml_path = repo_root / "ml"
         if str(ml_path) not in sys.path:
             sys.path.append(str(ml_path))
             
-        from src.inference.pipeline import BrainMRIPipeline
+        pipeline_mod = importlib.import_module("src.inference.pipeline")
+        BrainMRIPipeline = pipeline_mod.BrainMRIPipeline
         self.pipeline = BrainMRIPipeline(config)
         
         # MLflow setup
@@ -53,7 +55,9 @@ class OnnxPipelineStrategy(InferenceStrategy):
 
     def run_full_analysis(self, scan_id: str, dicom_path: str) -> dict[str, Any]:
         from PIL import Image
-        from src.inference.schemas import ClassificationResult
+        import importlib
+        schemas_mod = importlib.import_module("src.inference.schemas")
+        ClassificationResult = schemas_mod.ClassificationResult
         
         # Load image (we reuse analysis_service's loader which returns PIL Image)
         image, metadata, _ = analysis_service._load_image(scan_id, dicom_path)
