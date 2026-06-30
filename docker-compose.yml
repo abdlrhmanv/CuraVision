@@ -170,6 +170,7 @@ services:
       RUN_DB_SEED: "true"
       JWT_SECRET: ${JWT_SECRET}
       DATABASE_URL: postgresql://${POSTGRES_USER:-curavision}:${POSTGRES_PASSWORD:-curavision}@postgres:5432/${POSTGRES_DB:-curavision}?schema=public&connection_limit=20
+      REDIS_URL: redis://redis:6379/1
       AI_SERVICE_URL: http://ai-service:8001
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       RATE_LIMIT_WINDOW_MS: "60000"

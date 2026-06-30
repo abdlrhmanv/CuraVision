@@ -1,5 +1,9 @@
+const crypto = require("crypto");
 const prisma = require("../config/prisma");
 const logger = require("../utils/logger");
+const { redisClient } = require("../integrations/redisClient");
+
+let processTimer = null;
 
 /**
  * Record a single audit event.
@@ -15,20 +19,71 @@ const logger = require("../utils/logger");
  * @param {object} [event.metadata]
  */
 async function log(event) {
+  const payload = {
+    id: event.id || crypto.randomUUID(),
+    user_id: event.user_id || null,
+    action: event.action,
+    entity_type: event.entity_type || null,
+    entity_id: event.entity_id || null,
+    metadata: event.metadata || null,
+    timestamp: new Date().toISOString(),
+  };
+
   try {
-    return await prisma.auditLog.create({
-      data: {
-        user_id: event.user_id || null,
-        action: event.action,
-        entity_type: event.entity_type,
-        entity_id: event.entity_id,
-        metadata: event.metadata ? event.metadata : undefined,
-      },
-    });
+    await redisClient.rpush("audit_log_queue", JSON.stringify(payload));
   } catch (err) {
-    logger.error({ err }, "[AuditService] Failed to record audit log");
+    logger.warn({ error: err.message }, "[AuditService] Redis queue failed. Falling back to sync DB insert.");
+    try {
+      await prisma.auditLog.create({ data: payload });
+    } catch (dbErr) {
+      logger.error({ err: dbErr }, "[AuditService] Synchronous DB fallback failed");
+    }
   }
 }
+
+function startQueueProcessor(intervalMs = 3000, batchSize = 50) {
+  if (processTimer) return;
+  processTimer = setInterval(async () => {
+    try {
+      const pipeline = redisClient.pipeline();
+      for (let i = 0; i < batchSize; i++) {
+        pipeline.lpop("audit_log_queue");
+      }
+      const results = await pipeline.exec();
+
+      const logsToWrite = [];
+      for (const [err, val] of results) {
+        if (val) {
+          logsToWrite.push(JSON.parse(val));
+        }
+      }
+
+      if (logsToWrite.length > 0) {
+        logger.info(`[AuditService] Batch-writing ${logsToWrite.length} audit logs to database.`);
+        await prisma.auditLog.createMany({
+          data: logsToWrite,
+          skipDuplicates: true,
+        });
+      }
+    } catch (err) {
+      logger.error({ err }, "[AuditService] Error processing audit log batch");
+    }
+  }, intervalMs);
+
+  if (processTimer && typeof processTimer.unref === "function") {
+    processTimer.unref();
+  }
+}
+
+function stopQueueProcessor() {
+  if (processTimer) {
+    clearInterval(processTimer);
+    processTimer = null;
+  }
+}
+
+// Automatically start the processor
+startQueueProcessor();
 
 async function search(filters) {
   const where = {};
@@ -64,5 +119,10 @@ async function search(filters) {
   };
 }
 
-module.exports = { log, search };
+module.exports = {
+  log,
+  search,
+  startQueueProcessor,
+  stopQueueProcessor,
+};
 

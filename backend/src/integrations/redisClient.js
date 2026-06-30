@@ -3,7 +3,16 @@ const logger = require("../utils/logger");
 
 // Default to Redis database 1 for celery task results, as configured in worker.
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379/1";
-const redisClient = new Redis(redisUrl);
+const redisClient = new Redis(redisUrl, {
+  lazyConnect: true,
+  maxRetriesPerRequest: 1,
+  retryStrategy(times) {
+    if (times > 3) {
+      return null;
+    }
+    return Math.min(times * 100, 2000);
+  }
+});
 
 redisClient.on("error", (err) => {
   logger.error({ err }, "[Redis] Client Error");
