@@ -146,6 +146,18 @@ services:
     volumes:
       - curavision_backend_storage:/app/storage
 
+  db-migrate:
+    build:
+      context: ./backend
+    image: curavision/backend:dev
+    container_name: curavision-db-migrate
+    command: ["npx", "prisma", "migrate", "deploy"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-curavision}:${POSTGRES_PASSWORD:-curavision}@postgres:5432/${POSTGRES_DB:-curavision}?schema=public&connection_limit=2
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   backend:
     build:
       context: ./backend
@@ -172,6 +184,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
       ai-service:
         condition: service_started
       minio-bootstrap:

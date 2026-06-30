@@ -207,7 +207,7 @@ model Reservation {
 }
 
 model AuditLog {
-  id          String   @id @default(uuid())
+  id          String   @default(uuid())
   timestamp   DateTime @default(now())
   user_id     String?
   action      String
@@ -217,6 +217,7 @@ model AuditLog {
 
   user        User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
 
+  @@id([id, timestamp])
   @@index([user_id])
   @@index([action])
   @@index([entity_type, entity_id])
