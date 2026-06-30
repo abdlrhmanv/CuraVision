@@ -26,7 +26,7 @@ os.environ.setdefault("CHROMA_HOST", "")  # force embedded ephemeral client
 
 
 @pytest.fixture(autouse=True)
-def _patch_external_services(monkeypatch) -> Iterator[None]:
+def _patch_external_services(request, monkeypatch) -> Iterator[None]:
     """Stub out LLM + RAG so contract tests don't depend on network or
     on the heavyweight embedding model download."""
     from app.services import llm_service, rag_service
@@ -39,7 +39,8 @@ def _patch_external_services(monkeypatch) -> Iterator[None]:
             {"term": "Stub Term", "text": f"Stub Term: match for '{query}'"}
         ][:n_results]
 
-    monkeypatch.setattr(llm_service, "generate_response", fake_generate_response)
+    if "real_llm" not in request.keywords:
+        monkeypatch.setattr(llm_service, "generate_response", fake_generate_response)
     monkeypatch.setattr(rag_service, "retrieve", fake_retrieve)
     # The startup pre-warm hits rag_service._get_collection() — short-circuit it.
     monkeypatch.setattr(rag_service, "_get_collection", lambda: None)
