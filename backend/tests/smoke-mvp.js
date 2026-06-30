@@ -60,7 +60,9 @@ async function main() {
 
   console.log("▶ Doctor uploads a synthetic DICOM");
   const tmpFile = path.join(os.tmpdir(), `smoke-${Date.now()}.dcm`);
-  fs.writeFileSync(tmpFile, `DICM-fake-bytes-${Date.now()}`);
+  const buffer = Buffer.alloc(132);
+  buffer.write("DICM", 128, "ascii");
+  fs.writeFileSync(tmpFile, buffer);
   const form = new FormData();
   form.append("patient_id", pat.user.id);
   form.append(

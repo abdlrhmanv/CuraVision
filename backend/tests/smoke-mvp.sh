@@ -35,7 +35,7 @@ echo "  patient id: $PAT_ID"
 
 echo "▶ Doctor uploads a synthetic DICOM"
 TMPFILE=$(mktemp --suffix=.dcm)
-printf 'DICM-fake-bytes-%s' "$(date +%s%N)" > "$TMPFILE"
+printf '%128sDICM-fake-bytes-%s' "" "$(date +%s%N)" > "$TMPFILE"
 UPLOAD=$(curl -sf -X POST "$BASE_URL/api/scans" \
   -H "Authorization: Bearer $DOC_TOKEN" \
   -F "patient_id=$PAT_ID" \
