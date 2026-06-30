@@ -1,7 +1,7 @@
 'use client';
 
 import { useRequireAuth } from '../../../lib/authContext';
-import { Sidebar } from '../../../components/layout/Sidebar';
+import Sidebar from '../../../components/layout/Sidebar';
 import { TopNav } from '../../../components/layout/TopNav';
 import { Activity, Users, Settings } from 'lucide-react';
 

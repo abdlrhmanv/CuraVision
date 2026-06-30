@@ -1,76 +1,194 @@
-'use client';
+"use client";
 
-import { usePathname, useRouter } from 'next/navigation';
-import { LucideIcon } from 'lucide-react';
-import { AuthUser, clearSession } from '@/lib/apiClient';
+import { usePathname, useRouter } from "next/navigation";
+import {
+  LayoutDashboard,
+  MessageSquare,
+  Brain,
+  FileText,
+  Newspaper,
+  User,
+  Settings,
+  LogOut,
+  Users,
+} from "lucide-react";
+import { useAuth } from "@/lib/authContext";
 
 interface NavItem {
   label: string;
   href: string;
-  icon: LucideIcon;
+  icon: any;
+}
+
+interface MenuItem {
+  id: string;
+  label: string;
+  icon: any;
+  href: string;
 }
 
 interface SidebarProps {
-  user: AuthUser;
-  navItems: NavItem[];
+  role?: "patient" | "doctor" | "admin";
+  collapsed?: boolean;
+  onNavigate?: () => void;
+  user?: any;
+  navItems?: NavItem[];
 }
 
-export function Sidebar({ user, navItems }: SidebarProps) {
+export default function Sidebar({ role, collapsed = false, onNavigate, user, navItems }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const authContext = useAuth();
+  const logout = authContext?.logout;
 
-  const handleLogout = async () => {
-    clearSession();
-    router.push('/');
+  const patientItems = [
+    {
+      id: "dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      href: "/patient",
+    },
+    {
+      id: "chatbot",
+      label: "AI Chatbot",
+      icon: MessageSquare,
+      href: "/patient/chatbot",
+    },
+    { id: "scans", label: "My Scans", icon: Brain, href: "/patient/scans" },
+    {
+      id: "reports",
+      label: "Reports",
+      icon: FileText,
+      href: "/patient/reports",
+    },
+    {
+      id: "articles",
+      label: "Community Articles",
+      icon: Newspaper,
+      href: "/patient/articles",
+    },
+    {
+      id: "profile",
+      label: "My Profile",
+      icon: User,
+      href: "/patient/profile",
+    },
+    {
+      id: "settings",
+      label: "Settings",
+      icon: Settings,
+      href: "/patient/settings",
+    },
+  ];
+
+  const doctorItems = [
+    {
+      id: "dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      href: "/doctor",
+    },
+    {
+      id: "patients",
+      label: "Patients",
+      icon: Users,
+      href: "/doctor/patients",
+    },
+    { id: "profile", label: "My Profile", icon: User, href: "/doctor/profile" },
+    {
+      id: "settings",
+      label: "Settings",
+      icon: Settings,
+      href: "/doctor/settings",
+    },
+  ];
+
+  const adminItems = [
+    {
+      id: "dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      href: "/admin",
+    },
+    {
+      id: "users",
+      label: "Users",
+      icon: Users,
+      href: "/admin/users",
+    },
+    {
+      id: "settings",
+      label: "Settings",
+      icon: Settings,
+      href: "/admin/settings",
+    },
+  ];
+
+  let menuItems: MenuItem[] = [];
+  if (navItems) {
+    menuItems = navItems.map((item, idx) => ({
+      id: `nav-${idx}`,
+      label: item.label,
+      icon: item.icon,
+      href: item.href,
+    }));
+  } else if (role === "patient") {
+    menuItems = patientItems;
+  } else if (role === "doctor") {
+    menuItems = doctorItems;
+  } else if (role === "admin") {
+    menuItems = adminItems;
+  }
+
+  const handleNavigation = (href: string) => {
+    router.push(href);
+    if (onNavigate) onNavigate();
   };
 
   return (
-    <div className="w-64 bg-gray-900 text-white flex flex-col overflow-hidden">
-      {/* Logo */}
-      <div className="p-6 border-b border-gray-700">
-        <h1 className="text-2xl font-bold tracking-tight">CuraVision</h1>
-        <p className="text-xs text-gray-400 mt-1">Admin Portal</p>
-      </div>
+    <aside
+      className={`border-r border-border bg-surface transition-all duration-300 ${
+        collapsed ? "w-0 overflow-hidden" : "w-[260px]"
+      }`}
+    >
+      <div className="py-6">
+        <div className="px-5 mb-2 text-[10px] tracking-[2px] uppercase text-sub font-semibold">
+          {role === "patient" ? "Health Hub" : role === "admin" ? "Admin Portal" : "Workspace"}
+        </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-4 py-6 space-y-2">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href;
+        {menuItems.map((item) => {
           const Icon = item.icon;
-
+          const isActive = pathname === item.href;
           return (
             <button
-              key={item.href}
-              onClick={() => router.push(item.href)}
-              className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition ${
+              key={item.id}
+              onClick={() => handleNavigation(item.href)}
+              className={`w-full text-left px-5 py-2.5 text-sm flex items-center gap-3 border-l-2 transition-all duration-200 ${
                 isActive
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                  ? role === "patient"
+                    ? "text-accent bg-accent/5 border-accent"
+                    : "text-blue bg-blue/5 border-blue"
+                  : "text-muted border-transparent hover:bg-card hover:text-white"
               }`}
             >
-              <Icon size={18} />
-              <span className="text-sm font-medium">{item.label}</span>
+              <Icon size={16} />
+              <span>{item.label}</span>
             </button>
           );
         })}
-      </nav>
 
-      {/* User Info & Logout */}
-      <div className="p-4 border-t border-gray-700">
-        <div className="mb-4 px-4 py-3 bg-gray-800 rounded-lg">
-          <p className="text-xs text-gray-400">Logged in as</p>
-          <p className="text-sm font-semibold text-white truncate">
-            {user.full_name}
-          </p>
-          <p className="text-xs text-gray-400 truncate">{user.email}</p>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="w-full px-4 py-2 text-sm font-medium text-white bg-gray-800 hover:bg-gray-700 rounded-lg transition"
-        >
-          Logout
-        </button>
+        {logout && (
+          <div className="mt-8 pt-4 border-t border-border">
+            <button
+              onClick={logout}
+              className="w-full text-left px-5 py-2.5 text-sm flex items-center gap-3 text-muted hover:bg-card hover:text-white transition"
+            >
+              <LogOut size={16} />
+              <span>Sign out</span>
+            </button>
+          </div>
+        )}
       </div>
-    </div>
+    </aside>
   );
 }
