@@ -160,7 +160,9 @@ test("full doctor flow: upload → analysis → report → approve", async (t) =
 
   // Synthetic DICOM bytes — the stub analysis accepts anything.
   const tmp = path.join(os.tmpdir(), `route-test-${Date.now()}.dcm`);
-  fs.writeFileSync(tmp, `DICM-${Date.now()}`);
+  const mockDicom = Buffer.alloc(132);
+  mockDicom.write("DICM", 128);
+  fs.writeFileSync(tmp, mockDicom);
 
   const upload = await request(app)
     .post("/api/scans")
@@ -278,3 +280,22 @@ test("admin audit log requires admin role", async () => {
     .expect(200);
   assert.ok(Array.isArray(res.body.items));
 });
+
+test("POST /api/scans with invalid file format -> 400", async () => {
+  const doc = await login("doctor@curavision.com", "Doctor@123");
+  const pat = await login("patient1@curavision.com", "Patient@123");
+
+  const tmp = path.join(os.tmpdir(), `route-test-invalid-${Date.now()}.dcm`);
+  fs.writeFileSync(tmp, "NOT_A_DICOM_FILE_NO_MAGIC_HEADER_AND_TOO_SHORT");
+
+  const res = await request(app)
+    .post("/api/scans")
+    .set("Authorization", `Bearer ${doc.token}`)
+    .field("patient_id", pat.user.id)
+    .attach("file", tmp)
+    .expect(400);
+
+  fs.unlinkSync(tmp);
+  assert.equal(res.body.code, "INVALID_DICOM");
+});
+

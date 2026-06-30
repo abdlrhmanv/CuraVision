@@ -136,11 +136,8 @@ def test_analyze_full_chain(client):
     assert res.status_code == 200
     body = res.json()
     assert body["scan_id"] == "scan-123"
-    assert "segmentation" in body
-    assert "gradcam" in body
-    assert "report" in body
-    assert body["segmentation"]["scan_id"] == "scan-123"
-    assert body["report"]["scan_id"] == "scan-123"
+    assert "task_id" in body
+    assert body["status"] == "QUEUED"
 
 
 # ---------- 404 ----------

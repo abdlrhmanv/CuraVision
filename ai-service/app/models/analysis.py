@@ -41,3 +41,9 @@ class FullAnalysisResponse(BaseModel):
     segmentation: SegmentationResponse
     gradcam: GradCamResponse
     report: ReportResponse
+
+
+class AsyncAnalysisResponse(BaseModel):
+    scan_id: str
+    task_id: str
+    status: str

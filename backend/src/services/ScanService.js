@@ -81,6 +81,18 @@ async function upsertAnalysis(scanId, payload) {
 async function uploadScan({ file, patientId, doctorId }) {
   if (!file) throw badRequest("DICOM file is required.", "FILE_REQUIRED");
 
+  // Validate DICOM Magic Number signature
+  if (
+    !file.buffer ||
+    file.buffer.length < 132 ||
+    file.buffer[128] !== 68 || // 'D'
+    file.buffer[129] !== 73 || // 'I'
+    file.buffer[130] !== 67 || // 'C'
+    file.buffer[131] !== 77    // 'M'
+  ) {
+    throw badRequest("Invalid DICOM file format. Missing magic signature 'DICM' at byte offset 128.", "INVALID_DICOM");
+  }
+
   const patient = await UserService.findUserById(patientId);
   if (!patient || patient.role !== "PATIENT") {
     throw notFound("Patient not found.", "PATIENT_NOT_FOUND");
@@ -143,6 +155,10 @@ async function scheduleAnalysis(scanId) {
       scan_id: scanId,
       dicom_path: scan.dicom_path ?? "",
     });
+    if (data && data.status === "QUEUED") {
+      logger.info(`[ScanService] AI analysis enqueued to Celery queue with task_id: ${data.task_id} for scan ${scanId}`);
+      return;
+    }
     result = data;
   } catch (err) {
     logger.warn(

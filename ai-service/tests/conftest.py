@@ -43,6 +43,13 @@ def _patch_external_services(monkeypatch) -> Iterator[None]:
     monkeypatch.setattr(rag_service, "retrieve", fake_retrieve)
     # The startup pre-warm hits rag_service._get_collection() — short-circuit it.
     monkeypatch.setattr(rag_service, "_get_collection", lambda: None)
+
+    # Patch Celery run_full_analysis.delay to prevent Redis connections
+    from app.worker.tasks import run_full_analysis
+    class FakeTask:
+        id = "mock-task-123"
+    monkeypatch.setattr(run_full_analysis, "delay", lambda *args, **kwargs: FakeTask())
+
     yield
 
 

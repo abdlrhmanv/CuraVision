@@ -8,6 +8,7 @@ from app.models.analysis import (
     ReportResponse,
     SegmentationRequest,
     SegmentationResponse,
+    AsyncAnalysisResponse,
 )
 from app.services import analysis_service
 
@@ -45,10 +46,16 @@ async def report(request: ReportRequest) -> ReportResponse:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@router.post("/analyze", response_model=FullAnalysisResponse)
-async def analyze(request: SegmentationRequest) -> FullAnalysisResponse:
-    """Run the full segmentation → Grad-CAM → report chain in one call."""
+@router.post("/analyze", response_model=AsyncAnalysisResponse)
+async def analyze(request: SegmentationRequest) -> AsyncAnalysisResponse:
+    """Run the full segmentation → Grad-CAM → report chain asynchronously in the background."""
     try:
-        return analysis_service.run_full_analysis(request.scan_id, request.dicom_path)
+        from app.worker.tasks import run_full_analysis
+        task = run_full_analysis.delay(request.scan_id, request.dicom_path)
+        return AsyncAnalysisResponse(
+            scan_id=request.scan_id,
+            task_id=task.id,
+            status="QUEUED"
+        )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
