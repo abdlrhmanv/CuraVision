@@ -261,6 +261,14 @@ export interface Reservation {
   updated_at: string;
 }
 
+export interface AvailabilityRule {
+  id: string;
+  doctor_id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+}
+
 export const reservationsApi = {
   list: () => api.get<{ reservations: Reservation[] }>("/api/reservations"),
   book: (doctor_id: string, start_time: string, end_time: string) =>
@@ -276,6 +284,12 @@ export const reservationsApi = {
     }>(`/api/doctors/${doctorId}/availability?from=${from}&to=${to}`),
   listDoctors: () =>
     api.get<{ doctors: Array<{ id: string; full_name: string; email: string; role: "DOCTOR"; specialization?: string }> }>("/api/doctors"),
+  getRules: (doctorId: string) =>
+    api.get<{ rules: AvailabilityRule[] }>(`/api/doctors/${doctorId}/availability/rules`),
+  createRule: (doctorId: string, rule: { day_of_week: number; start_time: string; end_time: string }) =>
+    api.post<{ rule: AvailabilityRule }>(`/api/doctors/${doctorId}/availability/rules`, rule),
+  deleteRule: (doctorId: string, ruleId: string) =>
+    api.delete<{ ok: boolean }>(`/api/doctors/${doctorId}/availability/rules/${ruleId}`),
 };
 
 export interface User {

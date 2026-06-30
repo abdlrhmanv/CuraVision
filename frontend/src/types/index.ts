@@ -73,3 +73,11 @@ export interface PatientStats {
   total_appointments: number;
 }
 
+export interface AvailabilityRule {
+  id: string;
+  doctor_id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+}
+

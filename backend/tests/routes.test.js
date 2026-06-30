@@ -299,3 +299,57 @@ test("POST /api/scans with invalid file format -> 400", async () => {
   assert.equal(res.body.code, "INVALID_DICOM");
 });
 
+test("Doctor availability rules CRUD flow", async () => {
+  const doc = await login("doctor@curavision.com", "Doctor@123");
+
+  // Ensure rule does not exist before creating it to avoid conflict failures
+  await prisma.doctorAvailability.deleteMany({
+    where: {
+      doctor_id: doc.user.id,
+      day_of_week: 1,
+      start_time: "09:00",
+      end_time: "17:00",
+    },
+  });
+
+  // 1. Create a rule
+  const createRes = await request(app)
+    .post(`/api/doctors/${doc.user.id}/availability/rules`)
+    .set("Authorization", `Bearer ${doc.token}`)
+    .send({
+      day_of_week: 1, // Monday
+      start_time: "09:00",
+      end_time: "17:00",
+    })
+    .expect(201);
+
+  assert.ok(createRes.body.rule.id);
+  assert.equal(createRes.body.rule.day_of_week, 1);
+  assert.equal(createRes.body.rule.start_time, "09:00");
+  assert.equal(createRes.body.rule.end_time, "17:00");
+
+  // 2. List rules
+  const listRes = await request(app)
+    .get(`/api/doctors/${doc.user.id}/availability/rules`)
+    .set("Authorization", `Bearer ${doc.token}`)
+    .expect(200);
+
+  const rule = listRes.body.rules.find((r) => r.id === createRes.body.rule.id);
+  assert.ok(rule);
+
+  // 3. Delete the rule
+  await request(app)
+    .delete(`/api/doctors/${doc.user.id}/availability/rules/${createRes.body.rule.id}`)
+    .set("Authorization", `Bearer ${doc.token}`)
+    .expect(200);
+
+  // Verify deletion
+  const afterListRes = await request(app)
+    .get(`/api/doctors/${doc.user.id}/availability/rules`)
+    .set("Authorization", `Bearer ${doc.token}`)
+    .expect(200);
+
+  const deletedRule = afterListRes.body.rules.find((r) => r.id === createRes.body.rule.id);
+  assert.equal(deletedRule, undefined);
+});
+

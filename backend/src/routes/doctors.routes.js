@@ -129,4 +129,150 @@ router.get(
   }
 );
 
+/**
+ * GET /api/doctors/:id/availability/rules
+ */
+router.get(
+  "/:id/availability/rules",
+  authenticateJWT,
+  authorizeRole("DOCTOR", "ADMIN"),
+  async (req, res, next) => {
+    try {
+      if (req.user.sub !== req.params.id && req.user.role !== "ADMIN") {
+        return res.status(403).json({
+          code: "FORBIDDEN",
+          message: "You can only view your own availability rules.",
+        });
+      }
+
+      const rules = await prisma.doctorAvailability.findMany({
+        where: { doctor_id: req.params.id },
+        orderBy: [{ day_of_week: "asc" }, { start_time: "asc" }],
+      });
+
+      res.json({ rules });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * POST /api/doctors/:id/availability/rules
+ */
+router.post(
+  "/:id/availability/rules",
+  authenticateJWT,
+  authorizeRole("DOCTOR", "ADMIN"),
+  async (req, res, next) => {
+    try {
+      if (req.user.sub !== req.params.id && req.user.role !== "ADMIN") {
+        return res.status(403).json({
+          code: "FORBIDDEN",
+          message: "You can only manage your own availability rules.",
+        });
+      }
+
+      const { day_of_week, start_time, end_time } = req.body;
+
+      const day = parseInt(day_of_week, 10);
+      if (Number.isNaN(day) || day < 0 || day > 6) {
+        return res.status(400).json({
+          code: "VALIDATION_ERROR",
+          message: "day_of_week must be an integer between 0 and 6.",
+        });
+      }
+
+      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+      if (!timeRegex.test(start_time) || !timeRegex.test(end_time)) {
+        return res.status(400).json({
+          code: "VALIDATION_ERROR",
+          message: "start_time and end_time must be in HH:MM format.",
+        });
+      }
+
+      if (start_time >= end_time) {
+        return res.status(400).json({
+          code: "VALIDATION_ERROR",
+          message: "end_time must be after start_time.",
+        });
+      }
+
+      const existing = await prisma.doctorAvailability.findFirst({
+        where: {
+          doctor_id: req.params.id,
+          day_of_week: day,
+          start_time,
+          end_time,
+        },
+      });
+
+      if (existing) {
+        return res.status(409).json({
+          code: "CONFLICT",
+          message: "This availability rule already exists.",
+        });
+      }
+
+      const rule = await prisma.doctorAvailability.create({
+        data: {
+          doctor_id: req.params.id,
+          day_of_week: day,
+          start_time,
+          end_time,
+        },
+      });
+
+      res.status(201).json({ rule });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * DELETE /api/doctors/:id/availability/rules/:ruleId
+ */
+router.delete(
+  "/:id/availability/rules/:ruleId",
+  authenticateJWT,
+  authorizeRole("DOCTOR", "ADMIN"),
+  async (req, res, next) => {
+    try {
+      if (req.user.sub !== req.params.id && req.user.role !== "ADMIN") {
+        return res.status(403).json({
+          code: "FORBIDDEN",
+          message: "You can only delete your own availability rules.",
+        });
+      }
+
+      const rule = await prisma.doctorAvailability.findUnique({
+        where: { id: req.params.ruleId },
+      });
+
+      if (!rule) {
+        return res.status(404).json({
+          code: "NOT_FOUND",
+          message: "Availability rule not found.",
+        });
+      }
+
+      if (rule.doctor_id !== req.params.id) {
+        return res.status(403).json({
+          code: "FORBIDDEN",
+          message: "This rule does not belong to the specified doctor.",
+        });
+      }
+
+      await prisma.doctorAvailability.delete({
+        where: { id: req.params.ruleId },
+      });
+
+      res.json({ ok: true, message: "Availability rule deleted successfully." });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 module.exports = router;

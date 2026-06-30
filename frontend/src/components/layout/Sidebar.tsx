@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
   Users,
+  Calendar,
 } from "lucide-react";
 import { useAuth } from "@/lib/authContext";
 
@@ -94,6 +95,12 @@ export default function Sidebar({ role, collapsed = false, onNavigate, navItems 
       label: "Patients",
       icon: Users,
       href: "/doctor/patients",
+    },
+    {
+      id: "availability",
+      label: "Availability",
+      icon: Calendar,
+      href: "/doctor/availability",
     },
     { id: "profile", label: "My Profile", icon: User, href: "/doctor/profile" },
     {
