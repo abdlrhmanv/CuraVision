@@ -30,6 +30,15 @@ def _build_client():
     )
 
 
+def _get_embedding_function():
+    """Instantiate the standard Chroma ONNX MiniLM function with repository local paths."""
+    from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
+    emb_fn = ONNXMiniLM_L6_V2()
+    local_path = Path(__file__).resolve().parent.parent.parent / "knowledge_base" / "embeddings" / "all-MiniLM-L6-v2"
+    emb_fn.DOWNLOAD_PATH = local_path
+    return emb_fn
+
+
 def _get_collection():
     global _client, _collection
 
@@ -37,9 +46,11 @@ def _get_collection():
         return _collection
 
     _client = _build_client()
+    emb_fn = _get_embedding_function()
     _collection = _client.get_or_create_collection(
         name=COLLECTION_NAME,
         metadata={"hnsw:space": "cosine"},
+        embedding_function=emb_fn,
     )
 
     if _collection.count() == 0:
