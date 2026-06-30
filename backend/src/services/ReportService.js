@@ -200,27 +200,48 @@ async function sendNotificationEmail(patientId, reportId) {
   const user = await prisma.user.findUnique({ where: { id: patientId } });
   if (!user || !user.email) return;
 
-  // Use Ethereal for testing
-  const testAccount = await nodemailer.createTestAccount();
-  const transporter = nodemailer.createTransport({
-    host: "smtp.ethereal.email",
-    port: 587,
-    secure: false, 
-    auth: {
-      user: testAccount.user,
-      pass: testAccount.pass,
-    },
-  });
+  let transporter;
+  const fromEmail = process.env.SMTP_FROM || '"CuraVision Notifications" <noreply@curavision.app>';
+
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    const port = parseInt(process.env.SMTP_PORT, 10) || 587;
+    const secure = process.env.SMTP_SECURE === "true" || port === 465;
+    transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port,
+      secure,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+  } else {
+    // Fallback to Ethereal for testing/development
+    const testAccount = await nodemailer.createTestAccount();
+    transporter = nodemailer.createTransport({
+      host: "smtp.ethereal.email",
+      port: 587,
+      secure: false,
+      auth: {
+        user: testAccount.user,
+        pass: testAccount.pass,
+      },
+    });
+  }
 
   const info = await transporter.sendMail({
-    from: '"CuraVision Notifications" <noreply@curavision.app>',
+    from: fromEmail,
     to: user.email,
     subject: "Your Scan Report is Ready",
     text: `Hello ${user.full_name},\n\nYour recent MRI scan report (ID: ${reportId}) has been finalized and approved by your doctor.\nYou can view it in your patient portal now.\n\nBest,\nThe CuraVision Team`,
     html: `<p>Hello <b>${user.full_name}</b>,</p><p>Your recent MRI scan report has been finalized and approved by your doctor.</p><p>You can view it in your patient portal now.</p><br><p>Best,<br>The CuraVision Team</p>`,
   });
 
-  logger.info("Email notification sent! Preview URL: %s", nodemailer.getTestMessageUrl(info));
+  if (process.env.SMTP_HOST) {
+    logger.info(`Email notification sent to ${user.email} (MessageID: ${info.messageId})`);
+  } else {
+    logger.info("Email notification sent! Preview URL: %s", nodemailer.getTestMessageUrl(info));
+  }
 }
 
 async function listForPatient(patientId) {

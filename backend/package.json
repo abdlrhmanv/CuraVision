@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "node --test --test-reporter=spec tests/routes.test.js",
+    "test": "node --test --test-reporter=spec tests/routes.test.js tests/services.test.js",
+    "test:services": "node --test tests/services.test.js",
     "test:smoke": "node tests/smoke-mvp.js",
     "lint": "node --check src/server.js && find src -name '*.js' -exec node --check {} +",
     "prisma:generate": "prisma generate",
