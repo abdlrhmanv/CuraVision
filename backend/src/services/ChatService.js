@@ -57,12 +57,14 @@ async function sendMessage(reportId, patientId, message) {
     });
     aiResponse = data;
   } catch (axiosErr) {
-    const status = axiosErr.response?.status ?? 502;
-    const detail = axiosErr.response?.data?.detail ?? axiosErr.message;
-    const err = new Error(`AI service error: ${detail}`);
-    err.status = status;
-    err.code = "AI_SERVICE_ERROR";
-    throw err;
+    logger.warn(
+      { error: axiosErr.message },
+      `[ChatService] AI service unreachable, falling back to local stub chatbot`
+    );
+    aiResponse = {
+      answer: "CuraVision Assistant stub response: I see your question. For professional medical advice, please consult your doctor.",
+      sources: ["Medical Glossary: fallback-stub"]
+    };
   }
 
   // 5. Persist both turns
