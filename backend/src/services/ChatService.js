@@ -1,6 +1,7 @@
 const { fastapiClient } = require("../integrations/fastapiClient");
 const ReportService = require("./ReportService");
 const ChatRepository = require("../repositories/ChatRepository");
+const logger = require("../utils/logger");
 
 function toAiHistory(msgs) {
   return msgs.map((m) => ({
