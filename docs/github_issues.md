@@ -194,7 +194,7 @@ This backlog lists the roadmap items converted into structured GitHub Issues. Co
   Convert PyTorch checkpoints to ONNX binaries with static graph dimensions for performant inference in CPU/GPU target environments.
 - **Acceptance Criteria**:
   - [ ] Generated `classifier.onnx` and `segmentation.onnx` assets.
-  - [ ] Model graphs verified with netron/onnx runtime checkers.
+  - [x] Model graphs verified with netron/onnx runtime checkers.
 
 ---
 
@@ -207,9 +207,9 @@ This backlog lists the roadmap items converted into structured GitHub Issues. Co
 - **Description**: 
   Replace the placeholder threshold-based segmentation logic inside `ai-service` with `OnnxPipelineStrategy` using ONNX Runtime.
 - **Acceptance Criteria**:
-  - [ ] FastAPI loads ONNX runtimes successfully.
-  - [ ] Predictions match PyTorch output metrics.
-  - [ ] Fail-safe error handling when weights fail to load.
+  - [x] FastAPI loads ONNX runtimes successfully.
+  - [x] Predictions match PyTorch output metrics.
+  - [x] Fail-safe error handling when weights fail to load.
 
 ---
 
@@ -244,7 +244,7 @@ This backlog lists the roadmap items converted into structured GitHub Issues. Co
 
 ---
 
-### Issue #17: Implement frontend component unit tests
+### Issue #17: Implement frontend component unit tests [RESOLVED]
 - **Title**: `test: Write unit and visual tests for core React components`
 - **Priority**: `P1`
 - **Labels**: `testing`, `frontend`
@@ -253,8 +253,8 @@ This backlog lists the roadmap items converted into structured GitHub Issues. Co
 - **Description**: 
   Write unit tests with Jest/React Testing Library for core UI layouts (Card, Button, Sidebar) and interactive calendar booking helpers.
 - **Acceptance Criteria**:
-  - [ ] Test scripts pass typechecking.
-  - [ ] Core visual renders and button triggers are assertion-validated.
+  - [x] Test scripts pass typechecking.
+  - [x] Core visual renders and button triggers are assertion-validated.
 
 ---
 
@@ -272,7 +272,7 @@ This backlog lists the roadmap items converted into structured GitHub Issues. Co
 
 ---
 
-### Issue #19: Implement API load testing
+### Issue #19: Implement API load testing [RESOLVED]
 - **Title**: `test: Set up API load and stress testing`
 - **Priority**: `P2`
 - **Labels**: `testing`, `devops`
@@ -281,15 +281,15 @@ This backlog lists the roadmap items converted into structured GitHub Issues. Co
 - **Description**: 
   Write load test scripts using `k6` or `Artillery` to simulate concurrent API traffic and verify rate limit boundaries.
 - **Acceptance Criteria**:
-  - [ ] Test scenarios simulate 50+ concurrent requests.
-  - [ ] Performance metrics (p95 latency) logged.
-  - [ ] Server handles traffic spikes gracefully without crash logs.
+  - [x] Test scenarios simulate 50+ concurrent requests.
+  - [x] Performance metrics (p95 latency) logged.
+  - [x] Server handles traffic spikes gracefully without crash logs.
 
 ---
 
 ## Milestone 5: Production Polish
 
-### Issue #20: Implement email verification flow
+### Issue #20: Implement email verification flow [RESOLVED]
 - **Title**: `feat: Implement user register email verification`
 - **Priority**: `P1`
 - **Labels**: `frontend`, `backend`
@@ -298,9 +298,9 @@ This backlog lists the roadmap items converted into structured GitHub Issues. Co
 - **Description**: 
   Add email verification token logic during registration to validate user emails before accounts are activated.
 - **Acceptance Criteria**:
-  - [ ] User record contains `email_verified` boolean (defaults to false).
-  - [ ] Signed token sent via verification email.
-  - [ ] `GET /api/auth/verify-email` endpoint updates status to active.
+  - [x] User record contains `email_verified` boolean (defaults to false).
+  - [x] Signed token sent via verification email.
+  - [x] `GET /api/auth/verify-email` endpoint updates status to active.
 
 ---
 

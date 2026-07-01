@@ -65,6 +65,7 @@ model User {
   role           Role
   full_name      String
   status         UserStatus @default(ACTIVE)
+  email_verified Boolean    @default(false)
   created_at     DateTime   @default(now())
   updated_at     DateTime   @updatedAt
 

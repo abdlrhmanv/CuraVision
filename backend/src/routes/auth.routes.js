@@ -279,5 +279,28 @@ router.post("/logout", (req, res) => {
   res.json({ ok: true });
 });
 
+/**
+ * GET /api/auth/verify-email
+ * Verifies the user's email using the token and redirects to the frontend.
+ */
+router.get("/verify-email", async (req, res, next) => {
+  try {
+    const { token } = req.query;
+    if (!token) {
+      return res.status(400).send("Verification token is required.");
+    }
+    
+    await AuthService.verifyEmail(token);
+    
+    const frontendUrl = process.env.CORS_ORIGIN || "http://localhost:3000";
+    res.redirect(`${frontendUrl}/login?verified=true`);
+  } catch (err) {
+    if (err.code === "INVALID_TOKEN") {
+      return res.status(err.status).send(err.message);
+    }
+    next(err);
+  }
+});
+
 module.exports = router;
 
