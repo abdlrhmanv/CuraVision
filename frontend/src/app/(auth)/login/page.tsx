@@ -115,15 +115,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="mt-5 mb-6 p-3.5 rounded-lg bg-surface/50 border border-border">
-          <p className="text-xs text-muted text-center">
-            Seeded demo accounts: <span className="text-text font-semibold">patient1@curavision.com</span> /{' '}
-            <span className="text-text font-semibold">Patient@123</span>
-            <br />
-            <span className="text-text font-semibold">doctor@curavision.com</span> /{' '}
-            <span className="text-text font-semibold">Doctor@123</span>
-          </p>
-        </div>
+
 
         <button
           onClick={handleLogin}
