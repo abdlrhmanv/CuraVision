@@ -42,8 +42,8 @@ export default function DoctorDashboard() {
   const published = scans.filter((s) => s.report_status === 'PUBLISHED').length
 
   return (
-    <>
-      <div className="bg-gradient-to-r from-blue/10 via-accent/5 to-purple/5 border border-border rounded-2xl p-5 md:p-7 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+    <main className="focus:outline-none" tabIndex={-1}>
+      <header className="bg-gradient-to-r from-blue/10 via-accent/5 to-purple/5 border border-border rounded-2xl p-5 md:p-7 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <div className="text-[10px] tracking-[2px] uppercase text-blue font-semibold mb-2">
             Doctor Dashboard
@@ -69,9 +69,9 @@ export default function DoctorDashboard() {
             <Brain size={14} /> All Scans
           </Link>
         </div>
-      </div>
+      </header>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <section aria-label="Dashboard Statistics" className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         {[
           { label: 'Total scans', value: scans.length, icon: Brain },
           { label: 'Analysis pending', value: pending, icon: Brain },
@@ -87,12 +87,12 @@ export default function DoctorDashboard() {
             </div>
           )
         })}
-      </div>
+      </section>
 
-      <div className="bg-card border border-border rounded-xl p-5">
-        <div className="text-[10px] tracking-[2px] uppercase text-muted font-semibold mb-3">
+      <section aria-label="Recent Scans" className="bg-card border border-border rounded-xl p-5">
+        <h2 className="text-[10px] tracking-[2px] uppercase text-muted font-semibold mb-3">
           Recent scans
-        </div>
+        </h2>
 
         {error && (
           <div className="mb-3 px-3 py-2 rounded-md bg-warn/10 border border-warn/30 text-sm text-warn">
@@ -112,7 +112,8 @@ export default function DoctorDashboard() {
               <Link
                 key={s.id}
                 href={`/doctor/scans/${s.id}`}
-                className="bg-surface border border-border rounded-lg p-3.5 flex items-center justify-between gap-3 flex-wrap hover:border-blue transition"
+                className="bg-surface border border-border rounded-lg p-3.5 flex items-center justify-between gap-3 flex-wrap hover:border-blue transition focus:ring-2 focus:ring-blue"
+                aria-label={`View scan details for ${s.patient_name ?? 'Unknown patient'} - Modality ${s.modality}`}
               >
                 <div>
                   <div className="text-sm font-semibold">
@@ -129,7 +130,7 @@ export default function DoctorDashboard() {
             ))}
           </div>
         )}
-      </div>
-    </>
+      </section>
+    </main>
   )
 }

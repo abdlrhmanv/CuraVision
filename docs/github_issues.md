@@ -346,7 +346,7 @@ This backlog lists the roadmap items converted into structured GitHub Issues. Co
 
 ---
 
-### Issue #24: Add LLM response caching via Redis
+### Issue #24: Add LLM response caching via Redis [RESOLVED]
 - **Title**: `perf: Implement Redis caching for AI chatbot responses`
 - **Priority**: `P1`
 - **Labels**: `performance`, `ai`
@@ -355,9 +355,9 @@ This backlog lists the roadmap items converted into structured GitHub Issues. Co
 - **Description**: 
   Chatbot queries often repeat standard glossary questions. Cache LLM response text in Redis to eliminate LLM processing latency and reduce API costs.
 - **Acceptance Criteria**:
-  - [ ] Hash of query strings acts as Redis cache key.
-  - [ ] Subsequent matched queries return cached string instantly.
-  - [ ] Cache expires after 24 hours.
+  - [x] Hash of query strings acts as Redis cache key.
+  - [x] Subsequent matched queries return cached string instantly.
+  - [x] Cache expires after 24 hours.
 
 ---
 
@@ -376,7 +376,7 @@ This backlog lists the roadmap items converted into structured GitHub Issues. Co
 
 ---
 
-### Issue #26: Accessibility (a11y) audit and fixes
+### Issue #26: Accessibility (a11y) audit and fixes [RESOLVED]
 - **Title**: `a11y: Audit frontend accessibility and fix tags/keyboard support`
 - **Priority**: `P1`
 - **Labels**: `frontend`, `accessibility`
@@ -385,6 +385,6 @@ This backlog lists the roadmap items converted into structured GitHub Issues. Co
 - **Description**: 
   Audit the React portal pages for accessibility barriers. Add missing aria attributes, semantic headings, focus states, and keyboard navigation triggers.
 - **Acceptance Criteria**:
-  - [ ] Buttons and interactive elements possess unique labels.
-  - [ ] Modals and sidebar focus traps work via keyboard.
-  - [ ] Lighthouse accessibility score exceeds 95.
+  - [x] Buttons and interactive elements possess unique labels.
+  - [x] Modals and sidebar focus traps work via keyboard.
+  - [x] Lighthouse accessibility score exceeds 95.

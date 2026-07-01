@@ -77,9 +77,9 @@ export default function PatientDashboard() {
   ]
 
   return (
-    <>
+    <main className="focus:outline-none" tabIndex={-1}>
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-accent/10 via-blue/5 to-purple/5 border border-border rounded-2xl p-5 md:p-7 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+      <header className="bg-gradient-to-r from-accent/10 via-blue/5 to-purple/5 border border-border rounded-2xl p-5 md:p-7 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <div className="text-[10px] tracking-[2px] uppercase text-accent font-semibold mb-2">Patient Dashboard</div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">{greeting}, {user.full_name} 👋</h1>
@@ -95,10 +95,10 @@ export default function PatientDashboard() {
             <Upload size={14} /> My Scans
           </button>
         </div>
-      </div>
+      </header>
 
       {/* Quick Menu */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
+      <nav aria-label="Quick Navigation" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
         {quickSections.map((item) => {
           const Icon = item.icon
           return (
@@ -106,16 +106,17 @@ export default function PatientDashboard() {
               key={item.id}
               onClick={() => router.push(item.href)}
               className="bg-card border border-border rounded-xl p-4 text-center hover:border-accent hover:-translate-y-0.5 transition-all duration-200 group"
+              aria-label={`Navigate to ${item.label}`}
             >
               <Icon size={24} className={`mx-auto mb-2 text-muted group-hover:text-${item.color} transition`} />
               <div className="text-xs text-muted font-medium">{item.label}</div>
             </button>
           )
         })}
-      </div>
+      </nav>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+      <section aria-label="Dashboard Statistics" className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
         {statCards.map((stat) => {
           const Icon = stat.icon
           return (
@@ -126,13 +127,13 @@ export default function PatientDashboard() {
             </div>
           )
         })}
-      </div>
+      </section>
 
       {/* Recent Reports */}
-      <div className="bg-card border border-border rounded-xl p-5">
-        <div className="text-[10px] tracking-[2px] uppercase text-muted font-semibold mb-3 flex items-center gap-2">
-          <FileText size={12} /> Recent Reports
-        </div>
+      <section aria-label="Recent Reports" className="bg-card border border-border rounded-xl p-5">
+        <h2 className="text-[10px] tracking-[2px] uppercase text-muted font-semibold mb-3 flex items-center gap-2">
+          <FileText size={12} aria-hidden="true" /> Recent Reports
+        </h2>
 
         {error && (
           <div className="mb-3 px-3 py-2 rounded-md bg-warn/10 border border-warn/30 text-sm text-warn">
@@ -152,7 +153,8 @@ export default function PatientDashboard() {
               <button
                 key={report.id}
                 onClick={() => router.push(`/patient/reports/${report.id}`)}
-                className="w-full bg-surface border border-border rounded-lg p-3.5 flex items-center justify-between gap-3 flex-wrap hover:border-accent transition text-left"
+                className="w-full bg-surface border border-border rounded-lg p-3.5 flex items-center justify-between gap-3 flex-wrap hover:border-accent transition text-left focus:ring-2 focus:ring-accent"
+                aria-label={`View report for scan ${report.scan_id.slice(0, 8)}`}
               >
                 <div className="flex-1">
                   <div className="text-sm font-semibold">
@@ -171,7 +173,7 @@ export default function PatientDashboard() {
             ))}
           </div>
         )}
-      </div>
-    </>
+      </section>
+    </main>
   )
 }

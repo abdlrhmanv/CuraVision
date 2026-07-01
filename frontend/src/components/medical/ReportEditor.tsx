@@ -38,6 +38,7 @@ export function ReportEditor({ initialReport, onSave, onApprove, isApproving, st
             value={reportText}
             onChange={(e) => setReportText(e.target.value)}
             disabled={status === 'PUBLISHED'}
+            aria-label="Medical Report Editor"
           />
           {status !== 'PUBLISHED' && (
             <div className="flex justify-end space-x-2">

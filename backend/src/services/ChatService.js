@@ -3,6 +3,8 @@ const ReportService = require("./ReportService");
 const ChatRepository = require("../repositories/ChatRepository");
 const logger = require("../utils/logger");
 const { notFound, forbidden } = require("../utils/AppError");
+const crypto = require("crypto");
+const redis = require("../utils/redis");
 
 function toAiHistory(msgs) {
   return msgs.map((m) => ({
@@ -40,15 +42,25 @@ async function sendMessage(reportId, patientId, message) {
   const msgs = await ChatRepository.getMessages(session.id);
   const history = toAiHistory(msgs);
 
-  // 4. Call the FastAPI AI microservice
+  // 4. Call the FastAPI AI microservice or use cache
   let aiResponse;
+  
+  const cacheKey = `chat_cache:${crypto.createHash('sha256').update(message.trim().toLowerCase()).digest('hex')}`;
+  
   try {
-    const { data } = await fastapiClient.post("/ai/chatbot", {
-      report_text: report.final_report,
-      patient_question: message,
-      chat_history: history,
-    });
-    aiResponse = data;
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      aiResponse = JSON.parse(cached);
+    } else {
+      const { data } = await fastapiClient.post("/ai/chatbot", {
+        report_text: report.final_report,
+        patient_question: message,
+        chat_history: history,
+      });
+      aiResponse = data;
+      // Cache for 24 hours (86400 seconds)
+      await redis.set(cacheKey, JSON.stringify(aiResponse), "EX", 86400);
+    }
   } catch (axiosErr) {
     logger.warn(
       { error: axiosErr.message },

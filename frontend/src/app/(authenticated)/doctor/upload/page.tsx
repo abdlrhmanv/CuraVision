@@ -47,7 +47,7 @@ export default function DoctorUploadPage() {
   if (loading || !user) return <div className="p-6 text-sm text-muted">Loading...</div>
 
   return (
-    <div className="max-w-2xl">
+    <main className="max-w-2xl focus:outline-none" tabIndex={-1}>
       <h1 className="text-2xl font-extrabold mb-1">Upload Scan</h1>
       <p className="text-sm text-muted mb-6">
         Upload a DICOM file and trigger the AI analysis pipeline.
@@ -55,11 +55,12 @@ export default function DoctorUploadPage() {
 
       <div className="bg-card border border-border rounded-xl p-6 space-y-5">
         <div>
-          <label className="text-[11px] tracking-wide uppercase text-muted font-semibold block mb-1.5">
+          <label htmlFor="patientSelect" className="text-[11px] tracking-wide uppercase text-muted font-semibold block mb-1.5">
             Patient
           </label>
           {patients.length > 0 ? (
             <select
+              id="patientSelect"
               value={patientId}
               onChange={(e) => setPatientId(e.target.value)}
               className="w-full px-4 py-3 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:border-blue"
@@ -72,6 +73,7 @@ export default function DoctorUploadPage() {
             </select>
           ) : (
             <input
+              id="patientSelect"
               value={patientId}
               onChange={(e) => setPatientId(e.target.value)}
               placeholder="patient-001"
@@ -81,11 +83,11 @@ export default function DoctorUploadPage() {
         </div>
 
         <div>
-          <label className="text-[11px] tracking-wide uppercase text-muted font-semibold block mb-1.5">
+          <label htmlFor="dicomUpload" className="text-[11px] tracking-wide uppercase text-muted font-semibold block mb-1.5">
             DICOM file
           </label>
-          <label className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-blue transition cursor-pointer block">
-            <Upload size={28} className="mx-auto mb-2 text-muted" />
+          <label htmlFor="dicomUpload" className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-blue transition cursor-pointer block">
+            <Upload size={28} className="mx-auto mb-2 text-muted" aria-hidden="true" />
             <div className="text-sm font-semibold">
               {file ? file.name : 'Click to choose a DICOM file'}
             </div>
@@ -93,10 +95,12 @@ export default function DoctorUploadPage() {
               .dcm, max 200 MB
             </div>
             <input
+              id="dicomUpload"
               type="file"
               accept=".dcm,application/dicom,image/*"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               className="hidden"
+              aria-label="Upload DICOM file"
             />
           </label>
         </div>
@@ -123,6 +127,6 @@ export default function DoctorUploadPage() {
           </button>
         </div>
       </div>
-    </div>
+    </main>
   )
 }
