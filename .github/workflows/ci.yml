@@ -171,7 +171,7 @@ jobs:
     env:
       JWT_SECRET: ci-secret
       GROQ_API_KEY: test-key
-      CORS_ORIGIN: "*"
+      CORS_ORIGIN: "http://localhost:3000"
     steps:
       - uses: actions/checkout@v4
 
