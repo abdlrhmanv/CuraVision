@@ -356,8 +356,12 @@ test("Doctor availability rules CRUD flow", async () => {
 
 test.after(async () => {
   const redis = require("../src/utils/redis");
+  const { redisClient } = require("../src/integrations/redisClient");
+  const { stopQueueProcessor } = require("../src/services/AuditService");
   const prisma = require("../src/config/prisma");
+  stopQueueProcessor();
   await redis.quit();
+  await redisClient.quit();
   await prisma.$disconnect();
 });
 
