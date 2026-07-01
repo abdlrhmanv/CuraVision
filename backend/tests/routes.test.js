@@ -353,3 +353,11 @@ test("Doctor availability rules CRUD flow", async () => {
   assert.equal(deletedRule, undefined);
 });
 
+
+test.after(async () => {
+  const redis = require("../src/utils/redis");
+  const prisma = require("../src/config/prisma");
+  await redis.quit();
+  await prisma.$disconnect();
+});
+

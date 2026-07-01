@@ -15,10 +15,14 @@ set -euo pipefail
 BASE_URL="${BASE_URL:-http://localhost:3001}"
 
 echo "▶ Health"
-curl -sf "$BASE_URL/health" | jq -c .
+curl -sf -c cookies.txt "$BASE_URL/health" | jq -c .
+
+# Extract CSRF token from cookies
+XSRF_TOKEN=$(awk '/XSRF-TOKEN/ {print $7}' cookies.txt)
+CSRF_ARGS="-b cookies.txt -H x-xsrf-token:$XSRF_TOKEN"
 
 echo "▶ Doctor login"
-DOC=$(curl -sf -X POST "$BASE_URL/api/auth/login" \
+DOC=$(curl -sf -X POST "$BASE_URL/api/auth/login" $CSRF_ARGS \
   -H "Content-Type: application/json" \
   -d '{"email":"doctor@curavision.com","password":"Doctor@123"}')
 DOC_TOKEN=$(echo "$DOC" | jq -r .token)
@@ -26,7 +30,7 @@ DOC_ID=$(echo "$DOC" | jq -r .user.id)
 echo "  doctor id: $DOC_ID"
 
 echo "▶ Patient login"
-PAT=$(curl -sf -X POST "$BASE_URL/api/auth/login" \
+PAT=$(curl -sf -X POST "$BASE_URL/api/auth/login" $CSRF_ARGS \
   -H "Content-Type: application/json" \
   -d '{"email":"patient1@curavision.com","password":"Patient@123"}')
 PAT_TOKEN=$(echo "$PAT" | jq -r .token)
@@ -36,7 +40,7 @@ echo "  patient id: $PAT_ID"
 echo "▶ Doctor uploads a synthetic DICOM"
 TMPFILE=$(mktemp --suffix=.dcm)
 printf '%128sDICM-fake-bytes-%s' "" "$(date +%s%N)" > "$TMPFILE"
-UPLOAD=$(curl -sf -X POST "$BASE_URL/api/scans" \
+UPLOAD=$(curl -sf -X POST "$BASE_URL/api/scans" $CSRF_ARGS \
   -H "Authorization: Bearer $DOC_TOKEN" \
   -F "patient_id=$PAT_ID" \
   -F "file=@$TMPFILE")
@@ -64,11 +68,11 @@ REPORT_ID=$(echo "$REPORT" | jq -r .id)
 echo "  report id: $REPORT_ID"
 
 echo "▶ Doctor edits and approves"
-curl -sf -X PATCH "$BASE_URL/api/reports/$REPORT_ID" \
+curl -sf -X PATCH "$BASE_URL/api/reports/$REPORT_ID" $CSRF_ARGS \
   -H "Authorization: Bearer $DOC_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"final_report":"Smoke test — approved."}' > /dev/null
-APPROVED=$(curl -sf -X POST "$BASE_URL/api/reports/$REPORT_ID/approve" \
+APPROVED=$(curl -sf -X POST "$BASE_URL/api/reports/$REPORT_ID/approve" $CSRF_ARGS \
   -H "Authorization: Bearer $DOC_TOKEN")
 echo "  status: $(echo "$APPROVED" | jq -r .status)"
 
@@ -76,7 +80,7 @@ echo "▶ Patient lists reports"
 curl -sf -H "Authorization: Bearer $PAT_TOKEN" "$BASE_URL/api/patient/reports" | jq -c '.reports | map(.id)'
 
 echo "▶ Patient chats about the report"
-curl -sf -X POST "$BASE_URL/api/chat/$REPORT_ID/message" \
+curl -sf -X POST "$BASE_URL/api/chat/$REPORT_ID/message" $CSRF_ARGS \
   -H "Authorization: Bearer $PAT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"message":"What does this report mean for me?"}' \

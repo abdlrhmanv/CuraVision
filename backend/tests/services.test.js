@@ -225,3 +225,11 @@ test.describe("ReportService Unit Tests", () => {
     }
   });
 });
+
+test.after(async () => {
+  const redis = require("../src/utils/redis");
+  const prisma = require("../src/config/prisma");
+  await redis.quit();
+  await prisma.$disconnect();
+});
+
