@@ -5,6 +5,7 @@ import copy
 
 import torch
 import torch.nn as nn
+import mlflow
 
 from src.classification.dataset import build_classification_dataloaders
 from src.classification.losses import FocalLoss
@@ -92,53 +93,75 @@ def train_classification(config: dict) -> dict:
     print(f"[Classification] Device: {device}")
     print(f"[Classification] Classes: {class_names}")
 
-    for epoch in range(1, train_cfg["epochs"] + 1):
-        train_loss, train_acc = _run_epoch(model, train_loader, criterion, optimizer, device, train=True)
-        val_loss, val_acc = _run_epoch(model, val_loader, criterion, optimizer, device, train=False)
-
-        history.append({
-            "epoch": epoch,
-            "train_loss": float(train_loss),
-            "train_acc": float(train_acc),
-            "val_loss": float(val_loss),
-            "val_acc": float(val_acc),
+    with mlflow.start_run(run_name=config.get("experiment_name", "classification")):
+        mlflow.log_params({
+            "backbone": model_cfg["backbone"],
+            "hidden_dim": model_cfg["hidden_dim"],
+            "dropout": model_cfg["dropout"],
+            "learning_rate": train_cfg["learning_rate"],
+            "epochs": train_cfg["epochs"],
+            "batch_size": train_cfg["batch_size"],
+            "weight_decay": train_cfg.get("weight_decay", 0.0),
         })
 
-        print(
-            f"[Classification] Epoch {epoch}/{train_cfg['epochs']} | "
-            f"train_loss={train_loss:.4f} train_acc={train_acc:.4f} | "
-            f"val_loss={val_loss:.4f} val_acc={val_acc:.4f}"
-        )
+        for epoch in range(1, train_cfg["epochs"] + 1):
+            train_loss, train_acc = _run_epoch(model, train_loader, criterion, optimizer, device, train=True)
+            val_loss, val_acc = _run_epoch(model, val_loader, criterion, optimizer, device, train=False)
 
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
-            best_epoch = epoch
-            patience_counter = 0
-            best_state = copy.deepcopy(model.state_dict())
-            ckpt_path = ensure_parent_dir(artifact_cfg["checkpoint_path"])
-            torch.save({
-                "task": "classification",
-                "class_names": class_names,
-                "config": config,
-                "model_state_dict": best_state,
-                "backbone": model_cfg["backbone"],
-                "hidden_dim": model_cfg["hidden_dim"],
-                "dropout": model_cfg["dropout"],
-            }, ckpt_path)
-        else:
-            patience_counter += 1
+            history.append({
+                "epoch": epoch,
+                "train_loss": float(train_loss),
+                "train_acc": float(train_acc),
+                "val_loss": float(val_loss),
+                "val_acc": float(val_acc),
+            })
 
-        if patience_counter >= train_cfg.get("early_stopping_patience", 4):
-            print("[Classification] Early stopping triggered.")
-            break
+            print(
+                f"[Classification] Epoch {epoch}/{train_cfg['epochs']} | "
+                f"train_loss={train_loss:.4f} train_acc={train_acc:.4f} | "
+                f"val_loss={val_loss:.4f} val_acc={val_acc:.4f}"
+            )
 
-    if best_state is None:
-        raise RuntimeError("Training did not produce a checkpoint.")
+            mlflow.log_metrics({
+                "train_loss": train_loss,
+                "train_acc": train_acc,
+                "val_loss": val_loss,
+                "val_acc": val_acc,
+            }, step=epoch)
 
-    model.load_state_dict(best_state)
-    metrics = evaluate_classification_model(config=config, split="val", save_outputs=True, model=model)
-    metrics["best_val_acc"] = float(best_val_acc)
-    metrics["best_epoch"] = int(best_epoch)
-    metrics["history"] = history
-    save_json(metrics, artifact_cfg["metrics_path"])
+            if val_acc > best_val_acc:
+                best_val_acc = val_acc
+                best_epoch = epoch
+                patience_counter = 0
+                best_state = copy.deepcopy(model.state_dict())
+                ckpt_path = ensure_parent_dir(artifact_cfg["checkpoint_path"])
+                torch.save({
+                    "task": "classification",
+                    "class_names": class_names,
+                    "config": config,
+                    "model_state_dict": best_state,
+                    "backbone": model_cfg["backbone"],
+                    "hidden_dim": model_cfg["hidden_dim"],
+                    "dropout": model_cfg["dropout"],
+                }, ckpt_path)
+            else:
+                patience_counter += 1
+
+            if patience_counter >= train_cfg.get("early_stopping_patience", 4):
+                print("[Classification] Early stopping triggered.")
+                break
+
+        if best_state is None:
+            raise RuntimeError("Training did not produce a checkpoint.")
+
+        model.load_state_dict(best_state)
+        metrics = evaluate_classification_model(config=config, split="val", save_outputs=True, model=model)
+        metrics["best_val_acc"] = float(best_val_acc)
+        metrics["best_epoch"] = int(best_epoch)
+        metrics["history"] = history
+        save_json(metrics, artifact_cfg["metrics_path"])
+
+        mlflow.log_artifact(artifact_cfg["checkpoint_path"])
+        mlflow.log_artifact(artifact_cfg["metrics_path"])
+
     return metrics

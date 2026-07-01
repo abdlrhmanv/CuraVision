@@ -4,6 +4,7 @@ from pathlib import Path
 import copy
 
 import torch
+import mlflow
 
 from src.common.io import ensure_dir, ensure_parent_dir
 from src.common.metrics import save_json
@@ -92,50 +93,75 @@ def train_segmentation(config: dict) -> dict:
     history = []
 
     print(f"[Segmentation] Device: {device}")
-    for epoch in range(1, train_cfg["epochs"] + 1):
-        train_stats = _run_epoch(model, train_loader, criterion, optimizer, device, True, train_cfg["positive_threshold"])
-        val_stats = _run_epoch(model, val_loader, criterion, optimizer, device, False, train_cfg["positive_threshold"])
-
-        history.append({
-            "epoch": epoch,
-            "train": train_stats,
-            "val": val_stats,
+    
+    with mlflow.start_run(run_name=config.get("experiment_name", "segmentation")):
+        mlflow.log_params({
+            "in_channels": model_cfg["in_channels"],
+            "out_channels": model_cfg["out_channels"],
+            "init_features": model_cfg["init_features"],
+            "learning_rate": train_cfg["learning_rate"],
+            "epochs": train_cfg["epochs"],
+            "batch_size": train_cfg["batch_size"],
+            "weight_decay": train_cfg.get("weight_decay", 0.0),
         })
-        print(
-            f"[Segmentation] Epoch {epoch}/{train_cfg['epochs']} | "
-            f"train_loss={train_stats['loss']:.4f} train_dice={train_stats['dice']:.4f} | "
-            f"val_loss={val_stats['loss']:.4f} val_dice={val_stats['dice']:.4f}"
-        )
 
-        if val_stats["dice"] > best_val_dice:
-            best_val_dice = val_stats["dice"]
-            best_epoch = epoch
-            patience_counter = 0
-            best_state = copy.deepcopy(model.state_dict())
-            ckpt_path = ensure_parent_dir(artifact_cfg["checkpoint_path"])
-            torch.save({
-                "task": "segmentation",
-                "config": config,
-                "model_state_dict": best_state,
-                "image_size": data_cfg["image_size"],
-                "in_channels": model_cfg["in_channels"],
-                "out_channels": model_cfg["out_channels"],
-                "init_features": model_cfg["init_features"],
-            }, ckpt_path)
-        else:
-            patience_counter += 1
+        for epoch in range(1, train_cfg["epochs"] + 1):
+            train_stats = _run_epoch(model, train_loader, criterion, optimizer, device, True, train_cfg["positive_threshold"])
+            val_stats = _run_epoch(model, val_loader, criterion, optimizer, device, False, train_cfg["positive_threshold"])
 
-        if patience_counter >= train_cfg.get("early_stopping_patience", 5):
-            print("[Segmentation] Early stopping triggered.")
-            break
+            history.append({
+                "epoch": epoch,
+                "train": train_stats,
+                "val": val_stats,
+            })
+            print(
+                f"[Segmentation] Epoch {epoch}/{train_cfg['epochs']} | "
+                f"train_loss={train_stats['loss']:.4f} train_dice={train_stats['dice']:.4f} | "
+                f"val_loss={val_stats['loss']:.4f} val_dice={val_stats['dice']:.4f}"
+            )
+            
+            mlflow.log_metrics({
+                "train_loss": train_stats["loss"],
+                "train_dice": train_stats["dice"],
+                "train_iou": train_stats["iou"],
+                "val_loss": val_stats["loss"],
+                "val_dice": val_stats["dice"],
+                "val_iou": val_stats["iou"],
+            }, step=epoch)
 
-    if best_state is None:
-        raise RuntimeError("Training did not produce a checkpoint.")
+            if val_stats["dice"] > best_val_dice:
+                best_val_dice = val_stats["dice"]
+                best_epoch = epoch
+                patience_counter = 0
+                best_state = copy.deepcopy(model.state_dict())
+                ckpt_path = ensure_parent_dir(artifact_cfg["checkpoint_path"])
+                torch.save({
+                    "task": "segmentation",
+                    "config": config,
+                    "model_state_dict": best_state,
+                    "image_size": data_cfg["image_size"],
+                    "in_channels": model_cfg["in_channels"],
+                    "out_channels": model_cfg["out_channels"],
+                    "init_features": model_cfg["init_features"],
+                }, ckpt_path)
+            else:
+                patience_counter += 1
 
-    model.load_state_dict(best_state)
-    metrics = evaluate_segmentation_model(config=config, split="val", save_outputs=True, model=model)
-    metrics["best_val_dice"] = float(best_val_dice)
-    metrics["best_epoch"] = int(best_epoch)
-    metrics["history"] = history
-    save_json(metrics, artifact_cfg["metrics_path"])
+            if patience_counter >= train_cfg.get("early_stopping_patience", 5):
+                print("[Segmentation] Early stopping triggered.")
+                break
+
+        if best_state is None:
+            raise RuntimeError("Training did not produce a checkpoint.")
+
+        model.load_state_dict(best_state)
+        metrics = evaluate_segmentation_model(config=config, split="val", save_outputs=True, model=model)
+        metrics["best_val_dice"] = float(best_val_dice)
+        metrics["best_epoch"] = int(best_epoch)
+        metrics["history"] = history
+        save_json(metrics, artifact_cfg["metrics_path"])
+
+        mlflow.log_artifact(artifact_cfg["checkpoint_path"])
+        mlflow.log_artifact(artifact_cfg["metrics_path"])
+
     return metrics

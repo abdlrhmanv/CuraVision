@@ -28,16 +28,35 @@ async function book({ requester, doctor_id, start_time, end_time }) {
   if (start.getTime() < Date.now()) {
     throw badRequest("Cannot book an appointment in the past.", "PAST_TIME");
   }
-  if (await ReservationRepository.hasConflict(doctor_id, start_time, end_time)) {
-    throw conflict("This slot is no longer available.", "SLOT_UNAVAILABLE");
-  }
 
-  const reservation = await ReservationRepository.createReservation({
-    doctor_id,
-    patient_id: requester.sub,
-    start_time,
-    end_time,
-  });
+  // Atomic conflict check + insert under serializable isolation to prevent
+  // TOCTOU double-booking race conditions.
+  const reservation = await prisma.$transaction(
+    async (tx) => {
+      const existing = await tx.reservation.findFirst({
+        where: {
+          doctor_id,
+          status: { not: "CANCELLED" },
+          start_time: { lt: end },
+          end_time: { gt: start },
+        },
+      });
+      if (existing) {
+        throw conflict("This slot is no longer available.", "SLOT_UNAVAILABLE");
+      }
+      return tx.reservation.create({
+        data: {
+          doctor_id,
+          patient_id: requester.sub,
+          start_time: start,
+          end_time: end,
+          status: "PENDING",
+        },
+        include: { doctor: true, patient: true },
+      });
+    },
+    { isolationLevel: "Serializable" }
+  );
 
   AuditService.log({
     user_id: requester.sub,

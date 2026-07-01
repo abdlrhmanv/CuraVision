@@ -27,6 +27,6 @@ def export_segmentation_to_onnx(config: dict) -> str:
         input_names=["image"],
         output_names=["mask_logits"],
         dynamic_axes={"image": {0: "batch"}, "mask_logits": {0: "batch"}},
-        opset_version=17,
+        opset_version=14,
     )
     return str(out_path)

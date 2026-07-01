@@ -83,6 +83,15 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     requestHeaders["Content-Type"] = "application/json";
   }
 
+  if (typeof document !== "undefined") {
+    const xsrfCookie = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("XSRF-TOKEN="));
+    if (xsrfCookie) {
+      requestHeaders["X-XSRF-TOKEN"] = xsrfCookie.split("=")[1] || "";
+    }
+  }
+
   let payload: BodyInit | undefined;
   if (formData) payload = body as FormData;
   else if (body !== undefined) payload = JSON.stringify(body);

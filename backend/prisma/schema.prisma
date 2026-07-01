@@ -202,8 +202,11 @@ model Reservation {
   doctor     User              @relation("ReservationDoctor", fields: [doctor_id], references: [id])
   patient    User              @relation("ReservationPatient", fields: [patient_id], references: [id])
 
+  @@unique([doctor_id, start_time, end_time])
   @@index([doctor_id, start_time])
   @@index([patient_id])
+  @@index([start_time])
+  @@index([end_time])
 }
 
 model AuditLog {

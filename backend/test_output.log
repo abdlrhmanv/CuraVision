@@ -1,0 +1,606 @@
+
+> curavision-backend@1.0.0 test
+> node --test --test-reporter=spec tests/routes.test.js
+
+◇ injected env (6) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+✖ GET /health → 200 ok (98.133923ms)
+✔ unknown route → 404 NOT_FOUND (3.807013ms)
+[2026-06-30 04:54:56.768 +0300] [31mERROR[39m: [36m[Health] Database check failed[39m
+    err: {
+      "type": "PrismaClientInitializationError",
+      "message": "\nInvalid `prisma.$queryRaw()` invocation:\n\n\nCan't reach database server at `postgres:5432`\n\nPlease make sure your database server is running at `postgres:5432`.",
+      "stack":
+          PrismaClientInitializationError: 
+          Invalid `prisma.$queryRaw()` invocation:
+          
+          
+          Can't reach database server at `postgres:5432`
+          
+          Please make sure your database server is running at `postgres:5432`.
+              at ei.handleRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:7568)
+              at ei.handleAndLogRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6593)
+              at ei.request (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6300)
+              at async a (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:130:9551)
+              at async /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/server.js:128:5
+      "clientVersion": "6.19.3",
+      "name": "PrismaClientInitializationError"
+    }
+[2026-06-30 04:54:56.801 +0300] [31mERROR[39m: [36m[Redis] Client Error[39m
+    err: {
+      "type": "Error",
+      "message": "connect ECONNREFUSED 127.0.0.1:6379",
+      "stack":
+          Error: connect ECONNREFUSED 127.0.0.1:6379
+              at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16)
+      "errno": -111,
+      "code": "ECONNREFUSED",
+      "syscall": "connect",
+      "address": "127.0.0.1",
+      "port": 6379
+    }
+✖ POST /api/auth/login rejects bad credentials (62.630835ms)
+✔ POST /api/auth/login validates payload (3.457316ms)
+✔ protected route without token → 401 (1.853884ms)
+[2026-06-30 04:54:56.864 +0300] [31mERROR[39m: [36mUnexpected server error: 
+Invalid `prisma.user.findUnique()` invocation in
+/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34
+
+  33   }
+  34 
+  35 async function login({ email, password }) {
+→ 36   const user = await prisma.user.findUnique(
+Can't reach database server at `postgres:5432`
+
+Please make sure your database server is running at `postgres:5432`.[39m
+    err: {
+      "type": "PrismaClientInitializationError",
+      "message": "\nInvalid `prisma.user.findUnique()` invocation in\n/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34\n\n  33   }\n  34 \n  35 async function login({ email, password }) {\n→ 36   const user = await prisma.user.findUnique(\nCan't reach database server at `postgres:5432`\n\nPlease make sure your database server is running at `postgres:5432`.",
+      "stack":
+          PrismaClientInitializationError: 
+          Invalid `prisma.user.findUnique()` invocation in
+          /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34
+          
+            33   }
+            34 
+            35 async function login({ email, password }) {
+          → 36   const user = await prisma.user.findUnique(
+          Can't reach database server at `postgres:5432`
+          
+          Please make sure your database server is running at `postgres:5432`.
+              at ei.handleRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:7568)
+              at ei.handleAndLogRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6593)
+              at ei.request (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6300)
+              at async a (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:130:9551)
+              at async Object.login (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:16)
+              at async /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/routes/auth.routes.js:90:20
+      "clientVersion": "6.19.3",
+      "name": "PrismaClientInitializationError"
+    }
+[2026-06-30 04:54:56.902 +0300] [31mERROR[39m: [36m[Redis] Client Error[39m
+    err: {
+      "type": "Error",
+      "message": "connect ECONNREFUSED 127.0.0.1:6379",
+      "stack":
+          Error: connect ECONNREFUSED 127.0.0.1:6379
+              at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16)
+      "errno": -111,
+      "code": "ECONNREFUSED",
+      "syscall": "connect",
+      "address": "127.0.0.1",
+      "port": 6379
+    }
+✖ GET /api/scans with a doctor token lists scans (50.300894ms)
+[2026-06-30 04:54:56.920 +0300] [31mERROR[39m: [36mUnexpected server error: 
+Invalid `prisma.user.findUnique()` invocation in
+/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34
+
+  33   }
+  34 
+  35 async function login({ email, password }) {
+→ 36   const user = await prisma.user.findUnique(
+Can't reach database server at `postgres:5432`
+
+Please make sure your database server is running at `postgres:5432`.[39m
+    err: {
+      "type": "PrismaClientInitializationError",
+      "message": "\nInvalid `prisma.user.findUnique()` invocation in\n/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34\n\n  33   }\n  34 \n  35 async function login({ email, password }) {\n→ 36   const user = await prisma.user.findUnique(\nCan't reach database server at `postgres:5432`\n\nPlease make sure your database server is running at `postgres:5432`.",
+      "stack":
+          PrismaClientInitializationError: 
+          Invalid `prisma.user.findUnique()` invocation in
+          /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34
+          
+            33   }
+            34 
+            35 async function login({ email, password }) {
+          → 36   const user = await prisma.user.findUnique(
+          Can't reach database server at `postgres:5432`
+          
+          Please make sure your database server is running at `postgres:5432`.
+              at ei.handleRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:7568)
+              at ei.handleAndLogRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6593)
+              at ei.request (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6300)
+              at async a (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:130:9551)
+              at async Object.login (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:16)
+              at async /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/routes/auth.routes.js:90:20
+      "clientVersion": "6.19.3",
+      "name": "PrismaClientInitializationError"
+    }
+✖ POST /api/auth/register creates a new patient (53.320264ms)
+[2026-06-30 04:54:56.973 +0300] [31mERROR[39m: [36mUnexpected server error: 
+Invalid `prisma.user.findUnique()` invocation in
+/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:15:42
+
+  12   }
+  13 
+  14 async function register({ email, password, full_name, role = "PATIENT" }) {
+→ 15   const existingUser = await prisma.user.findUnique(
+Can't reach database server at `postgres:5432`
+
+Please make sure your database server is running at `postgres:5432`.[39m
+    err: {
+      "type": "PrismaClientInitializationError",
+      "message": "\nInvalid `prisma.user.findUnique()` invocation in\n/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:15:42\n\n  12   }\n  13 \n  14 async function register({ email, password, full_name, role = \"PATIENT\" }) {\n→ 15   const existingUser = await prisma.user.findUnique(\nCan't reach database server at `postgres:5432`\n\nPlease make sure your database server is running at `postgres:5432`.",
+      "stack":
+          PrismaClientInitializationError: 
+          Invalid `prisma.user.findUnique()` invocation in
+          /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:15:42
+          
+            12   }
+            13 
+            14 async function register({ email, password, full_name, role = "PATIENT" }) {
+          → 15   const existingUser = await prisma.user.findUnique(
+          Can't reach database server at `postgres:5432`
+          
+          Please make sure your database server is running at `postgres:5432`.
+              at ei.handleRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:7568)
+              at ei.handleAndLogRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6593)
+              at ei.request (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6300)
+              at async a (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:130:9551)
+              at async Object.register (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:15:24)
+              at async /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/routes/auth.routes.js:46:20
+      "clientVersion": "6.19.3",
+      "name": "PrismaClientInitializationError"
+    }
+✖ POST /api/scans without file → 400 (51.725667ms)
+[2026-06-30 04:54:57.025 +0300] [31mERROR[39m: [36mUnexpected server error: 
+Invalid `prisma.user.findUnique()` invocation in
+/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34
+
+  33   }
+  34 
+  35 async function login({ email, password }) {
+→ 36   const user = await prisma.user.findUnique(
+Can't reach database server at `postgres:5432`
+
+Please make sure your database server is running at `postgres:5432`.[39m
+    err: {
+      "type": "PrismaClientInitializationError",
+      "message": "\nInvalid `prisma.user.findUnique()` invocation in\n/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34\n\n  33   }\n  34 \n  35 async function login({ email, password }) {\n→ 36   const user = await prisma.user.findUnique(\nCan't reach database server at `postgres:5432`\n\nPlease make sure your database server is running at `postgres:5432`.",
+      "stack":
+          PrismaClientInitializationError: 
+          Invalid `prisma.user.findUnique()` invocation in
+          /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34
+          
+            33   }
+            34 
+            35 async function login({ email, password }) {
+          → 36   const user = await prisma.user.findUnique(
+          Can't reach database server at `postgres:5432`
+          
+          Please make sure your database server is running at `postgres:5432`.
+              at ei.handleRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:7568)
+              at ei.handleAndLogRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6593)
+              at ei.request (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6300)
+              at async a (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:130:9551)
+              at async Object.login (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:16)
+              at async /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/routes/auth.routes.js:90:20
+      "clientVersion": "6.19.3",
+      "name": "PrismaClientInitializationError"
+    }
+✖ POST /api/internal/scans/:id/analysis-complete persists worker callback (47.189615ms)
+[2026-06-30 04:54:57.103 +0300] [31mERROR[39m: [36m[Redis] Client Error[39m
+    err: {
+      "type": "Error",
+      "message": "connect ECONNREFUSED 127.0.0.1:6379",
+      "stack":
+          Error: connect ECONNREFUSED 127.0.0.1:6379
+              at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16)
+      "errno": -111,
+      "code": "ECONNREFUSED",
+      "syscall": "connect",
+      "address": "127.0.0.1",
+      "port": 6379
+    }
+✖ full doctor flow: upload → analysis → report → approve (52.573801ms)
+[2026-06-30 04:54:57.125 +0300] [31mERROR[39m: [36mUnexpected server error: 
+Invalid `prisma.user.findUnique()` invocation in
+/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34
+
+  33   }
+  34 
+  35 async function login({ email, password }) {
+→ 36   const user = await prisma.user.findUnique(
+Can't reach database server at `postgres:5432`
+
+Please make sure your database server is running at `postgres:5432`.[39m
+    err: {
+      "type": "PrismaClientInitializationError",
+      "message": "\nInvalid `prisma.user.findUnique()` invocation in\n/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34\n\n  33   }\n  34 \n  35 async function login({ email, password }) {\n→ 36   const user = await prisma.user.findUnique(\nCan't reach database server at `postgres:5432`\n\nPlease make sure your database server is running at `postgres:5432`.",
+      "stack":
+          PrismaClientInitializationError: 
+          Invalid `prisma.user.findUnique()` invocation in
+          /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34
+          
+            33   }
+            34 
+            35 async function login({ email, password }) {
+          → 36   const user = await prisma.user.findUnique(
+          Can't reach database server at `postgres:5432`
+          
+          Please make sure your database server is running at `postgres:5432`.
+              at ei.handleRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:7568)
+              at ei.handleAndLogRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6593)
+              at ei.request (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6300)
+              at async a (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:130:9551)
+              at async Object.login (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:16)
+              at async /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/routes/auth.routes.js:90:20
+      "clientVersion": "6.19.3",
+      "name": "PrismaClientInitializationError"
+    }
+✖ reservation lifecycle: patient books → doctor confirms (49.752884ms)
+[2026-06-30 04:54:57.175 +0300] [31mERROR[39m: [36mUnexpected server error: 
+Invalid `prisma.user.findUnique()` invocation in
+/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34
+
+  33   }
+  34 
+  35 async function login({ email, password }) {
+→ 36   const user = await prisma.user.findUnique(
+Can't reach database server at `postgres:5432`
+
+Please make sure your database server is running at `postgres:5432`.[39m
+    err: {
+      "type": "PrismaClientInitializationError",
+      "message": "\nInvalid `prisma.user.findUnique()` invocation in\n/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34\n\n  33   }\n  34 \n  35 async function login({ email, password }) {\n→ 36   const user = await prisma.user.findUnique(\nCan't reach database server at `postgres:5432`\n\nPlease make sure your database server is running at `postgres:5432`.",
+      "stack":
+          PrismaClientInitializationError: 
+          Invalid `prisma.user.findUnique()` invocation in
+          /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34
+          
+            33   }
+            34 
+            35 async function login({ email, password }) {
+          → 36   const user = await prisma.user.findUnique(
+          Can't reach database server at `postgres:5432`
+          
+          Please make sure your database server is running at `postgres:5432`.
+              at ei.handleRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:7568)
+              at ei.handleAndLogRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6593)
+              at ei.request (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6300)
+              at async a (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:130:9551)
+              at async Object.login (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:16)
+              at async /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/routes/auth.routes.js:90:20
+      "clientVersion": "6.19.3",
+      "name": "PrismaClientInitializationError"
+    }
+✖ admin audit log requires admin role (47.453481ms)
+[2026-06-30 04:54:57.223 +0300] [31mERROR[39m: [36mUnexpected server error: 
+Invalid `prisma.user.findUnique()` invocation in
+/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34
+
+  33   }
+  34 
+  35 async function login({ email, password }) {
+→ 36   const user = await prisma.user.findUnique(
+Can't reach database server at `postgres:5432`
+
+Please make sure your database server is running at `postgres:5432`.[39m
+    err: {
+      "type": "PrismaClientInitializationError",
+      "message": "\nInvalid `prisma.user.findUnique()` invocation in\n/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34\n\n  33   }\n  34 \n  35 async function login({ email, password }) {\n→ 36   const user = await prisma.user.findUnique(\nCan't reach database server at `postgres:5432`\n\nPlease make sure your database server is running at `postgres:5432`.",
+      "stack":
+          PrismaClientInitializationError: 
+          Invalid `prisma.user.findUnique()` invocation in
+          /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34
+          
+            33   }
+            34 
+            35 async function login({ email, password }) {
+          → 36   const user = await prisma.user.findUnique(
+          Can't reach database server at `postgres:5432`
+          
+          Please make sure your database server is running at `postgres:5432`.
+              at ei.handleRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:7568)
+              at ei.handleAndLogRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6593)
+              at ei.request (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6300)
+              at async a (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:130:9551)
+              at async Object.login (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:16)
+              at async /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/routes/auth.routes.js:90:20
+      "clientVersion": "6.19.3",
+      "name": "PrismaClientInitializationError"
+    }
+✖ POST /api/scans with invalid file format -> 400 (48.001539ms)
+[2026-06-30 04:54:57.271 +0300] [31mERROR[39m: [36mUnexpected server error: 
+Invalid `prisma.user.findUnique()` invocation in
+/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34
+
+  33   }
+  34 
+  35 async function login({ email, password }) {
+→ 36   const user = await prisma.user.findUnique(
+Can't reach database server at `postgres:5432`
+
+Please make sure your database server is running at `postgres:5432`.[39m
+    err: {
+      "type": "PrismaClientInitializationError",
+      "message": "\nInvalid `prisma.user.findUnique()` invocation in\n/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34\n\n  33   }\n  34 \n  35 async function login({ email, password }) {\n→ 36   const user = await prisma.user.findUnique(\nCan't reach database server at `postgres:5432`\n\nPlease make sure your database server is running at `postgres:5432`.",
+      "stack":
+          PrismaClientInitializationError: 
+          Invalid `prisma.user.findUnique()` invocation in
+          /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:34
+          
+            33   }
+            34 
+            35 async function login({ email, password }) {
+          → 36   const user = await prisma.user.findUnique(
+          Can't reach database server at `postgres:5432`
+          
+          Please make sure your database server is running at `postgres:5432`.
+              at ei.handleRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:7568)
+              at ei.handleAndLogRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6593)
+              at ei.request (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6300)
+              at async a (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:130:9551)
+              at async Object.login (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/services/AuthService.js:36:16)
+              at async /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/src/routes/auth.routes.js:90:20
+      "clientVersion": "6.19.3",
+      "name": "PrismaClientInitializationError"
+    }
+[2026-06-30 04:54:57.405 +0300] [31mERROR[39m: [36m[Redis] Client Error[39m
+    err: {
+      "type": "Error",
+      "message": "connect ECONNREFUSED 127.0.0.1:6379",
+      "stack":
+          Error: connect ECONNREFUSED 127.0.0.1:6379
+              at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16)
+      "errno": -111,
+      "code": "ECONNREFUSED",
+      "syscall": "connect",
+      "address": "127.0.0.1",
+      "port": 6379
+    }
+ℹ tests 13
+ℹ suites 0
+ℹ pass 3
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1045.652188
+
+✖ failing tests:
+
+test at tests/routes.test.js:35:1
+✖ GET /health → 200 ok (98.133923ms)
+  Error: expected 200 "OK", got 503 "Service Unavailable"
+      at TestContext.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/tests/routes.test.js:36:49)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.start (node:internal/test_runner/test:1096:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+  ----
+      at Test._assertStatus (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:309:14)
+      at /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:365:13
+      at Test._assertFunction (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:342:13)
+      at Test.assert (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:195:23)
+      at localAssert (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:138:14)
+      at Server.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:152:11)
+      at Object.onceWrapper (node:events:630:28)
+      at Server.emit (node:events:509:28)
+      at emitCloseNT (node:net:2487:8)
+      at process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+
+test at tests/routes.test.js:51:1
+✖ POST /api/auth/login rejects bad credentials (62.630835ms)
+  Error: expected 401 "Unauthorized", got 500 "Internal Server Error"
+      at TestContext.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/tests/routes.test.js:55:6)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7)
+  ----
+      at Test._assertStatus (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:309:14)
+      at /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:365:13
+      at Test._assertFunction (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:342:13)
+      at Test.assert (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:195:23)
+      at localAssert (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:138:14)
+      at Server.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:152:11)
+      at Object.onceWrapper (node:events:630:28)
+      at Server.emit (node:events:509:28)
+      at emitCloseNT (node:net:2487:8)
+      at process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+
+test at tests/routes.test.js:71:1
+✖ GET /api/scans with a doctor token lists scans (50.300894ms)
+  Error: expected 200 "OK", got 500 "Internal Server Error"
+      at login (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/tests/routes.test.js:31:6)
+      at TestContext.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/tests/routes.test.js:72:21)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+  ----
+      at Test._assertStatus (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:309:14)
+      at /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:365:13
+      at Test._assertFunction (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:342:13)
+      at Test.assert (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:195:23)
+      at localAssert (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:138:14)
+      at Server.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:152:11)
+      at Object.onceWrapper (node:events:630:28)
+      at Server.emit (node:events:509:28)
+      at emitCloseNT (node:net:2487:8)
+      at process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+
+test at tests/routes.test.js:80:1
+✖ POST /api/auth/register creates a new patient (53.320264ms)
+  Error: expected 201 "Created", got 500 "Internal Server Error"
+      at TestContext.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/tests/routes.test.js:90:6)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7)
+  ----
+      at Test._assertStatus (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:309:14)
+      at /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:365:13
+      at Test._assertFunction (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:342:13)
+      at Test.assert (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:195:23)
+      at localAssert (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:138:14)
+      at Server.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:152:11)
+      at Object.onceWrapper (node:events:630:28)
+      at Server.emit (node:events:509:28)
+      at emitCloseNT (node:net:2487:8)
+      at process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+
+test at tests/routes.test.js:95:1
+✖ POST /api/scans without file → 400 (51.725667ms)
+  Error: expected 200 "OK", got 500 "Internal Server Error"
+      at login (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/tests/routes.test.js:31:6)
+      at TestContext.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/tests/routes.test.js:96:21)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+  ----
+      at Test._assertStatus (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:309:14)
+      at /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:365:13
+      at Test._assertFunction (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:342:13)
+      at Test.assert (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:195:23)
+      at localAssert (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:138:14)
+      at Server.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:152:11)
+      at Object.onceWrapper (node:events:630:28)
+      at Server.emit (node:events:509:28)
+      at emitCloseNT (node:net:2487:8)
+      at process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+
+test at tests/routes.test.js:106:1
+✖ POST /api/internal/scans/:id/analysis-complete persists worker callback (47.189615ms)
+  PrismaClientInitializationError: 
+  Invalid `prisma.scan.create()` invocation in
+  /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/tests/routes.test.js:107:34
+  
+    104 });
+    105 
+    106 test("POST /api/internal/scans/:id/analysis-complete persists worker callback", async () => {
+  → 107   const scan = await prisma.scan.create(
+  Can't reach database server at `postgres:5432`
+  
+  Please make sure your database server is running at `postgres:5432`.
+      at ei.handleRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:7568)
+      at ei.handleAndLogRequestError (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6593)
+      at ei.request (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:121:6300)
+      at async a (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/@prisma/client/runtime/library.js:130:9551)
+      at async TestContext.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/tests/routes.test.js:107:16)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7)
+
+test at tests/routes.test.js:157:1
+✖ full doctor flow: upload → analysis → report → approve (52.573801ms)
+  Error: expected 200 "OK", got 500 "Internal Server Error"
+      at login (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/tests/routes.test.js:31:6)
+      at TestContext.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/tests/routes.test.js:158:21)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7)
+  ----
+      at Test._assertStatus (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:309:14)
+      at /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:365:13
+      at Test._assertFunction (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:342:13)
+      at Test.assert (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:195:23)
+      at localAssert (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:138:14)
+      at Server.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:152:11)
+      at Object.onceWrapper (node:events:630:28)
+      at Server.emit (node:events:509:28)
+      at emitCloseNT (node:net:2487:8)
+      at process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+
+test at tests/routes.test.js:235:1
+✖ reservation lifecycle: patient books → doctor confirms (49.752884ms)
+  Error: expected 200 "OK", got 500 "Internal Server Error"
+      at login (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/tests/routes.test.js:31:6)
+      at TestContext.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/tests/routes.test.js:236:21)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+  ----
+      at Test._assertStatus (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:309:14)
+      at /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:365:13
+      at Test._assertFunction (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:342:13)
+      at Test.assert (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:195:23)
+      at localAssert (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:138:14)
+      at Server.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:152:11)
+      at Object.onceWrapper (node:events:630:28)
+      at Server.emit (node:events:509:28)
+      at emitCloseNT (node:net:2487:8)
+      at process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+
+test at tests/routes.test.js:269:1
+✖ admin audit log requires admin role (47.453481ms)
+  Error: expected 200 "OK", got 500 "Internal Server Error"
+      at login (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/tests/routes.test.js:31:6)
+      at TestContext.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/tests/routes.test.js:270:21)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+  ----
+      at Test._assertStatus (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:309:14)
+      at /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:365:13
+      at Test._assertFunction (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:342:13)
+      at Test.assert (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:195:23)
+      at localAssert (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:138:14)
+      at Server.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:152:11)
+      at Object.onceWrapper (node:events:630:28)
+      at Server.emit (node:events:509:28)
+      at emitCloseNT (node:net:2487:8)
+      at process.processTicksAndRejections (node:internal/process/task_queues:89:21)
+
+test at tests/routes.test.js:284:1
+✖ POST /api/scans with invalid file format -> 400 (48.001539ms)
+  Error: expected 200 "OK", got 500 "Internal Server Error"
+      at login (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/tests/routes.test.js:31:6)
+      at TestContext.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/tests/routes.test.js:285:21)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+  ----
+      at Test._assertStatus (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:309:14)
+      at /home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:365:13
+      at Test._assertFunction (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:342:13)
+      at Test.assert (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:195:23)
+      at localAssert (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:138:14)
+      at Server.<anonymous> (/home/abdlrhman/Courses/DEPI/Microsoft Machine Learning Engineer/GP/backend/node_modules/supertest/lib/test.js:152:11)
+      at Object.onceWrapper (node:events:630:28)
+      at Server.emit (node:events:509:28)
+      at emitCloseNT (node:net:2487:8)
+      at process.processTicksAndRejections (node:internal/process/task_queues:89:21)

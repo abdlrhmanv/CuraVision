@@ -14,6 +14,7 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === "" || process.e
 }
 
 const { auditLogger } = require("./middleware/auditLogger");
+const csrfMiddleware = require("./middleware/csrf");
 const { globalLimiter, authLimiter, chatLimiter } = require("./middleware/rateLimit");
 const { getStorageRoot, isS3Enabled, getObjectStream } = require("./integrations/storageClient");
 
@@ -35,6 +36,26 @@ const PORT = process.env.PORT || 3001;
 // Set to "*" explicitly to allow any origin (dev only).
 const rawOrigins = (process.env.CORS_ORIGIN || "http://localhost:3000").trim();
 const allowAllOrigins = rawOrigins === "*";
+
+// ── Production safety guards ─────────────────────────────────────────────────
+if (process.env.NODE_ENV === "production") {
+  if (allowAllOrigins) {
+    logger.fatal("CORS_ORIGIN=* is not allowed in production. Set explicit origins.");
+    process.exit(1);
+  }
+  const requiredVars = ["DATABASE_URL"];
+  // Only require S3 keys when S3 storage is configured
+  if (process.env.S3_ENDPOINT) {
+    requiredVars.push("S3_ACCESS_KEY", "S3_SECRET_KEY");
+  }
+  for (const key of requiredVars) {
+    if (!process.env[key] || process.env[key].trim() === "") {
+      logger.fatal(`Missing required environment variable: ${key}`);
+      process.exit(1);
+    }
+  }
+}
+
 const allowedOrigins = allowAllOrigins
   ? null
   : new Set(rawOrigins.split(",").map((o) => o.trim()).filter(Boolean));
@@ -61,6 +82,7 @@ app.use(compression());
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "2mb" }));
 app.use(auditLogger);
+app.use(csrfMiddleware);
 
 // Serve uploaded DICOMs + derived assets.
 // If S3/MinIO is enabled, retrieve them from the bucket. Fallback to local files.

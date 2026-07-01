@@ -13,3 +13,4 @@ uvicorn
 matplotlib
 scikit-learn
 python-multipart
+mlflow

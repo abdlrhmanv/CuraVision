@@ -4,3 +4,5 @@ artifacts/checkpoints/*.pt
 artifacts/onnx/*.onnx
 artifacts/heatmaps/*.png
 artifacts/overlays/
+mlruns/
+Data/

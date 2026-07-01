@@ -1,9 +1,9 @@
 experiment_name: brain_mri_classification
 seed: 42
-class_names: [glioma, meningioma, pituitary, no_tumor]
+class_names: [glioma, meningioma, no_tumor, pituitary]
 
 data:
-  root_dir: Data/classification
+  root_dir: data
   image_size: 224
   num_workers: 0
 

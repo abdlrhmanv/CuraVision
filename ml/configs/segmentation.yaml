@@ -2,7 +2,7 @@ experiment_name: brain_mri_segmentation
 seed: 42
 
 data:
-  root_dir: Data/segmentation
+  root_dir: data/segmentation
   image_size: 256
   num_workers: 0
   mask_suffix: ""

@@ -223,8 +223,11 @@ def convert_mat_folder_to_png(
                     f"Output already exists for {mat_path.name}. Use overwrite=True to replace files."
                 )
 
-            Image.fromarray(case.image).save(image_path)
-            Image.fromarray(case.mask).save(mask_path)
+            img_pil = Image.fromarray(case.image).resize((256, 256), Image.Resampling.BILINEAR)
+            mask_pil = Image.fromarray(case.mask).resize((256, 256), Image.Resampling.NEAREST)
+            
+            img_pil.save(image_path)
+            mask_pil.save(mask_path)
 
             metadata_rows.append(
                 {
@@ -236,8 +239,8 @@ def convert_mat_folder_to_png(
                     "label_name": case.label_name or "",
                     "pid": case.pid or "",
                     "mask_positive_pixels": int((case.mask > 0).sum()),
-                    "image_height": int(case.image.shape[0]),
-                    "image_width": int(case.image.shape[1]),
+                    "image_height": 256,
+                    "image_width": 256,
                 }
             )
 
