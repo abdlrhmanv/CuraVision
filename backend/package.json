@@ -9,6 +9,7 @@
     "test": "node --test --test-reporter=spec tests/routes.test.js tests/services.test.js",
     "test:services": "node --test tests/services.test.js",
     "test:smoke": "node tests/smoke-mvp.js",
+    "test:load": "artillery run load_tests/artillery.yml",
     "lint": "node --check src/server.js && find src -name '*.js' -exec node --check {} +",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -39,6 +40,7 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "artillery": "^2.0.33",
     "nodemon": "^3.1.14",
     "prisma": "^6.19.3",
     "supertest": "^7.2.2"

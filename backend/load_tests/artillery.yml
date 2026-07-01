@@ -1,0 +1,22 @@
+config:
+  target: 'http://localhost:3001'
+  phases:
+    - duration: 10
+      arrivalRate: 5
+      name: "Warm up"
+    - duration: 15
+      arrivalRate: 10
+      rampTo: 50
+      name: "Spike phase"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+scenarios:
+  - name: "Auth rate limit scenario"
+    flow:
+      - post:
+          url: "/api/auth/register"
+          json:
+            email: "test_load@example.com"
+            password: "Password123!"
+            name: "Load Test User"
