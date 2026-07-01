@@ -50,6 +50,12 @@ test.describe("AuthService Unit Tests", () => {
   });
 
   test("login() should succeed with correct credentials", async () => {
+    // Manually activate the user to simulate successful email verification
+    await prisma.user.update({
+      where: { id: createdUser.id },
+      data: { status: "ACTIVE", email_verified: true },
+    });
+
     const user = await AuthService.login({
       email: uniqueEmail,
       password,
