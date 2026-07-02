@@ -170,7 +170,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       JWT_SECRET: ci-secret
-      GROQ_API_KEY: test-key
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       CORS_ORIGIN: "http://localhost:3000"
     steps:
       - uses: actions/checkout@v4
