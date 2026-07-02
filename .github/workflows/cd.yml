@@ -103,6 +103,38 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Pre-Deploy Setup & Cleanup
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            # 1. Clean up old "cura vision" repo if it exists
+            echo "Stopping old containers..."
+            docker rm -f $(docker ps -aq) || true
+            docker network prune -f || true
+            
+            for dir in "$HOME/cura-vision" "$HOME/CuraVision" "$HOME/curavision"; do
+              if [ -d "$dir" ]; then
+                echo "Removing old repo at $dir"
+                rm -rf "$dir"
+              fi
+            done
+            
+            # 2. Setup production directory
+            sudo mkdir -p /opt/curavision/nginx/certs
+            sudo chown -R $USER:$USER /opt/curavision
+            
+            # 3. Generate self-signed SSL cert if it doesn't exist
+            if [ ! -f /opt/curavision/nginx/certs/curavision.crt ]; then
+              echo "Generating self-signed SSL certificate..."
+              openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                -keyout /opt/curavision/nginx/certs/curavision.key \
+                -out /opt/curavision/nginx/certs/curavision.crt \
+                -subj "/C=US/ST=State/L=City/O=CuraVision/CN=localhost"
+            fi
+
       - name: Copy Compose files and Nginx config to VM
         uses: appleboy/scp-action@master
         with:
@@ -120,6 +152,24 @@ jobs:
           key: ${{ secrets.PROD_SSH_KEY }}
           script: |
             cd /opt/curavision
+            
+            # 4. Generate .env file
+            JWT_SEC=$(openssl rand -hex 32)
+            cat <<EOF > .env
+            JWT_SECRET=${JWT_SEC}
+            GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
+            POSTGRES_USER=curavision
+            POSTGRES_PASSWORD=curavision_prod_pass
+            POSTGRES_DB=curavision
+            MINIO_ROOT_USER=curavision
+            MINIO_ROOT_PASSWORD=curavision_prod_pass
+            EOF
+            
+            # Also copy .env to ai-service directory
+            mkdir -p ai-service
+            cp .env ai-service/.env
+            
+            # 5. Login, Pull, and Deploy
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
