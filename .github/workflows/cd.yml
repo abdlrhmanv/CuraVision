@@ -165,6 +165,7 @@ jobs:
             POSTGRES_DB=curavision
             MINIO_ROOT_USER=curavision
             MINIO_ROOT_PASSWORD=curavision_prod_pass
+            CORS_ORIGIN=https://${{ secrets.PROD_SSH_HOST }}
             EOF
             
             # Also copy .env to ai-service directory
