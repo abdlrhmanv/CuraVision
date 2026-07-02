@@ -7,17 +7,9 @@ import { showSuccess, showError, showLoading, closeLoading } from '@/lib/sweetAl
 import { useAuth } from '@/lib/authContext'
 import { ApiError } from '@/lib/apiClient'
 
-function LoginContent() {
-  const router = useRouter()
-  const { login } = useAuth()
-  const [role, setRole] = useState<'patient' | 'doctor'>('patient')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({})
-
+function QueryParamsHandler() {
   const searchParams = useSearchParams()
+  const router = useRouter()
 
   useEffect(() => {
     if (searchParams.get('verified') === 'true') {
@@ -28,6 +20,19 @@ function LoginContent() {
       router.replace('/login')
     }
   }, [searchParams, router])
+
+  return null
+}
+
+export default function LoginPage() {
+  const router = useRouter()
+  const { login } = useAuth()
+  const [role, setRole] = useState<'patient' | 'doctor'>('patient')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({})
 
   const handleLogin = async () => {
     const newErrors: { email?: string; password?: string } = {}
@@ -224,15 +229,10 @@ function LoginContent() {
             Create one
           </Link>
         </div>
+        <Suspense fallback={null}>
+          <QueryParamsHandler />
+        </Suspense>
       </div>
     </div>
-  )
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-bg text-muted">Loading...</div>}>
-      <LoginContent />
-    </Suspense>
   )
 }
