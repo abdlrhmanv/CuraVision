@@ -13,7 +13,5 @@ jobs:
           username: ${{ secrets.PROD_SSH_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           script: |
-            docker ps -a
-            docker logs curavision-proxy || true
-            ls -la /opt/curavision/nginx/certs
-            cat /opt/curavision/nginx/nginx.conf || true
+            sudo chmod 644 /opt/curavision/nginx/certs/curavision.*
+            cd /opt/curavision && docker compose -f docker-compose.yml -f docker-compose.prod.yml restart proxy
