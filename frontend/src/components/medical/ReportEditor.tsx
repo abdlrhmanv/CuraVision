@@ -10,9 +10,11 @@ interface ReportEditorProps {
   onApprove: () => Promise<void>;
   isApproving: boolean;
   status: string;
+  patientVisible?: boolean;
+  onToggleVisibility?: (visible: boolean) => Promise<void>;
 }
 
-export function ReportEditor({ reportId, initialReport, onSave, onApprove, isApproving, status }: ReportEditorProps) {
+export function ReportEditor({ reportId, initialReport, onSave, onApprove, isApproving, status, patientVisible, onToggleVisibility }: ReportEditorProps) {
   const [reportText, setReportText] = useState(initialReport);
   const [prevInitialReport, setPrevInitialReport] = useState(initialReport);
   const [isSaving, setIsSaving] = useState(false);
@@ -168,8 +170,31 @@ export function ReportEditor({ reportId, initialReport, onSave, onApprove, isApp
             </div>
           )}
           {status === 'PUBLISHED' && (
-            <div className="text-sm text-gray-500 text-right mt-2">
-              This report has been published and cannot be edited.
+            <div className="flex justify-between items-center mt-4 pt-4 border-t border-border">
+              <div className="text-sm text-muted">
+                This report has been published and cannot be edited.
+              </div>
+              
+              {onToggleVisibility && patientVisible !== undefined && (
+                <div className="flex items-center space-x-3">
+                  <span className="text-sm font-medium text-text">Visible to Patient</span>
+                  <button
+                    type="button"
+                    onClick={() => onToggleVisibility(!patientVisible)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue focus:ring-offset-2 focus:ring-offset-bg ${
+                      patientVisible ? 'bg-green' : 'bg-muted'
+                    }`}
+                    role="switch"
+                    aria-checked={patientVisible}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        patientVisible ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

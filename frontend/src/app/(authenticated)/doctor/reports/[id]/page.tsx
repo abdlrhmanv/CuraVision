@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function DoctorReportRedirect({ params }: { params: { id: string } }) {
+export default function DoctorReportRedirect({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const [error, setError] = useState(false);
+  const { id } = use(params);
 
   useEffect(() => {
     async function checkReport() {
@@ -15,7 +16,7 @@ export default function DoctorReportRedirect({ params }: { params: { id: string 
         
         // This endpoint doesn't exist explicitly for doctors to get by report ID,
         // but we just ping the corrections endpoint or anything to see if it exists.
-        const res = await fetch(`http://localhost:3001/api/reports/${params.id}/corrections`, {
+        const res = await fetch(`http://localhost:3001/api/reports/${id}/corrections`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -33,7 +34,7 @@ export default function DoctorReportRedirect({ params }: { params: { id: string 
       }
     }
     checkReport();
-  }, [params.id, router]);
+  }, [id, router]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">

@@ -272,6 +272,7 @@ router.post(
 router.post("/logout", (req, res) => {
   res.clearCookie("token");
   res.clearCookie("refreshToken");
+  res.clearCookie("XSRF-TOKEN");
   res.json({ ok: true });
 });
 

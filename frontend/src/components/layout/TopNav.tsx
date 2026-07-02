@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { LogOut, Settings } from 'lucide-react';
 import { AuthUser, clearSession } from '@/lib/apiClient';
+import { NotificationDropdown } from './NotificationDropdown';
 
 interface TopNavProps {
   user: AuthUser;
@@ -22,6 +23,7 @@ export function TopNav({ user }: TopNavProps) {
         Welcome back, <span className="font-semibold text-gray-900">{user.full_name}</span>
       </div>
       <div className="flex items-center gap-4">
+        <NotificationDropdown />
         <button
           onClick={() => router.push('/admin/system')}
           className="p-2 hover:bg-gray-100 rounded-lg transition"

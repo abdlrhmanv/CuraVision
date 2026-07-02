@@ -230,6 +230,32 @@ async function approveReport(reportId, { requester }) {
   return serializeReport(published);
 }
 
+async function togglePatientVisibility(reportId, { requester, visible }) {
+  const report = await getReportById(reportId);
+  if (!report) throw notFound("Report not found.", "REPORT_NOT_FOUND");
+  if (report.doctor_id !== requester.sub) {
+    throw forbidden("Only the assigned doctor can modify this report.");
+  }
+  if (report.status !== "PUBLISHED") {
+    throw badRequest("Only published reports can have their visibility toggled.", "REPORT_NOT_PUBLISHED");
+  }
+
+  const updated = await prisma.report.update({
+    where: { id: reportId },
+    data: { patient_visible: visible },
+  });
+
+  AuditService.log({
+    user_id: requester.sub,
+    action: "TOGGLE_REPORT_VISIBILITY",
+    entity_type: "REPORT",
+    entity_id: reportId,
+    metadata: { patient_visible: visible },
+  });
+
+  return serializeReport(updated);
+}
+
 /**
  * Mock email notification system using Nodemailer Ethereal Transport.
  */
@@ -327,6 +353,7 @@ module.exports = {
   getReportForScan,
   editReport,
   approveReport,
+  togglePatientVisibility,
   listForPatient,
   getForPatient,
   getCorrections,

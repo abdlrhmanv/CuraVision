@@ -1,6 +1,8 @@
 const ReservationRepository = require("../repositories/ReservationRepository");
 const prisma = require("../config/prisma");
 const AuditService = require("./AuditService");
+const nodemailer = require("nodemailer");
+const logger = require("../config/logger");
 
 const { notFound, forbidden, conflict, badRequest } = require("../utils/AppError");
 async function getAvailability(doctorId, { from, to }) {
@@ -100,7 +102,43 @@ async function updateStatus(reservationId, { requester, status }) {
     metadata: { new_status: status },
   });
 
+  if (status === "CONFIRMED" || status === "CANCELLED") {
+    sendNotificationEmail(reservation.patient_id, updated).catch(err => 
+      logger.error({ err }, "Failed to send reservation notification email")
+    );
+  }
+
   return updated;
+}
+
+async function sendNotificationEmail(patientId, reservation) {
+  const user = await prisma.user.findUnique({ where: { id: patientId } });
+  if (!user || !user.email) return;
+
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    logger.warn("SMTP credentials not configured. Skipping email.");
+    return;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT, 10) || 587,
+    secure: process.env.SMTP_SECURE === "true",
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+
+  const timeString = new Date(reservation.start_time).toLocaleString();
+  
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || '"CuraVision Appointments" <noreply@curavision.app>',
+    to: user.email,
+    subject: `Appointment ${reservation.status}`,
+    text: `Hello ${user.full_name},\n\nYour appointment scheduled for ${timeString} has been ${reservation.status}.\n\nBest,\nThe CuraVision Team`,
+    html: `<p>Hello <b>${user.full_name}</b>,</p><p>Your appointment scheduled for <b>${timeString}</b> has been <b>${reservation.status}</b>.</p><br><p>Best,<br>The CuraVision Team</p>`,
+  });
 }
 
 async function listForUser(requester) {

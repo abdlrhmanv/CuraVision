@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { History, RefreshCw, Download } from 'lucide-react'
+import { History, RefreshCw, Download, Trash2 } from 'lucide-react'
 import { useRequireAuth } from '@/lib/authContext'
 import {
   ApiError,
@@ -144,6 +144,34 @@ export default function DoctorScanReviewPage() {
     }
   };
 
+  const handleToggleVisibility = async (visible: boolean) => {
+    if (!report) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await reportsApi.toggleVisibility(report.id, visible);
+      setReport(updated);
+      setMessage(visible ? 'Report is now visible to the patient.' : 'Report is now hidden from the patient.');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to toggle visibility');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDeleteScan = async () => {
+    if (!scan) return;
+    if (!window.confirm('Are you sure you want to delete this scan? This action cannot be undone and will delete all associated files.')) return;
+    setBusy(true);
+    try {
+      await scansApi.delete(scan.id);
+      router.push('/doctor');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to delete scan');
+      setBusy(false);
+    }
+  };
+
   const handleSaveMetrics = async () => {
     if (!report || !analysis) return;
     const correctionsList: Array<{ field: string; old_value: string; new_value: string }> = [];
@@ -245,6 +273,13 @@ export default function DoctorScanReviewPage() {
             className="px-3 py-1.5 rounded-lg bg-surface border border-border text-xs text-muted hover:text-white hover:border-blue transition flex items-center gap-2"
           >
             <RefreshCw size={12} /> Refresh
+          </button>
+          <button
+            onClick={handleDeleteScan}
+            disabled={busy}
+            className="px-3 py-1.5 rounded-lg bg-warn/10 border border-warn/30 text-xs text-warn hover:bg-warn hover:text-white transition flex items-center gap-2 disabled:opacity-50"
+          >
+            <Trash2 size={12} /> Delete
           </button>
         </div>
       </div>
@@ -433,6 +468,8 @@ export default function DoctorScanReviewPage() {
               onApprove={handleApprove}
               isApproving={busy}
               status={report?.status ?? 'LOADING'}
+              patientVisible={report?.patient_visible}
+              onToggleVisibility={handleToggleVisibility}
             />
           )}
         </div>

@@ -4,6 +4,7 @@ const { fastapiClient } = require("../integrations/fastapiClient");
 const UserService = require("./UserService");
 const ReportService = require("./ReportService");
 const AuditService = require("./AuditService");
+const NotificationService = require("./NotificationService");
 const logger = require("../utils/logger");
 const { notFound, badRequest, forbidden, conflict } = require("../utils/AppError");
 
@@ -15,12 +16,18 @@ const SAMPLE_TUMOR_LOCATIONS = [
   "Brainstem, pontine region",
 ];
 
-function serializeScan(scan) {
+async function serializeScan(scan) {
+  const { isS3Enabled } = require("../integrations/storageClient");
+  let dicom_path = scan.dicom_path;
+  if (dicom_path && isS3Enabled()) {
+    dicom_path = await getPresignedGetUrl(dicom_path);
+  }
+
   return {
     id: scan.id,
     patient_id: scan.patient_id,
     doctor_id: scan.doctor_id,
-    dicom_path: scan.dicom_path,
+    dicom_path,
     modality: scan.modality,
     status: scan.status,
     uploaded_at: scan.uploaded_at.toISOString(),
@@ -28,13 +35,23 @@ function serializeScan(scan) {
   };
 }
 
-function serializeAnalysis(analysis) {
+async function serializeAnalysis(analysis) {
   if (!analysis) return null;
+  const { isS3Enabled } = require("../integrations/storageClient");
+  
+  let unet_mask_path = analysis.unet_mask_path;
+  let gradcam_path = analysis.gradcam_path;
+
+  if (isS3Enabled()) {
+    if (unet_mask_path) unet_mask_path = await getPresignedGetUrl(unet_mask_path);
+    if (gradcam_path) gradcam_path = await getPresignedGetUrl(gradcam_path);
+  }
+
   return {
     id: analysis.id,
     scan_id: analysis.scan_id,
-    unet_mask_path: analysis.unet_mask_path,
-    gradcam_path: analysis.gradcam_path,
+    unet_mask_path,
+    gradcam_path,
     tumor_volume_cc: analysis.tumor_volume_cc,
     tumor_location_description: analysis.tumor_location_description,
     inference_log: analysis.inference_log,
@@ -45,7 +62,7 @@ function serializeAnalysis(analysis) {
 
 async function getScanRecord(scanId) {
   const scan = await prisma.scan.findUnique({ where: { id: scanId } });
-  return scan ? serializeScan(scan) : null;
+  return scan ? await serializeScan(scan) : null;
 }
 
 async function updateScanStatus(scanId, status) {
@@ -53,7 +70,7 @@ async function updateScanStatus(scanId, status) {
     where: { id: scanId },
     data: { status },
   });
-  return serializeScan(scan);
+  return await serializeScan(scan);
 }
 
 async function upsertAnalysis(scanId, payload) {
@@ -75,7 +92,7 @@ async function upsertAnalysis(scanId, payload) {
       inference_log: payload.inference_log ?? undefined,
     },
   });
-  return serializeAnalysis(analysis);
+  return await serializeAnalysis(analysis);
 }
 
 async function uploadScan({ file, patientId, doctorId }) {
@@ -263,6 +280,13 @@ async function scheduleAnalysis(scanId) {
 
   await updateScanStatus(scanId, "ANALYSIS_COMPLETE");
 
+  await NotificationService.createNotification(
+    scan.doctor_id,
+    "Analysis Complete",
+    `Scan analysis completed for scan ID ${scanId}.`,
+    `/doctor/scans/${scanId}`
+  );
+
   AuditService.log({
     user_id: null,
     action: "ANALYSIS_COMPLETE",
@@ -307,6 +331,13 @@ async function completeAnalysis(scanId, payload) {
   });
 
   await updateScanStatus(scanId, "ANALYSIS_COMPLETE");
+
+  await NotificationService.createNotification(
+    scan.doctor_id,
+    "Analysis Complete",
+    `Scan analysis completed for scan ID ${scanId}.`,
+    `/doctor/scans/${scanId}`
+  );
 
   AuditService.log({
     user_id: null,
@@ -409,7 +440,8 @@ async function getScanAnalysis(scanId, { requester }) {
   if (!analysis) {
     throw conflict("Analysis is not ready yet.", "ANALYSIS_NOT_READY");
   }
-  return { scan_id: scan.id, ...serializeAnalysis(analysis) };
+  const serialized = await serializeAnalysis(analysis);
+  return { scan_id: scan.id, ...serialized };
 }
 
 async function listByPatient(patientId) {
@@ -417,7 +449,7 @@ async function listByPatient(patientId) {
     where: { patient_id: patientId },
     orderBy: { uploaded_at: "desc" },
   });
-  return scans.map(serializeScan);
+  return Promise.all(scans.map(serializeScan));
 }
 
 async function listByDoctor(doctorId, { status, modality, search } = {}) {
@@ -439,12 +471,71 @@ async function listByDoctor(doctorId, { status, modality, search } = {}) {
     orderBy: { uploaded_at: "desc" },
   });
 
-  return scans.map((scan) => ({
-    ...serializeScan(scan),
-    patient_name: scan.patient.full_name,
-    report_id: scan.report?.id ?? null,
-    report_status: scan.report?.status ?? null,
+  return Promise.all(scans.map(async (scan) => {
+    const serialized = await serializeScan(scan);
+    return {
+      ...serialized,
+      patient_name: scan.patient.full_name,
+      report_id: scan.report?.id ?? null,
+      report_status: scan.report?.status ?? null,
+    };
   }));
+}
+
+async function deleteScan(scanId, { requester }) {
+  const scan = await getScanRecord(scanId);
+  if (!scan) throw notFound("Scan not found.", "SCAN_NOT_FOUND");
+  if (requester.role === "DOCTOR" && scan.doctor_id !== requester.sub) {
+    throw forbidden("You do not have access to delete this scan.");
+  }
+
+  // Retrieve analysis paths if exist
+  const analysis = await prisma.scanAnalysis.findUnique({
+    where: { scan_id: scanId },
+  });
+
+  // Physically delete the files
+  const fs = require("fs");
+  const path = require("path");
+  const { getStorageRoot, isS3Enabled } = require("../integrations/storageClient");
+  
+  const filesToDelete = [
+    scan.dicom_path,
+    analysis?.unet_mask_path,
+    analysis?.gradcam_path
+  ].filter(Boolean);
+
+  if (isS3Enabled()) {
+    const { s3Client } = require("../integrations/storageClient");
+    for (const file of filesToDelete) {
+      try {
+        await s3Client.removeObject(process.env.S3_BUCKET, file);
+      } catch (err) {
+        logger.error({ err }, `[ScanService] failed to delete ${file} from S3`);
+      }
+    }
+  } else {
+    for (const file of filesToDelete) {
+      const fullPath = path.join(getStorageRoot(), file.replace(/^storage\//, ""));
+      if (fs.existsSync(fullPath)) {
+        try {
+          fs.unlinkSync(fullPath);
+        } catch (err) {
+          logger.error({ err }, `[ScanService] failed to delete local file ${fullPath}`);
+        }
+      }
+    }
+  }
+
+  // Cascade delete from DB
+  await prisma.scan.delete({ where: { id: scanId } });
+
+  AuditService.log({
+    user_id: requester.sub,
+    action: "DELETE_SCAN",
+    entity_type: "SCAN",
+    entity_id: scanId,
+  });
 }
 
 module.exports = {
@@ -458,5 +549,6 @@ module.exports = {
   getScanAnalysis,
   listByPatient,
   listByDoctor,
+  deleteScan,
   getScanRecord,
 };

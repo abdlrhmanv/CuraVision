@@ -20,6 +20,7 @@ export default function DoctorDashboard() {
   const [rules, setRules] = useState<AvailabilityRule[]>([])
   const [fetching, setFetching] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [scanTab, setScanTab] = useState<'pending' | 'completed'>('pending')
 
   useEffect(() => {
     if (loading || !user) return
@@ -97,9 +98,25 @@ export default function DoctorDashboard() {
 
       <div className="grid lg:grid-cols-2 gap-6 mb-6">
         <section aria-label="Recent Scans" className="bg-card border border-border rounded-xl p-5">
-          <h2 className="text-[10px] tracking-[2px] uppercase text-muted font-semibold mb-3">
-            Scan queue
-          </h2>
+          <div className="flex items-center justify-between mb-3 border-b border-border pb-2">
+            <h2 className="text-[10px] tracking-[2px] uppercase text-muted font-semibold">
+              Scan queue
+            </h2>
+            <div className="flex space-x-2">
+              <button
+                className={`text-xs font-semibold px-2 py-1 rounded ${scanTab === 'pending' ? 'bg-blue/10 text-blue' : 'text-muted hover:text-text'}`}
+                onClick={() => setScanTab('pending')}
+              >
+                Pending
+              </button>
+              <button
+                className={`text-xs font-semibold px-2 py-1 rounded ${scanTab === 'completed' ? 'bg-green/10 text-green' : 'text-muted hover:text-text'}`}
+                onClick={() => setScanTab('completed')}
+              >
+                Completed
+              </button>
+            </div>
+          </div>
 
           {error && (
             <div className="mb-3 px-3 py-2 rounded-md bg-warn/10 border border-warn/30 text-sm text-warn">
@@ -113,7 +130,10 @@ export default function DoctorDashboard() {
             <div className="text-sm text-muted py-6 text-center">No scans found</div>
           ) : (
             <div className="space-y-2">
-              {scans.slice(0, 8).map((s) => (
+              {scans
+                .filter(s => scanTab === 'pending' ? s.report_status !== 'PUBLISHED' : s.report_status === 'PUBLISHED')
+                .slice(0, 8)
+                .map((s) => (
                 <Link
                   key={s.id}
                   href={`/doctor/scans/${s.id}`}
@@ -129,10 +149,13 @@ export default function DoctorDashboard() {
                     </div>
                   </div>
                   <span className={`text-[10px] px-2 py-1 rounded ${statusTone(s.status)}`}>
-                    {s.status}
+                    {s.report_status === 'PUBLISHED' ? 'PUBLISHED' : s.status}
                   </span>
                 </Link>
               ))}
+              {scans.filter(s => scanTab === 'pending' ? s.report_status !== 'PUBLISHED' : s.report_status === 'PUBLISHED').length === 0 && (
+                <div className="text-sm text-muted py-4 text-center">No {scanTab} scans</div>
+              )}
             </div>
           )}
         </section>

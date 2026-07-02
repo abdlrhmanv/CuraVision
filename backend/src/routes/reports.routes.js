@@ -86,4 +86,26 @@ router.post(
   }
 );
 
+router.patch(
+  "/:id/visibility",
+  authenticateJWT,
+  authorizeRole("DOCTOR"),
+  [body("visible").isBoolean().withMessage("visible must be a boolean.")],
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ code: "VALIDATION_ERROR", errors: errors.array() });
+      }
+      const updated = await ReportService.togglePatientVisibility(req.params.id, {
+        requester: req.user,
+        visible: req.body.visible,
+      });
+      res.json(updated);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 module.exports = router;

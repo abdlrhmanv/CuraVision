@@ -27,9 +27,20 @@ const doctorsRoutes = require("./routes/doctors.routes");
 const patientsRoutes = require("./routes/patients.routes");
 const adminRoutes = require("./routes/admin.routes");
 const internalRoutes = require("./routes/internal.routes");
+const notificationsRoutes = require("./routes/notifications.routes");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// ── HTTPS Enforcement (Production Only) ───────────────────────────────────────
+if (process.env.NODE_ENV === "production") {
+  app.use((req, res, next) => {
+    if (req.headers["x-forwarded-proto"] && req.headers["x-forwarded-proto"] !== "https") {
+      return res.redirect(301, `https://${req.headers.host}${req.url}`);
+    }
+    next();
+  });
+}
 
 // ── CORS allowlist ────────────────────────────────────────────────────────────
 // Comma-separated list of origins, e.g. "http://localhost:3000,https://curavision.app"
@@ -132,6 +143,7 @@ app.use("/api/patients", patientsRoutes);
 app.use("/api/patient", patientsRoutes); // SDD alias for patient-scoped views
 app.use("/api/admin", adminRoutes);
 app.use("/api/internal", internalRoutes);
+app.use("/api/notifications", notificationsRoutes);
 const swaggerUi = require("swagger-ui-express");
 const swaggerDocument = require("./swagger.json");
 

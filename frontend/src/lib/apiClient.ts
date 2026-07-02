@@ -39,6 +39,19 @@ export function getToken(): string | null {
   return null;
 }
 
+export interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  read: boolean;
+  link?: string;
+  created_at: string;
+}
+
+// -----------------------------------------------------------------------------
+// Auth & Users
+// -----------------------------------------------------------------------------
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function setToken(token: string | null): void {
   // Rely on HttpOnly cookies, do not persist token in LocalStorage to prevent XSS
@@ -314,6 +327,7 @@ export const scansApi = {
     api.get<{ patient_id: string; scans: Scan[] }>(
       `/api/patients/${patientId}/scans`
     ),
+  delete: (id: string) => api.delete<{ ok: boolean; message?: string }>(`/api/scans/${id}`),
 };
 
 export interface Report {
@@ -343,6 +357,8 @@ export const reportsApi = {
   patch: (id: string, patch: { final_report?: string; corrections?: unknown[] }) =>
     api.patch<Report>(`/api/reports/${id}`, patch),
   approve: (id: string) => api.post<Report>(`/api/reports/${id}/approve`),
+  toggleVisibility: (id: string, visible: boolean) =>
+    api.patch<Report>(`/api/reports/${id}/visibility`, { visible }),
   listForPatient: (params?: { doctor_id?: string }) => {
     const qs = new URLSearchParams();
     if (params?.doctor_id) qs.set("doctor_id", params.doctor_id);
@@ -561,5 +577,20 @@ export const adminApi = {
       logs: result.logs ?? result.items ?? [],
       total: result.total,
     };
+  },
+};
+
+// -----------------------------------------------------------------------------
+// Notifications
+// -----------------------------------------------------------------------------
+export const notificationsApi = {
+  getNotifications: async (limit = 50): Promise<Notification[]> => {
+    return api.get<Notification[]>(`/api/notifications?limit=${limit}`);
+  },
+  markAsRead: async (id: string): Promise<Notification> => {
+    return api.patch<Notification>(`/api/notifications/${id}/read`, {});
+  },
+  markAllAsRead: async (): Promise<{ success: boolean; count: number }> => {
+    return api.patch<{ success: boolean; count: number }>('/api/notifications/read-all', {});
   },
 };

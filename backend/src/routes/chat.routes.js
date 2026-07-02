@@ -3,6 +3,16 @@ const { body, validationResult } = require("express-validator");
 const { authenticateJWT } = require("../middleware/authenticateJWT");
 const { authorizeRole } = require("../middleware/authorizeRole");
 const { postMessage, getChatHistory } = require("../controllers/chat.controller");
+const rateLimit = require("express-rate-limit");
+
+const chatRateLimiter = rateLimit({
+  windowMs: 10 * 1000, // 10 seconds
+  max: 15,
+  message: {
+    code: "TOO_MANY_REQUESTS",
+    message: "Too many requests. Please try again later.",
+  },
+});
 
 const router = express.Router();
 
@@ -14,6 +24,7 @@ router.post(
   "/:reportId/message",
   authenticateJWT,
   authorizeRole("PATIENT"),
+  chatRateLimiter,
   [
     body("message")
       .trim()

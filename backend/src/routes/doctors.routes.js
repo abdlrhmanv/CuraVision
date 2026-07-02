@@ -202,8 +202,8 @@ router.post(
         where: {
           doctor_id: req.params.id,
           day_of_week: day,
-          start_time,
-          end_time,
+          start_time: { lt: end_time },
+          end_time: { gt: start_time },
         },
       });
 

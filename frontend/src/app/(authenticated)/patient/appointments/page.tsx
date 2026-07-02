@@ -36,6 +36,7 @@ export default function PatientAppointmentsPage() {
   const { user, loading } = useRequireAuth('PATIENT')
   const [doctors, setDoctors] = useState<AuthUser[]>([])
   const [reservations, setReservations] = useState<Reservation[]>([])
+  const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [doctorId, setDoctorId] = useState<string>('')
   const [slots, setSlots] = useState<Slot[]>([])
   const [slotsLoading, setSlotsLoading] = useState(false)
@@ -46,11 +47,7 @@ export default function PatientAppointmentsPage() {
   const fetchReservations = async () => {
     try {
       const res = await reservationsApi.list()
-      setReservations(
-        res.reservations.slice().sort(
-          (a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
-        )
-      )
+      setReservations(res.reservations)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load reservations')
     }
@@ -302,22 +299,35 @@ export default function PatientAppointmentsPage() {
         </div>
       </div>
 
-      <div className="mb-4 flex items-center gap-2">
-        <Calendar size={14} className="text-muted" />
-        <h2 className="text-sm font-semibold">Upcoming appointments</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Calendar size={14} className="text-muted" />
+          <h2 className="text-sm font-semibold">Your appointments</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-muted">Status</label>
+          <select 
+            className="px-2 py-1 bg-surface border border-border rounded text-sm outline-none focus:border-blue"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="ALL">All</option>
+            <option value="PENDING">Pending</option>
+            <option value="CONFIRMED">Confirmed</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </div>
       </div>
 
+      <h3 className="text-sm font-semibold text-muted mb-2">Upcoming</h3>
       <div className="bg-card border border-border rounded-xl overflow-hidden mb-8">
-        {renderTable(upcoming, 'No upcoming appointments.')}
+        {renderTable(upcoming, 'No upcoming appointments matching the filter.')}
       </div>
 
-      <div className="mb-4 flex items-center gap-2">
-        <Calendar size={14} className="text-muted" />
-        <h2 className="text-sm font-semibold">Past appointments</h2>
-      </div>
-
+      <h3 className="text-sm font-semibold text-muted mb-2">Past</h3>
       <div className="bg-card border border-border rounded-xl overflow-hidden">
-        {renderTable(past, 'No past appointments yet.')}
+        {renderTable(past, 'No past appointments matching the filter.')}
       </div>
     </>
   )

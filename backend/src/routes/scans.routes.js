@@ -281,4 +281,24 @@ router.get(
   }
 );
 
+/**
+ * DELETE /api/scans/:id
+ * Delete a scan and its associated storage files.
+ */
+router.delete(
+  "/:id",
+  authenticateJWT,
+  authorizeRole("DOCTOR"),
+  async (req, res, next) => {
+    try {
+      await ScanService.deleteScan(req.params.id, {
+        requester: req.user,
+      });
+      res.json({ ok: true, message: "Scan deleted successfully." });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 module.exports = router;
