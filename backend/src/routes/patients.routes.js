@@ -217,22 +217,40 @@ router.get(
     try {
       const user = await prisma.user.findUnique({
         where: { id: req.user.sub },
-        include: { patientProfile: true },
+        include: { patientProfile: true, patientPreferences: true },
       });
       if (!user) {
         return res.status(404).json({ code: "NOT_FOUND", message: "User not found." });
       }
-      const profile = user.patientProfile;
+      const profile = user.patientProfile || {};
+      const prefs = user.patientPreferences || {};
       res.json({
         user_id: user.id,
         email: user.email,
         full_name: user.full_name,
-        date_of_birth: profile?.date_of_birth?.toISOString().slice(0, 10) ?? null,
-        gender: profile?.gender ?? null,
-        phone: profile?.phone ?? null,
-        country: profile?.country ?? null,
-        medical_history: profile?.medical_history ?? null,
-        allergies: profile?.allergies ?? null,
+        date_of_birth: profile.date_of_birth?.toISOString().slice(0, 10) ?? null,
+        gender: profile.gender ?? null,
+        phone: profile.phone ?? null,
+        country: profile.country ?? null,
+        city: profile.city ?? null,
+        address: profile.address ?? null,
+        blood_type: profile.blood_type ?? null,
+        height_cm: profile.height_cm ?? null,
+        weight_kg: profile.weight_kg ?? null,
+        medical_history: profile.medical_history ?? null,
+        allergies: profile.allergies ?? null,
+        chronic_diseases: profile.chronic_diseases ?? null,
+        current_medications: profile.current_medications ?? null,
+        previous_surgeries: profile.previous_surgeries ?? null,
+        family_medical_history: profile.family_medical_history ?? null,
+        smoking_status: profile.smoking_status ?? null,
+        alcohol_status: profile.alcohol_status ?? null,
+        emergency_contact: profile.emergency_contact ?? null,
+        preferred_language: prefs.preferred_language ?? "English",
+        notification_email: prefs.notification_email ?? true,
+        notification_sms: prefs.notification_sms ?? false,
+        notification_push: prefs.notification_push ?? true,
+        share_anonymized_scans: prefs.share_anonymized_scans ?? true,
       });
     } catch (err) {
       next(err);
@@ -249,8 +267,21 @@ router.patch(
   authorizeRole("PATIENT"),
   async (req, res, next) => {
     try {
-      const { phone, date_of_birth, gender, country, medical_history, allergies } =
-        req.body;
+      const {
+        full_name,
+        phone, date_of_birth, gender, country, city, address, blood_type, height_cm, weight_kg,
+        medical_history, allergies, chronic_diseases, current_medications, previous_surgeries,
+        family_medical_history, smoking_status, alcohol_status, emergency_contact,
+        preferred_language, notification_email, notification_sms, notification_push, share_anonymized_scans
+      } = req.body;
+
+      if (full_name) {
+        await prisma.user.update({
+          where: { id: req.user.sub },
+          data: { full_name }
+        });
+      }
+
       const profileData = {};
       if (phone !== undefined) profileData.phone = phone;
       if (date_of_birth !== undefined) {
@@ -258,30 +289,77 @@ router.patch(
       }
       if (gender !== undefined) profileData.gender = gender;
       if (country !== undefined) profileData.country = country;
+      if (city !== undefined) profileData.city = city;
+      if (address !== undefined) profileData.address = address;
+      if (blood_type !== undefined) profileData.blood_type = blood_type;
+      if (height_cm !== undefined) profileData.height_cm = height_cm;
+      if (weight_kg !== undefined) profileData.weight_kg = weight_kg;
       if (medical_history !== undefined) profileData.medical_history = medical_history;
       if (allergies !== undefined) profileData.allergies = allergies;
+      if (chronic_diseases !== undefined) profileData.chronic_diseases = chronic_diseases;
+      if (current_medications !== undefined) profileData.current_medications = current_medications;
+      if (previous_surgeries !== undefined) profileData.previous_surgeries = previous_surgeries;
+      if (family_medical_history !== undefined) profileData.family_medical_history = family_medical_history;
+      if (smoking_status !== undefined) profileData.smoking_status = smoking_status;
+      if (alcohol_status !== undefined) profileData.alcohol_status = alcohol_status;
+      if (emergency_contact !== undefined) profileData.emergency_contact = emergency_contact;
 
-      await prisma.patientProfile.upsert({
-        where: { user_id: req.user.sub },
-        create: { user_id: req.user.sub, ...profileData },
-        update: profileData,
-      });
+      if (Object.keys(profileData).length > 0) {
+        await prisma.patientProfile.upsert({
+          where: { user_id: req.user.sub },
+          create: { user_id: req.user.sub, ...profileData },
+          update: profileData,
+        });
+      }
+
+      const prefsData = {};
+      if (preferred_language !== undefined) prefsData.preferred_language = preferred_language;
+      if (notification_email !== undefined) prefsData.notification_email = notification_email;
+      if (notification_sms !== undefined) prefsData.notification_sms = notification_sms;
+      if (notification_push !== undefined) prefsData.notification_push = notification_push;
+      if (share_anonymized_scans !== undefined) prefsData.share_anonymized_scans = share_anonymized_scans;
+
+      if (Object.keys(prefsData).length > 0) {
+        await prisma.patientPreferences.upsert({
+          where: { user_id: req.user.sub },
+          create: { user_id: req.user.sub, ...prefsData },
+          update: prefsData,
+        });
+      }
 
       const user = await prisma.user.findUnique({
         where: { id: req.user.sub },
-        include: { patientProfile: true },
+        include: { patientProfile: true, patientPreferences: true },
       });
-      const profile = user.patientProfile;
+      const profile = user.patientProfile || {};
+      const prefs = user.patientPreferences || {};
       res.json({
         user_id: user.id,
         email: user.email,
         full_name: user.full_name,
-        date_of_birth: profile?.date_of_birth?.toISOString().slice(0, 10) ?? null,
-        gender: profile?.gender ?? null,
-        phone: profile?.phone ?? null,
-        country: profile?.country ?? null,
-        medical_history: profile?.medical_history ?? null,
-        allergies: profile?.allergies ?? null,
+        date_of_birth: profile.date_of_birth?.toISOString().slice(0, 10) ?? null,
+        gender: profile.gender ?? null,
+        phone: profile.phone ?? null,
+        country: profile.country ?? null,
+        city: profile.city ?? null,
+        address: profile.address ?? null,
+        blood_type: profile.blood_type ?? null,
+        height_cm: profile.height_cm ?? null,
+        weight_kg: profile.weight_kg ?? null,
+        medical_history: profile.medical_history ?? null,
+        allergies: profile.allergies ?? null,
+        chronic_diseases: profile.chronic_diseases ?? null,
+        current_medications: profile.current_medications ?? null,
+        previous_surgeries: profile.previous_surgeries ?? null,
+        family_medical_history: profile.family_medical_history ?? null,
+        smoking_status: profile.smoking_status ?? null,
+        alcohol_status: profile.alcohol_status ?? null,
+        emergency_contact: profile.emergency_contact ?? null,
+        preferred_language: prefs.preferred_language ?? "English",
+        notification_email: prefs.notification_email ?? true,
+        notification_sms: prefs.notification_sms ?? false,
+        notification_push: prefs.notification_push ?? true,
+        share_anonymized_scans: prefs.share_anonymized_scans ?? true,
       });
     } catch (err) {
       next(err);

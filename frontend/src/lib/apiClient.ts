@@ -470,6 +470,48 @@ export interface Patient {
   pending_reports: number;
 }
 
+export interface DoctorStats {
+  total_patients: number;
+  total_reports_reviewed: number;
+  total_ai_analyses: number;
+}
+
+export interface DoctorProfileData {
+  user_id: string;
+  email: string;
+  full_name: string;
+  license_number: string;
+  specialty: string | null;
+  subspecialties: string[] | null;
+  years_experience: number | null;
+  hospital: string | null;
+  phone: string | null;
+  bio: string | null;
+  education: string | null;
+  qualifications: string[] | null;
+  board_certifications: string[] | null;
+  certifications: string | null;
+  country: string | null;
+  city: string | null;
+  languages_spoken: string[] | null;
+  consultation_fee: number | null;
+  date_of_birth: string | null;
+  
+  preferred_ai_model: string;
+  enable_ai_suggestions: boolean;
+  default_report_template: string;
+  notification_email: boolean;
+  notification_sms: boolean;
+  notification_push: boolean;
+  notification_critical: boolean;
+}
+
+export const doctorsApi = {
+  getStats: (id: string) => api.get<DoctorStats>(`/api/doctors/${id}/stats`),
+  getProfile: (id: string) => api.get<{ doctor: DoctorProfileData }>(`/api/doctors/${id}/profile`),
+  updateProfile: (id: string, data: Partial<DoctorProfileData>) => api.put<{ ok: boolean; message: string }>(`/api/doctors/${id}/profile`, data),
+};
+
 export const patientsApi = {
   list: () => api.get<{ patients: Patient[] }>("/api/patients"),
   get: (id: string) => api.get<Patient>(`/api/patients/${id}`),
@@ -493,8 +535,25 @@ export interface PatientProfile {
   gender: string | null;
   phone: string | null;
   country: string | null;
+  city: string | null;
+  address: string | null;
+  blood_type: string | null;
+  height_cm: number | null;
+  weight_kg: number | null;
   medical_history: string | null;
-  allergies: string | null;
+  allergies: string[] | null;
+  chronic_diseases: string[] | null;
+  current_medications: string[] | null;
+  previous_surgeries: string | null;
+  family_medical_history: string | null;
+  smoking_status: string | null;
+  alcohol_status: string | null;
+  emergency_contact: Record<string, unknown> | null;
+  preferred_language: string;
+  notification_email: boolean;
+  notification_sms: boolean;
+  notification_push: boolean;
+  share_anonymized_scans: boolean;
 }
 
 export const patientApi = {

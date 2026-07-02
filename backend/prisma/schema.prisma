@@ -72,8 +72,10 @@ model User {
   created_at     DateTime   @default(now())
   updated_at     DateTime   @updatedAt
 
-  patientProfile PatientProfile?
-  doctorProfile  DoctorProfile?
+  patientProfile     PatientProfile?
+  doctorProfile      DoctorProfile?
+  patientPreferences PatientPreferences?
+  doctorPreferences  DoctorPreferences?
 
   scansAsPatient Scan[]         @relation("ScanPatient")
   scansAsDoctor  Scan[]         @relation("ScanDoctor")
@@ -92,24 +94,69 @@ model PatientProfile {
   date_of_birth   DateTime?
   gender          Gender?
   phone           String?
-  country         String?
-  medical_history String?  @db.Text
-  allergies       String?  @db.Text
-  emergency_contact Json?
+  country                String?
+  city                   String?
+  address                String?
+  blood_type             String?
+  height_cm              Float?
+  weight_kg              Float?
+  medical_history        String?  @db.Text
+  allergies              Json?
+  chronic_diseases       Json?
+  current_medications    Json?
+  previous_surgeries     String?  @db.Text
+  family_medical_history String?  @db.Text
+  smoking_status         String?
+  alcohol_status         String?
+  emergency_contact      Json?
 
   user            User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
-model DoctorProfile {
-  user_id          String   @id
-  license_number   String   @unique
-  specialty        String?
-  years_experience Int?
-  hospital         String?
-  education        String?
-  certifications   String?  @db.Text
+model PatientPreferences {
+  user_id                  String   @id
+  preferred_language       String   @default("English")
+  notification_email       Boolean  @default(true)
+  notification_sms         Boolean  @default(false)
+  notification_push        Boolean  @default(true)
+  share_anonymized_scans   Boolean  @default(true)
 
-  user             User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user                     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model DoctorPreferences {
+  user_id                  String   @id
+  preferred_ai_model       String   @default("GPT-5")
+  enable_ai_suggestions    Boolean  @default(true)
+  default_report_template  String   @default("Brain MRI")
+  notification_email       Boolean  @default(true)
+  notification_sms         Boolean  @default(false)
+  notification_push        Boolean  @default(true)
+  notification_critical    Boolean  @default(true)
+
+  user                     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model DoctorProfile {
+  user_id              String   @id
+  license_number       String   @unique
+  specialty            String?
+  subspecialties       Json?
+  years_experience     Int?
+  hospital             String?
+  phone                String?
+  bio                  String?  @db.Text
+  education            String?
+  qualifications       Json?
+  board_certifications Json?
+  certifications       String?  @db.Text
+  country              String?
+  city                 String?
+  languages_spoken     Json?
+  consultation_fee     Float?
+  date_of_birth        DateTime?
+
+  user                 User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
 model Scan {

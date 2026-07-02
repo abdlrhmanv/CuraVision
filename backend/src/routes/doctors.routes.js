@@ -275,4 +275,230 @@ router.delete(
   }
 );
 
+/**
+ * GET /api/doctors/:id/profile
+ */
+router.get(
+  "/:id/profile",
+  authenticateJWT,
+  authorizeRole("DOCTOR", "ADMIN", "PATIENT"),
+  async (req, res, next) => {
+    try {
+      const doctor = await prisma.user.findUnique({
+        where: { id: req.params.id },
+        select: {
+          id: true,
+          full_name: true,
+          email: true,
+          doctorProfile: {
+            select: {
+              specialty: true,
+              subspecialties: true,
+              years_experience: true,
+              hospital: true,
+              phone: true,
+              bio: true,
+              license_number: true,
+              education: true,
+              qualifications: true,
+              board_certifications: true,
+              certifications: true,
+              country: true,
+              city: true,
+              languages_spoken: true,
+              consultation_fee: true,
+              date_of_birth: true,
+            }
+          },
+          doctorPreferences: {
+            select: {
+              preferred_ai_model: true,
+              enable_ai_suggestions: true,
+              default_report_template: true,
+              notification_email: true,
+              notification_sms: true,
+              notification_push: true,
+              notification_critical: true,
+            }
+          }
+        },
+      });
+
+      if (!doctor || !doctor.doctorProfile) {
+        return res.status(404).json({
+          code: "NOT_FOUND",
+          message: "Doctor profile not found.",
+        });
+      }
+
+      // Flatten object to match API client contract
+      const { doctorProfile, doctorPreferences, ...userInfo } = doctor;
+      
+      const flatDoctor = {
+        user_id: doctor.id,
+        email: doctor.email,
+        full_name: doctor.full_name,
+        ...doctorProfile,
+        ...(doctorPreferences || {
+          preferred_ai_model: "GPT-5",
+          enable_ai_suggestions: true,
+          default_report_template: "Brain MRI",
+          notification_email: true,
+          notification_sms: false,
+          notification_push: true,
+          notification_critical: true,
+        }),
+      };
+
+      res.json({ doctor: flatDoctor });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * PUT /api/doctors/:id/profile
+ */
+router.put(
+  "/:id/profile",
+  authenticateJWT,
+  authorizeRole("DOCTOR", "ADMIN"),
+  async (req, res, next) => {
+    try {
+      if (req.user.sub !== req.params.id && req.user.role !== "ADMIN") {
+        return res.status(403).json({
+          code: "FORBIDDEN",
+          message: "You can only update your own profile.",
+        });
+      }
+
+      const {
+        full_name,
+        specialty,
+        subspecialties,
+        hospital,
+        years_experience,
+        phone,
+        bio,
+        education,
+        qualifications,
+        board_certifications,
+        country,
+        city,
+        languages_spoken,
+        consultation_fee,
+        date_of_birth,
+        // Preferences
+        preferred_ai_model,
+        enable_ai_suggestions,
+        default_report_template,
+        notification_email,
+        notification_sms,
+        notification_push,
+        notification_critical,
+      } = req.body;
+
+      const profileData = {
+        specialty: specialty !== undefined ? specialty : undefined,
+        subspecialties: subspecialties !== undefined ? subspecialties : undefined,
+        hospital: hospital !== undefined ? hospital : undefined,
+        years_experience: years_experience !== undefined ? parseInt(years_experience, 10) : undefined,
+        phone: phone !== undefined ? phone : undefined,
+        bio: bio !== undefined ? bio : undefined,
+        education: education !== undefined ? education : undefined,
+        qualifications: qualifications !== undefined ? qualifications : undefined,
+        board_certifications: board_certifications !== undefined ? board_certifications : undefined,
+        country: country !== undefined ? country : undefined,
+        city: city !== undefined ? city : undefined,
+        languages_spoken: languages_spoken !== undefined ? languages_spoken : undefined,
+        consultation_fee: consultation_fee !== undefined ? parseFloat(consultation_fee) : undefined,
+        date_of_birth: date_of_birth !== undefined ? (date_of_birth ? new Date(date_of_birth) : null) : undefined,
+      };
+
+      const prefData = {
+        preferred_ai_model: preferred_ai_model !== undefined ? preferred_ai_model : undefined,
+        enable_ai_suggestions: enable_ai_suggestions !== undefined ? enable_ai_suggestions : undefined,
+        default_report_template: default_report_template !== undefined ? default_report_template : undefined,
+        notification_email: notification_email !== undefined ? notification_email : undefined,
+        notification_sms: notification_sms !== undefined ? notification_sms : undefined,
+        notification_push: notification_push !== undefined ? notification_push : undefined,
+        notification_critical: notification_critical !== undefined ? notification_critical : undefined,
+      };
+
+      // Update User (full_name) and DoctorProfile in a transaction
+      const [updatedUser] = await prisma.$transaction([
+        prisma.user.update({
+          where: { id: req.params.id },
+          data: { full_name: full_name !== undefined ? full_name : undefined },
+        }),
+        prisma.doctorProfile.upsert({
+          where: { user_id: req.params.id },
+          create: {
+            user_id: req.params.id,
+            license_number: `DOC-${Date.now()}`, // Fallback if no profile existed
+            ...profileData,
+          },
+          update: profileData,
+        }),
+        prisma.doctorPreferences.upsert({
+          where: { user_id: req.params.id },
+          create: {
+            user_id: req.params.id,
+            ...prefData,
+          },
+          update: prefData,
+        })
+      ]);
+
+      res.json({ ok: true, message: "Profile updated successfully." });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * GET /api/doctors/:id/stats
+ */
+router.get(
+  "/:id/stats",
+  authenticateJWT,
+  authorizeRole("DOCTOR", "ADMIN", "PATIENT"),
+  async (req, res, next) => {
+    try {
+      // Find total patients
+      const patientScans = await prisma.scan.findMany({
+        where: { doctor_id: req.params.id },
+        select: { patient_id: true }
+      });
+      const uniquePatients = new Set(patientScans.map(s => s.patient_id)).size;
+
+      // Find total reports reviewed/completed (status = REVIEWED or PUBLISHED)
+      const reportsCount = await prisma.report.count({
+        where: { 
+          doctor_id: req.params.id,
+          status: { in: ["REVIEWED", "PUBLISHED"] }
+        }
+      });
+
+      // Find total AI assisted reviews (Scans where analysis exists)
+      // For simplicity, count all ScanAnalysis related to this doctor's scans
+      const aiAnalysesCount = await prisma.scanAnalysis.count({
+        where: {
+          scan: { doctor_id: req.params.id }
+        }
+      });
+
+      res.json({
+        total_patients: uniquePatients,
+        total_reports_reviewed: reportsCount,
+        total_ai_analyses: aiAnalysesCount
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 module.exports = router;

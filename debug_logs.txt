@@ -1,0 +1,118 @@
+debug	Set up job	﻿2026-07-02T10:00:24.6663793Z Current runner version: '2.335.1'
+debug	Set up job	2026-07-02T10:00:24.6692749Z ##[group]Runner Image Provisioner
+debug	Set up job	2026-07-02T10:00:24.6694623Z Hosted Compute Agent
+debug	Set up job	2026-07-02T10:00:24.6695784Z Version: 20260611.554
+debug	Set up job	2026-07-02T10:00:24.6696878Z Commit: 5e0782fdc9014723d3be820dd114dd31555c2bd1
+debug	Set up job	2026-07-02T10:00:24.6698131Z Build Date: 2026-06-11T21:40:46Z
+debug	Set up job	2026-07-02T10:00:24.6699355Z Worker ID: {e5b6d0fe-11e8-490c-b5f3-a0377aaf6877}
+debug	Set up job	2026-07-02T10:00:24.6700590Z Azure Region: westus
+debug	Set up job	2026-07-02T10:00:24.6701600Z ##[endgroup]
+debug	Set up job	2026-07-02T10:00:24.6703834Z ##[group]Operating System
+debug	Set up job	2026-07-02T10:00:24.6705065Z Ubuntu
+debug	Set up job	2026-07-02T10:00:24.6706066Z 24.04.4
+debug	Set up job	2026-07-02T10:00:24.6707066Z LTS
+debug	Set up job	2026-07-02T10:00:24.6708067Z ##[endgroup]
+debug	Set up job	2026-07-02T10:00:24.6709085Z ##[group]Runner Image
+debug	Set up job	2026-07-02T10:00:24.6710144Z Image: ubuntu-24.04
+debug	Set up job	2026-07-02T10:00:24.6711194Z Version: 20260622.220.1
+debug	Set up job	2026-07-02T10:00:24.6712814Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260622.220/images/ubuntu/Ubuntu2404-Readme.md
+debug	Set up job	2026-07-02T10:00:24.6715582Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260622.220
+debug	Set up job	2026-07-02T10:00:24.6717097Z ##[endgroup]
+debug	Set up job	2026-07-02T10:00:24.6719126Z ##[group]GITHUB_TOKEN Permissions
+debug	Set up job	2026-07-02T10:00:24.6721558Z Contents: read
+debug	Set up job	2026-07-02T10:00:24.6722684Z Metadata: read
+debug	Set up job	2026-07-02T10:00:24.6724144Z Packages: read
+debug	Set up job	2026-07-02T10:00:24.6725211Z ##[endgroup]
+debug	Set up job	2026-07-02T10:00:24.6728334Z Secret source: Actions
+debug	Set up job	2026-07-02T10:00:24.6729961Z Prepare workflow directory
+debug	Set up job	2026-07-02T10:00:24.7084267Z Prepare all required actions
+debug	Set up job	2026-07-02T10:00:24.7124670Z Getting action download info
+debug	Set up job	2026-07-02T10:00:25.1109472Z Download action repository 'appleboy/ssh-action@v1.0.3' (SHA:029f5b4aeeeb58fdfe1410a5d17f967dacf36262)
+debug	Set up job	2026-07-02T10:00:25.5306441Z Complete job name: debug
+debug	Build appleboy/ssh-action@v1.0.3	﻿2026-07-02T10:00:25.5840076Z ##[group]Build container for action use: '/home/runner/work/_actions/appleboy/ssh-action/v1.0.3/Dockerfile'.
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:25.6078459Z ##[command]/usr/bin/docker build -t d97b6b:081432398f66457ba13c9ab557d82618 -f "/home/runner/work/_actions/appleboy/ssh-action/v1.0.3/Dockerfile" "/home/runner/work/_actions/appleboy/ssh-action/v1.0.3"
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:26.1067143Z #0 building with "default" instance using docker driver
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:26.1068066Z 
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:26.1068586Z #1 [internal] load build definition from Dockerfile
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:26.1069785Z #1 transferring dockerfile: 149B done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:26.1070833Z #1 DONE 0.0s
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:26.1071303Z 
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:26.1071908Z #2 [internal] load metadata for ghcr.io/appleboy/drone-ssh:1.7.3
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:26.9065026Z #2 DONE 1.0s
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.0291690Z 
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.0293950Z #3 [internal] load .dockerignore
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.0295467Z #3 transferring context: 2B done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.0296782Z #3 DONE 0.0s
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.0297482Z 
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.0298084Z #4 [internal] load build context
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.0299403Z #4 transferring context: 108B done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.0300772Z #4 DONE 0.0s
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.0301468Z 
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.0302828Z #5 [1/2] FROM ghcr.io/appleboy/drone-ssh:1.7.3@sha256:179cbd253771007f2ebcaf7a3860afe059207351de1f3378efafac93bd310158
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.0306116Z #5 resolve ghcr.io/appleboy/drone-ssh:1.7.3@sha256:179cbd253771007f2ebcaf7a3860afe059207351de1f3378efafac93bd310158 done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.0309229Z #5 sha256:654aaee5654be60f81172539ecd74485cf8bbe2e9137bab0d429862c31c676f6 0B / 284.83kB 0.1s
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.0312149Z #5 sha256:7e20f48a19643465f486f59127b8f4e0f4114bedc8bd5260fb4f92d5fda95f1c 0B / 1.20kB 0.1s
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.0315661Z #5 sha256:179cbd253771007f2ebcaf7a3860afe059207351de1f3378efafac93bd310158 2.38kB / 2.38kB done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.0319328Z #5 sha256:1a52f94820e830bc9734623deb03bbafa6a248fba19cdc2e5605c70d90d91441 1.24kB / 1.24kB done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.0323247Z #5 sha256:c4781b8d012b16b6c7468dc9104fad0a63f2a8815b2af8b7176bb544253ea8c7 3.86kB / 3.86kB done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.0327244Z #5 sha256:1207c741d8c9b028d98c4006013f9de959da3c55f85b91ed5e4583438a0112ca 0B / 3.38MB 0.1s
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.1503103Z #5 sha256:654aaee5654be60f81172539ecd74485cf8bbe2e9137bab0d429862c31c676f6 284.83kB / 284.83kB 0.2s done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.1509829Z #5 sha256:7e20f48a19643465f486f59127b8f4e0f4114bedc8bd5260fb4f92d5fda95f1c 1.20kB / 1.20kB 0.2s done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.1516226Z #5 sha256:1207c741d8c9b028d98c4006013f9de959da3c55f85b91ed5e4583438a0112ca 3.38MB / 3.38MB 0.1s done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.1521990Z #5 extracting sha256:1207c741d8c9b028d98c4006013f9de959da3c55f85b91ed5e4583438a0112ca 0.1s done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.1527613Z #5 sha256:066e5b821e26d8313055e0314c056e6c297847bcf963e5df10e7aa03107f2246 0B / 125B 0.2s
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.1533237Z #5 sha256:47353a6f9201a145b687290e5ae0278ac269faf4bb61bee3e9246c37a8d74277 0B / 2.44MB 0.2s
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.2936466Z #5 sha256:47353a6f9201a145b687290e5ae0278ac269faf4bb61bee3e9246c37a8d74277 2.44MB / 2.44MB 0.3s done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.2942951Z #5 extracting sha256:654aaee5654be60f81172539ecd74485cf8bbe2e9137bab0d429862c31c676f6 0.0s done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.2948992Z #5 extracting sha256:7e20f48a19643465f486f59127b8f4e0f4114bedc8bd5260fb4f92d5fda95f1c
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:27.4296554Z #5 extracting sha256:7e20f48a19643465f486f59127b8f4e0f4114bedc8bd5260fb4f92d5fda95f1c done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:32.2296941Z #5 sha256:066e5b821e26d8313055e0314c056e6c297847bcf963e5df10e7aa03107f2246 0B / 125B 5.3s
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:33.6443837Z #5 sha256:066e5b821e26d8313055e0314c056e6c297847bcf963e5df10e7aa03107f2246 125B / 125B 6.7s done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:33.6445807Z #5 extracting sha256:066e5b821e26d8313055e0314c056e6c297847bcf963e5df10e7aa03107f2246 done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:33.6458341Z #5 extracting sha256:47353a6f9201a145b687290e5ae0278ac269faf4bb61bee3e9246c37a8d74277 0.0s done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:33.8336474Z #5 DONE 6.8s
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:33.8337248Z 
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:33.8338590Z #6 [2/2] COPY entrypoint.sh /bin/entrypoint.sh
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:33.8339774Z #6 DONE 0.0s
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:33.8340272Z 
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:33.8340677Z #7 exporting to image
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:33.8341660Z #7 exporting layers
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:34.0056967Z #7 exporting layers 0.3s done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:34.0277431Z #7 writing image sha256:0f932a375dc0cbca7aa1507b635f552d8dc8e05b1c7292e44203e01da025a4c9 done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:34.0280743Z #7 naming to docker.io/library/d97b6b:081432398f66457ba13c9ab557d82618 done
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:34.0282938Z #7 DONE 0.3s
+debug	Build appleboy/ssh-action@v1.0.3	2026-07-02T10:00:34.0331466Z ##[endgroup]
+debug	SSH and Debug	﻿2026-07-02T10:00:34.0657304Z ##[group]Run appleboy/ssh-action@v1.0.3
+debug	SSH and Debug	2026-07-02T10:00:34.0658201Z with:
+debug	SSH and Debug	2026-07-02T10:00:34.0658892Z   host: ***
+debug	SSH and Debug	2026-07-02T10:00:34.0659339Z   username: ***
+debug	SSH and Debug	2026-07-02T10:00:34.0670453Z   key: ***
+debug	SSH and Debug	2026-07-02T10:00:34.0739057Z   script: cd /opt/curavision
+debug	SSH and Debug	docker ps -a
+debug	SSH and Debug	docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail 200
+debug	SSH and Debug	
+debug	SSH and Debug	2026-07-02T10:00:34.0740040Z   port: 22
+debug	SSH and Debug	2026-07-02T10:00:34.0740476Z   timeout: 30s
+debug	SSH and Debug	2026-07-02T10:00:34.0740941Z   command_timeout: 10m
+debug	SSH and Debug	2026-07-02T10:00:34.0741429Z   proxy_port: 22
+debug	SSH and Debug	2026-07-02T10:00:34.0741878Z   proxy_timeout: 30s
+debug	SSH and Debug	2026-07-02T10:00:34.0743125Z ##[endgroup]
+debug	SSH and Debug	2026-07-02T10:00:34.0893854Z ##[command]/usr/bin/docker run --name d97b6b081432398f66457ba13c9ab557d82618_a85e9c --label d97b6b --workdir /github/workspace --rm -e "INPUT_HOST" -e "INPUT_USERNAME" -e "INPUT_KEY" -e "INPUT_SCRIPT" -e "INPUT_PORT" -e "INPUT_PASSPHRASE" -e "INPUT_PASSWORD" -e "INPUT_SYNC" -e "INPUT_USE_INSECURE_CIPHER" -e "INPUT_CIPHER" -e "INPUT_TIMEOUT" -e "INPUT_COMMAND_TIMEOUT" -e "INPUT_KEY_PATH" -e "INPUT_FINGERPRINT" -e "INPUT_PROXY_HOST" -e "INPUT_PROXY_PORT" -e "INPUT_PROXY_USERNAME" -e "INPUT_PROXY_PASSWORD" -e "INPUT_PROXY_PASSPHRASE" -e "INPUT_PROXY_TIMEOUT" -e "INPUT_PROXY_KEY" -e "INPUT_PROXY_KEY_PATH" -e "INPUT_PROXY_FINGERPRINT" -e "INPUT_PROXY_CIPHER" -e "INPUT_PROXY_USE_INSECURE_CIPHER" -e "INPUT_SCRIPT_STOP" -e "INPUT_ENVS" -e "INPUT_ENVS_FORMAT" -e "INPUT_DEBUG" -e "INPUT_ALLENVS" -e "INPUT_REQUEST_PTY" -e "HOME" -e "GITHUB_JOB" -e "GITHUB_REF" -e "GITHUB_SHA" -e "GITHUB_REPOSITORY" -e "GITHUB_REPOSITORY_OWNER" -e "GITHUB_REPOSITORY_OWNER_ID" -e "GITHUB_RUN_ID" -e "GITHUB_RUN_NUMBER" -e "GITHUB_RETENTION_DAYS" -e "GITHUB_RUN_ATTEMPT" -e "GITHUB_ACTOR_ID" -e "GITHUB_ACTOR" -e "GITHUB_WORKFLOW" -e "GITHUB_HEAD_REF" -e "GITHUB_BASE_REF" -e "GITHUB_EVENT_NAME" -e "GITHUB_SERVER_URL" -e "GITHUB_API_URL" -e "GITHUB_GRAPHQL_URL" -e "GITHUB_REF_NAME" -e "GITHUB_REF_PROTECTED" -e "GITHUB_REF_TYPE" -e "GITHUB_WORKFLOW_REF" -e "GITHUB_WORKFLOW_SHA" -e "GITHUB_REPOSITORY_ID" -e "GITHUB_TRIGGERING_ACTOR" -e "GITHUB_WORKSPACE" -e "GITHUB_ACTION" -e "GITHUB_EVENT_PATH" -e "GITHUB_ACTION_REPOSITORY" -e "GITHUB_ACTION_REF" -e "GITHUB_PATH" -e "GITHUB_ENV" -e "GITHUB_STEP_SUMMARY" -e "GITHUB_STATE" -e "GITHUB_OUTPUT" -e "RUNNER_OS" -e "RUNNER_ARCH" -e "RUNNER_NAME" -e "RUNNER_ENVIRONMENT" -e "RUNNER_TOOL_CACHE" -e "RUNNER_TEMP" -e "RUNNER_WORKSPACE" -e "ACTIONS_RUNTIME_URL" -e "ACTIONS_RUNTIME_TOKEN" -e "ACTIONS_CACHE_URL" -e "ACTIONS_RESULTS_URL" -e "ACTIONS_ORCHESTRATION_ID" -e GITHUB_ACTIONS=true -e CI=true -v "/var/run/docker.sock":"/var/run/docker.sock" -v "/home/runner/work/_temp":"/github/runner_temp" -v "/home/runner/work/_temp/_github_home":"/github/home" -v "/home/runner/work/_temp/_github_workflow":"/github/workflow" -v "/home/runner/work/_temp/_runner_file_commands":"/github/file_commands" -v "/home/runner/work/CuraVision/CuraVision":"/github/workspace" d97b6b:081432398f66457ba13c9ab557d82618
+debug	SSH and Debug	2026-07-02T10:00:34.2985352Z ======CMD======
+debug	SSH and Debug	2026-07-02T10:00:34.2985969Z cd /opt/curavision
+debug	SSH and Debug	2026-07-02T10:00:34.2986502Z docker ps -a
+debug	SSH and Debug	2026-07-02T10:00:34.2987111Z docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail 200
+debug	SSH and Debug	2026-07-02T10:00:34.2987623Z 
+debug	SSH and Debug	2026-07-02T10:00:34.2987830Z ======END======
+debug	SSH and Debug	2026-07-02T10:00:36.4032440Z out: CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+debug	SSH and Debug	2026-07-02T10:00:36.4370493Z err: time="2026-07-02T10:00:36Z" level=warning msg="The \"SMTP_HOST\" variable is not set. Defaulting to a blank string."
+debug	SSH and Debug	2026-07-02T10:00:36.4371685Z err: time="2026-07-02T10:00:36Z" level=warning msg="The \"SMTP_PORT\" variable is not set. Defaulting to a blank string."
+debug	SSH and Debug	2026-07-02T10:00:36.4372827Z err: time="2026-07-02T10:00:36Z" level=warning msg="The \"SMTP_USER\" variable is not set. Defaulting to a blank string."
+debug	SSH and Debug	2026-07-02T10:00:36.4374161Z err: time="2026-07-02T10:00:36Z" level=warning msg="The \"BACKEND_URL\" variable is not set. Defaulting to a blank string."
+debug	SSH and Debug	2026-07-02T10:00:36.4375219Z err: time="2026-07-02T10:00:36Z" level=warning msg="The \"SMTP_PASS\" variable is not set. Defaulting to a blank string."
+debug	SSH and Debug	2026-07-02T10:00:36.4376836Z err: time="2026-07-02T10:00:36Z" level=warning msg="The \"SMTP_SECURE\" variable is not set. Defaulting to a blank string."
+debug	SSH and Debug	2026-07-02T10:00:36.4377895Z err: time="2026-07-02T10:00:36Z" level=warning msg="The \"SMTP_FROM\" variable is not set. Defaulting to a blank string."
+debug	SSH and Debug	2026-07-02T10:00:36.4737110Z ==============================================
+debug	SSH and Debug	2026-07-02T10:00:36.4878973Z ✅ Successfully executed commands to all host.
+debug	SSH and Debug	2026-07-02T10:00:36.4879974Z ==============================================
+debug	Complete job	﻿2026-07-02T10:00:36.5684961Z Cleaning up orphan processes
