@@ -37,6 +37,8 @@ services:
 
   # ---------- Application overrides ----------
   ai-service:
+    image: ghcr.io/abdlrhmanv/curavision/ai-service:latest
+    build: !reset null
     restart: always
     deploy:
       resources:
@@ -45,6 +47,8 @@ services:
           memory: 4G
 
   ai-worker:
+    image: ghcr.io/abdlrhmanv/curavision/ai-service:latest
+    build: !reset null
     restart: always
     deploy:
       resources:
@@ -53,6 +57,8 @@ services:
           memory: 4G
 
   backend:
+    image: ghcr.io/abdlrhmanv/curavision/backend:latest
+    build: !reset null
     restart: always
     deploy:
       resources:
@@ -61,6 +67,8 @@ services:
           memory: 1G
 
   frontend:
+    image: ghcr.io/abdlrhmanv/curavision/frontend:latest
+    build: !reset null
     restart: always
     deploy:
       resources:
