@@ -82,6 +82,24 @@ router.get(
 );
 
 /**
+ * GET /api/patient/scans
+ * Returns scans belonging to the authenticated patient.
+ */
+router.get(
+  "/scans",
+  authenticateJWT,
+  authorizeRole("PATIENT"),
+  async (req, res, next) => {
+    try {
+      const scans = await ScanService.listByPatient(req.user.sub);
+      res.json({ scans });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
  * GET /api/patient/reports
  */
 router.get(

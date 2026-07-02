@@ -376,6 +376,7 @@ export interface PatientStats {
 export const patientApi = {
   getStats: () => api.get<PatientStats>("/api/patient/stats"),
   getReports: () => reportsApi.listForPatient(),
+  getScans: () => api.get<{ scans: Scan[] }>("/api/patient/scans"),
 };
 
 export const adminApi = {

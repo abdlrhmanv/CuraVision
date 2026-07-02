@@ -1,24 +1,55 @@
 'use client'
 
-import { useState } from 'react'
-import { Brain, Plus, Upload, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Brain, Upload, X, Loader2, FileWarning } from 'lucide-react'
+import { patientApi, type Scan } from '@/lib/apiClient'
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+function statusDisplay(status: string): { label: string; color: string } {
+  switch (status) {
+    case 'ANALYSIS_COMPLETE':
+      return { label: 'Complete', color: 'green' }
+    case 'ANALYSIS_RUNNING':
+      return { label: 'Analyzing', color: 'blue' }
+    case 'UPLOADED':
+      return { label: 'Uploaded', color: 'warn' }
+    case 'FAILED':
+      return { label: 'Failed', color: 'red' }
+    default:
+      return { label: status, color: 'blue' }
+  }
+}
 
 export default function PatientScans() {
   const [showUploadModal, setShowUploadModal] = useState(false)
+  const [scans, setScans] = useState<Scan[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const scans = [
-    { id: 1, name: 'Brain MRI - Axial T1', date: 'Mar 10, 2026', status: 'Complete', statusColor: 'green' },
-    { id: 2, name: 'CT Scan - Coronal', date: 'Feb 28, 2026', status: 'In Review', statusColor: 'blue' },
-    { id: 3, name: 'Brain MRI - Sagittal T2', date: 'Jan 14, 2026', status: 'Complete', statusColor: 'green' },
-  ]
+  useEffect(() => {
+    patientApi
+      .getScans()
+      .then((res) => setScans(res.scans))
+      .catch((err) => setError(err.message || 'Failed to load scans'))
+      .finally(() => setLoading(false))
+  }, [])
 
-  const getStatusBadge = (status: string, color: string) => {
+  const getStatusBadge = (status: string) => {
+    const { label, color } = statusDisplay(status)
     const colors: Record<string, string> = {
       green: 'bg-green/15 text-green',
       blue: 'bg-blue/15 text-blue',
       warn: 'bg-warn/15 text-warn',
+      red: 'bg-red-500/15 text-red-400',
     }
-    return <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${colors[color]}`}>{status}</span>
+    return <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${colors[color] || colors.blue}`}>{label}</span>
   }
 
   return (
@@ -33,31 +64,46 @@ export default function PatientScans() {
         </button>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {scans.map((scan) => (
-          <div key={scan.id} className="bg-card border border-border rounded-xl overflow-hidden hover:border-accent transition cursor-pointer group">
-            <div className="h-32 bg-surface/50 flex items-center justify-center relative">
-              <div className="w-16 h-16 rounded-full border border-accent/30 flex items-center justify-center group-hover:border-accent transition">
-                <Brain size={28} className="text-accent/50 group-hover:text-accent transition" />
-              </div>
-              <div className="absolute bottom-2 right-2 text-[10px] text-muted font-mono">DICOM</div>
-            </div>
-            <div className="p-4">
-              <div className="font-semibold text-sm">{scan.name}</div>
-              <div className="text-xs text-muted mt-1">{scan.date}</div>
-              <div className="mt-2">{getStatusBadge(scan.status, scan.statusColor)}</div>
-            </div>
-          </div>
-        ))}
+      {loading && (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 size={32} className="animate-spin text-accent" />
+        </div>
+      )}
 
-        <button onClick={() => setShowUploadModal(true)} className="bg-card border-2 border-dashed border-border rounded-xl p-4 flex flex-col items-center justify-center gap-2 hover:border-accent transition group min-h-[220px]">
-          <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition">
-            <Plus size={24} className="text-accent" />
-          </div>
-          <div className="text-sm font-semibold text-muted group-hover:text-accent transition">Upload New Scan</div>
-          <div className="text-xs text-muted">DICOM, JPG, PNG</div>
-        </button>
-      </div>
+      {error && (
+        <div className="flex flex-col items-center justify-center py-20 text-muted gap-3">
+          <FileWarning size={40} className="text-red-400" />
+          <p className="text-sm">{error}</p>
+        </div>
+      )}
+
+      {!loading && !error && (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {scans.map((scan) => (
+            <div key={scan.id} className="bg-card border border-border rounded-xl overflow-hidden hover:border-accent transition cursor-pointer group">
+              <div className="h-32 bg-surface/50 flex items-center justify-center relative">
+                <div className="w-16 h-16 rounded-full border border-accent/30 flex items-center justify-center group-hover:border-accent transition">
+                  <Brain size={28} className="text-accent/50 group-hover:text-accent transition" />
+                </div>
+                <div className="absolute bottom-2 right-2 text-[10px] text-muted font-mono">{scan.modality}</div>
+              </div>
+              <div className="p-4">
+                <div className="font-semibold text-sm">{scan.modality} Scan</div>
+                <div className="text-xs text-muted mt-1">{formatDate(scan.uploaded_at)}</div>
+                <div className="mt-2">{getStatusBadge(scan.status)}</div>
+              </div>
+            </div>
+          ))}
+
+          {scans.length === 0 && (
+            <div className="col-span-full flex flex-col items-center justify-center py-16 text-muted gap-3">
+              <Brain size={48} className="text-accent/30" />
+              <p className="text-sm font-semibold">No scans yet</p>
+              <p className="text-xs">Your doctor will upload scans for you.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Upload Modal */}
       {showUploadModal && (
