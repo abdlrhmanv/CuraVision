@@ -183,9 +183,9 @@ jobs:
 
           docker compose up -d
 
-          # Wait for backend to be healthy (ok = all up, degraded = AI service down)
+          # Wait for backend to be healthy (ok = all up)
           echo "Waiting for backend to be ready..."
-          timeout 60 bash -c 'until curl -sf http://localhost:3001/health | grep -qE "\"status\":\"(ok|degraded)\""; do sleep 2; done'
+          timeout 60 bash -c 'until curl -sf http://localhost:3001/health | grep -qE "\"status\":\"ok\""; do sleep 2; done'
 
       - name: Run smoke tests
         run: |
