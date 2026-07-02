@@ -71,7 +71,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-XSRF-TOKEN", "x-xsrf-token"],
 };
 
 // ── Middleware ────────────────────────────────────────────────────────────────

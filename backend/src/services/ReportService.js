@@ -200,34 +200,23 @@ async function sendNotificationEmail(patientId, reportId) {
   const user = await prisma.user.findUnique({ where: { id: patientId } });
   if (!user || !user.email) return;
 
-  let transporter;
-  const fromEmail = process.env.SMTP_FROM || '"CuraVision Notifications" <noreply@curavision.app>';
-
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-    const port = parseInt(process.env.SMTP_PORT, 10) || 587;
-    const secure = process.env.SMTP_SECURE === "true" || port === 465;
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port,
-      secure,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-  } else {
-    // Fallback to Ethereal for testing/development
-    const testAccount = await nodemailer.createTestAccount();
-    transporter = nodemailer.createTransport({
-      host: "smtp.ethereal.email",
-      port: 587,
-      secure: false,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass,
-      },
-    });
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    logger.warn("SMTP host, user, or password not configured. Skipping email notification.");
+    return;
   }
+
+  const fromEmail = process.env.SMTP_FROM || '"CuraVision Notifications" <noreply@curavision.app>';
+  const port = parseInt(process.env.SMTP_PORT, 10) || 587;
+  const secure = process.env.SMTP_SECURE === "true" || port === 465;
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port,
+    secure,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
 
   const info = await transporter.sendMail({
     from: fromEmail,
@@ -237,11 +226,7 @@ async function sendNotificationEmail(patientId, reportId) {
     html: `<p>Hello <b>${user.full_name}</b>,</p><p>Your recent MRI scan report has been finalized and approved by your doctor.</p><p>You can view it in your patient portal now.</p><br><p>Best,<br>The CuraVision Team</p>`,
   });
 
-  if (process.env.SMTP_HOST) {
-    logger.info(`Email notification sent to ${user.email} (MessageID: ${info.messageId})`);
-  } else {
-    logger.info("Email notification sent! Preview URL: %s", nodemailer.getTestMessageUrl(info));
-  }
+  logger.info(`Email notification sent to ${user.email} (MessageID: ${info.messageId})`);
 }
 
 async function listForPatient(patientId) {

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/authContext'
 import { ApiError } from '@/lib/apiClient'
-import { showError, showSuccess, showLoading, closeLoading } from '@/lib/sweetAlert'
+import { showError, showLoading, closeLoading } from '@/lib/sweetAlert'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -14,6 +14,7 @@ export default function RegisterPage() {
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async () => {
@@ -32,17 +33,14 @@ export default function RegisterPage() {
     showLoading('Creating your account...')
 
     try {
-      const user = await register({
+      await register({
         email,
         password,
         full_name: fullName,
         role: role === 'doctor' ? 'DOCTOR' : 'PATIENT',
       })
       closeLoading()
-      showSuccess('Account created', `Welcome, ${user.full_name}!`)
-      setTimeout(() => {
-        router.push(user.role === 'DOCTOR' ? '/doctor' : '/patient')
-      }, 900)
+      router.push(`/verify-email?email=${encodeURIComponent(email)}`)
     } catch (err) {
       closeLoading()
       setIsLoading(false)
@@ -91,6 +89,10 @@ export default function RegisterPage() {
           <div>
             <label className="text-[11px] tracking-wide uppercase text-muted font-semibold block mb-1.5">First name</label>
             <input
+              id="firstName"
+              name="given-name"
+              type="text"
+              autoComplete="given-name"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               className="w-full px-4 py-3 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:border-accent"
@@ -100,6 +102,10 @@ export default function RegisterPage() {
           <div>
             <label className="text-[11px] tracking-wide uppercase text-muted font-semibold block mb-1.5">Last name</label>
             <input
+              id="lastName"
+              name="family-name"
+              type="text"
+              autoComplete="family-name"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               className="w-full px-4 py-3 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:border-accent"
@@ -111,9 +117,12 @@ export default function RegisterPage() {
         <div className="mt-3.5">
           <label className="text-[11px] tracking-wide uppercase text-muted font-semibold block mb-1.5">Email address</label>
           <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            type="email"
             className="w-full px-4 py-3 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:border-accent"
             placeholder={role === 'doctor' ? 'john.doe@hospital.com' : 'you@example.com'}
           />
@@ -121,21 +130,58 @@ export default function RegisterPage() {
 
         <div className="mt-3.5">
           <label className="text-[11px] tracking-wide uppercase text-muted font-semibold block mb-1.5">Password</label>
-          <input
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            type="password"
-            className="w-full px-4 py-3 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:border-accent"
-            placeholder="At least 8 characters"
-          />
+          <div className="relative">
+            <input
+              id="password"
+              name="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              type={showPassword ? 'text' : 'password'}
+              className="w-full pl-4 pr-10 py-3 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:border-accent transition text-text"
+              placeholder="At least 8 characters"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-white transition focus:outline-none bg-transparent border-0 cursor-pointer"
+            >
+              {showPassword ? (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              )}
+            </button>
+          </div>
+          {password && (
+            <div className="mt-2 space-y-1.5">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted">Password strength:</span>
+                <span className={`font-semibold ${
+                  getPasswordStrength(password) === 'Strong' ? 'text-accent' : getPasswordStrength(password) === 'Medium' ? 'text-[#ffc107]' : 'text-red-500'
+                }`}>
+                  {getPasswordStrength(password)}
+                </span>
+              </div>
+              <div className="h-1 w-full bg-border rounded-full overflow-hidden flex gap-0.5">
+                <div className={`h-full transition-all duration-300 ${
+                  getPasswordStrength(password) === 'Strong'
+                    ? 'w-full bg-accent'
+                    : getPasswordStrength(password) === 'Medium'
+                    ? 'w-2/3 bg-[#ffc107]'
+                    : 'w-1/3 bg-red-500'
+                }`} />
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="mt-4 p-3.5 rounded-lg bg-surface/50 border border-border">
-          <p className="text-xs text-muted">
-            Additional profile fields (medical history, license number, etc.) will be
-            collected after sign-up once the backend profile endpoints are live.
-          </p>
-        </div>
+
 
         <button
           onClick={handleSubmit}
@@ -156,4 +202,18 @@ export default function RegisterPage() {
       </div>
     </div>
   )
+}
+
+function getPasswordStrength(pass: string): 'Weak' | 'Medium' | 'Strong' | '' {
+  if (!pass) return ''
+  let score = 0
+  if (pass.length >= 8) score++
+  if (/[A-Z]/.test(pass)) score++
+  if (/[a-z]/.test(pass)) score++
+  if (/[0-9]/.test(pass)) score++
+  if (/[^A-Za-z0-9]/.test(pass)) score++
+
+  if (score <= 2) return 'Weak'
+  if (score <= 4) return 'Medium'
+  return 'Strong'
 }

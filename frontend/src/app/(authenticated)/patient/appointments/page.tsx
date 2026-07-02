@@ -95,7 +95,6 @@ export default function PatientAppointmentsPage() {
       }
       fetchReservations()
     })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, user])
 
   const doctorById = useMemo(() => {

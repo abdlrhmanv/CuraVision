@@ -69,10 +69,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       role?: "PATIENT" | "DOCTOR";
     }) => {
       const res = await authApi.register(input);
-      setToken(res.token);
-      setStoredUser(res.user);
-      setTokenState(res.token);
-      setUser(res.user);
       return res.user;
     },
     []

@@ -24,6 +24,7 @@ enum Role {
 enum UserStatus {
   ACTIVE
   DISABLED
+  LOCKED
 }
 
 enum Gender {
@@ -66,6 +67,8 @@ model User {
   full_name      String
   status         UserStatus @default(ACTIVE)
   email_verified Boolean    @default(false)
+  login_attempts Int        @default(0)
+  lockout_until  DateTime?
   created_at     DateTime   @default(now())
   updated_at     DateTime   @updatedAt
 

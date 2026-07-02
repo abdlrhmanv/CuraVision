@@ -11,7 +11,6 @@
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001";
 
-const TOKEN_STORAGE_KEY = "curavision_token";
 const USER_STORAGE_KEY = "curavision_user";
 
 export interface AuthUser {
@@ -40,6 +39,7 @@ export function getToken(): string | null {
   return null;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function setToken(token: string | null): void {
   // Rely on HttpOnly cookies, do not persist token in LocalStorage to prevent XSS
 }
@@ -115,6 +115,24 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 
   if (!res.ok) {
     const d = (data ?? {}) as { code?: string; message?: string; errors?: unknown };
+    
+    if (res.status === 401) {
+      if (typeof window !== "undefined") {
+        const path = window.location.pathname;
+        const isAuthPage =
+          path.startsWith("/login") ||
+          path.startsWith("/register") ||
+          path.startsWith("/forgot-password") ||
+          path.startsWith("/reset-password") ||
+          path.startsWith("/verify-email");
+
+        if (!isAuthPage) {
+          clearSession();
+          window.location.href = "/login?expired=true";
+        }
+      }
+    }
+
     throw new ApiError(
       res.status,
       d.code ?? "HTTP_ERROR",
@@ -160,6 +178,12 @@ export const authApi = {
   }) => api.post<LoginResponse>("/api/auth/register", input),
 
   logout: () => api.post<{ ok: boolean }>("/api/auth/logout"),
+
+  forgotPassword: (email: string) =>
+    api.post<{ message: string }>("/api/auth/forgot-password", { email }),
+
+  resetPassword: (token: string, newPassword: string) =>
+    api.post<{ message: string }>("/api/auth/reset-password", { token, new_password: newPassword }),
 };
 
 export interface Scan {

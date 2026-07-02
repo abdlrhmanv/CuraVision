@@ -28,8 +28,10 @@ export default function DoctorAvailability() {
   const [endTime, setEndTime] = useState('17:00')
   const [submitting, setSubmitting] = useState(false)
 
-  const fetchRules = async (doctorId: string) => {
-    setFetching(true)
+  const fetchRules = async (doctorId: string, showLoading = true) => {
+    if (showLoading) {
+      setFetching(true)
+    }
     try {
       const res = await reservationsApi.getRules(doctorId)
       setRules(res.rules)
@@ -42,7 +44,8 @@ export default function DoctorAvailability() {
 
   useEffect(() => {
     if (loading || !user) return
-    fetchRules(user.id)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchRules(user.id, false)
   }, [loading, user])
 
   const handleAddRule = async (e: React.FormEvent) => {

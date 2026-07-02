@@ -172,6 +172,13 @@ services:
       S3_BUCKET: curavision
       S3_ACCESS_KEY: ${MINIO_ROOT_USER:-curavision}
       S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-curavision}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_FROM: ${SMTP_FROM}
+      BACKEND_URL: ${BACKEND_URL}
     depends_on:
       postgres:
         condition: service_healthy

@@ -120,8 +120,12 @@ router.post(
       });
       res.json({ token, user: UserService.toPublicUser(user) });
     } catch (err) {
-      if (err.code === "INVALID_CREDENTIALS" || err.code === "ACCOUNT_DISABLED") {
-        return res.status(err.status).json({ code: err.code, message: err.message });
+      if (
+        err.code === "INVALID_CREDENTIALS" ||
+        err.code === "ACCOUNT_DISABLED" ||
+        err.code === "ACCOUNT_LOCKED"
+      ) {
+        return res.status(err.status || 401).json({ code: err.code, message: err.message });
       }
       next(err);
     }
@@ -200,41 +204,33 @@ router.post(
       const nodemailer = require("nodemailer");
       const logger = require("../utils/logger");
 
-      let transporter;
-      const fromEmail = process.env.SMTP_FROM || '"CuraVision" <noreply@curavision.app>';
-
-      if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-        const port = parseInt(process.env.SMTP_PORT, 10) || 587;
-        const secure = process.env.SMTP_SECURE === "true" || port === 465;
-        transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port,
-          secure,
-          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-        });
-      } else {
-        const testAccount = await nodemailer.createTestAccount();
-        transporter = nodemailer.createTransport({
-          host: "smtp.ethereal.email",
-          port: 587,
-          secure: false,
-          auth: { user: testAccount.user, pass: testAccount.pass },
-        });
+      if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        logger.warn("SMTP host, user, or password not configured. Skipping password reset email.");
+        return res.json({ message: "If the email exists, a reset link has been sent." });
       }
+
+      const fromEmail = process.env.SMTP_FROM || '"CuraVision" <noreply@curavision.app>';
+      const port = parseInt(process.env.SMTP_PORT, 10) || 587;
+      const secure = process.env.SMTP_SECURE === "true" || port === 465;
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port,
+        secure,
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      });
+
+      const frontendUrl = process.env.CORS_ORIGIN || "http://localhost:3000";
+      const resetLink = `${frontendUrl}/reset-password?token=${result.token}`;
 
       const info = await transporter.sendMail({
         from: fromEmail,
         to: email,
         subject: "Reset your CuraVision password",
-        text: `Hello ${result.user.full_name},\n\nYou requested a password reset. Use the following token to reset your password:\n\n${result.token}\n\nThis link will expire in 1 hour.`,
-        html: `<p>Hello <b>${result.user.full_name}</b>,</p><p>You requested a password reset. Use the following token to reset your password:</p><pre>${result.token}</pre><p>This link will expire in 1 hour.</p>`,
+        text: `Hello ${result.user.full_name},\n\nYou requested a password reset. Please click this link to reset your password:\n\n${resetLink}\n\nThis link will expire in 1 hour.`,
+        html: `<p>Hello <b>${result.user.full_name}</b>,</p><p>You requested a password reset. Please click the link below to reset your password:</p><p><a href="${resetLink}">Reset Password</a></p><p>This link will expire in 1 hour.</p>`,
       });
 
-      if (process.env.SMTP_HOST) {
-        logger.info(`Password reset email sent to ${email} (MessageID: ${info.messageId})`);
-      } else {
-        logger.info("Password reset email sent! Preview URL: %s", nodemailer.getTestMessageUrl(info));
-      }
+      logger.info(`Password reset email sent to ${email} (MessageID: ${info.messageId})`);
 
       res.json({ message: "If the email exists, a reset link has been sent." });
     } catch (err) {

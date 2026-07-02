@@ -54,13 +54,68 @@ async function login({ email, password }) {
     throw unauthorized("Email or password is incorrect.", "INVALID_CREDENTIALS");
   }
 
-  const passwordMatch = await bcrypt.compare(password, user.password_hash);
-  if (!passwordMatch) {
-    throw unauthorized("Email or password is incorrect.", "INVALID_CREDENTIALS");
+  // 1. Check if user is locked out
+  if (user.status === "LOCKED") {
+    if (user.lockout_until && user.lockout_until > new Date()) {
+      const remainingMs = user.lockout_until.getTime() - Date.now();
+      const remainingMins = Math.ceil(remainingMs / (60 * 1000));
+      throw forbidden(
+        `Your account is locked due to too many failed login attempts. Please try again in ${remainingMins} minutes.`,
+        "ACCOUNT_LOCKED"
+      );
+    } else {
+      // Lockout duration has expired - reset user status
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          status: "ACTIVE",
+          login_attempts: 0,
+          lockout_until: null,
+        },
+      });
+      user.status = "ACTIVE";
+      user.login_attempts = 0;
+      user.lockout_until = null;
+    }
   }
 
-  if (user.status !== "ACTIVE") {
+  // 2. Check if user is disabled
+  if (user.status === "DISABLED") {
     throw forbidden("This account is not active.", "ACCOUNT_DISABLED");
+  }
+
+  const passwordMatch = await bcrypt.compare(password, user.password_hash);
+  if (!passwordMatch) {
+    const newAttempts = user.login_attempts + 1;
+    if (newAttempts >= 5) {
+      const lockoutTime = new Date(Date.now() + 15 * 60 * 1000); // 15 mins in future
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          status: "LOCKED",
+          login_attempts: newAttempts,
+          lockout_until: lockoutTime,
+        },
+      });
+      throw forbidden(
+        "Your account has been locked for 15 minutes due to 5 failed login attempts.",
+        "ACCOUNT_LOCKED"
+      );
+    } else {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { login_attempts: newAttempts },
+      });
+      throw unauthorized("Email or password is incorrect.", "INVALID_CREDENTIALS");
+    }
+  }
+
+  // 3. Successful login - reset failed attempts if needed
+  if (user.login_attempts > 0) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { login_attempts: 0 },
+    });
   }
 
   return user;
@@ -90,27 +145,20 @@ async function sendVerificationEmail(user) {
     { expiresIn: "24h" }
   );
 
-  let transporter;
-  const fromEmail = process.env.SMTP_FROM || '"CuraVision" <noreply@curavision.app>';
-
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-    const port = parseInt(process.env.SMTP_PORT, 10) || 587;
-    const secure = process.env.SMTP_SECURE === "true" || port === 465;
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port,
-      secure,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    });
-  } else {
-    const testAccount = await nodemailer.createTestAccount();
-    transporter = nodemailer.createTransport({
-      host: "smtp.ethereal.email",
-      port: 587,
-      secure: false,
-      auth: { user: testAccount.user, pass: testAccount.pass },
-    });
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    logger.warn("SMTP host, user, or password not configured. Skipping verification email.");
+    return;
   }
+
+  const fromEmail = process.env.SMTP_FROM || '"CuraVision" <noreply@curavision.app>';
+  const port = parseInt(process.env.SMTP_PORT, 10) || 587;
+  const secure = process.env.SMTP_SECURE === "true" || port === 465;
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port,
+    secure,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  });
 
   const backendUrl = process.env.BACKEND_URL || "http://localhost:3001";
   const verifyLink = `${backendUrl}/api/auth/verify-email?token=${token}`;
@@ -123,11 +171,7 @@ async function sendVerificationEmail(user) {
     html: `<p>Hello <b>${user.full_name}</b>,</p><p>Please verify your email by clicking the link below:</p><p><a href="${verifyLink}">Verify Email</a></p><p>This link will expire in 24 hours.</p>`,
   });
 
-  if (process.env.SMTP_HOST) {
-    logger.info(`Verification email sent to ${user.email} (MessageID: ${info.messageId})`);
-  } else {
-    logger.info("Verification email sent! Preview URL: %s", nodemailer.getTestMessageUrl(info));
-  }
+  logger.info(`Verification email sent to ${user.email} (MessageID: ${info.messageId})`);
 }
 
 async function verifyEmail(token) {

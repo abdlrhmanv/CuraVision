@@ -98,6 +98,79 @@ test.describe("AuthService Unit Tests", () => {
     );
   });
 
+  test("login() should increment failed attempts and lock out user after 5 failures", async () => {
+    const emailLockout = `lockout-${Date.now()}@example.com`;
+    const createdUserLockout = await AuthService.register({
+      email: emailLockout,
+      password: "Password@123",
+      full_name: "Lockout Test User",
+      role: "PATIENT",
+    });
+
+    // Verify they are ACTIVE so they can login
+    await prisma.user.update({
+      where: { id: createdUserLockout.id },
+      data: { status: "ACTIVE", email_verified: true },
+    });
+
+    // 4 failed attempts
+    for (let i = 0; i < 4; i++) {
+      await assert.rejects(
+        async () => {
+          await AuthService.login({
+            email: emailLockout,
+            password: "IncorrectPassword@123",
+          });
+        },
+        (err) => {
+          assert.equal(err.code, "INVALID_CREDENTIALS");
+          assert.equal(err.status, 401);
+          return true;
+        }
+      );
+    }
+
+    // Verify failed login attempts counter is 4
+    let dbUser = await prisma.user.findUnique({ where: { email: emailLockout } });
+    assert.equal(dbUser.login_attempts, 4);
+    assert.equal(dbUser.status, "ACTIVE");
+
+    // 5th failed attempt -> locks account
+    await assert.rejects(
+      async () => {
+        await AuthService.login({
+          email: emailLockout,
+          password: "IncorrectPassword@123",
+        });
+      },
+      (err) => {
+        assert.equal(err.code, "ACCOUNT_LOCKED");
+        assert.equal(err.status, 403);
+        return true;
+      }
+    );
+
+    // Verify account is LOCKED
+    dbUser = await prisma.user.findUnique({ where: { email: emailLockout } });
+    assert.equal(dbUser.status, "LOCKED");
+    assert.ok(dbUser.lockout_until);
+
+    // Submitting login (even correct password) while locked out should fail with ACCOUNT_LOCKED
+    await assert.rejects(
+      async () => {
+        await AuthService.login({
+          email: emailLockout,
+          password: "Password@123",
+        });
+      },
+      (err) => {
+        assert.equal(err.code, "ACCOUNT_LOCKED");
+        assert.equal(err.status, 403);
+        return true;
+      }
+    );
+  });
+
   test("signToken() should sign a valid JWT token", () => {
     const token = AuthService.signToken(createdUser);
     assert.ok(token);
