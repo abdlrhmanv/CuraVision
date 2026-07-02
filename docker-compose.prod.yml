@@ -66,6 +66,10 @@ services:
           cpus: '1'
           memory: 1G
 
+  db-migrate:
+    image: ghcr.io/abdlrhmanv/curavision/backend:latest
+    build: !reset null
+
   frontend:
     image: ghcr.io/abdlrhmanv/curavision/frontend:latest
     build: !reset null
