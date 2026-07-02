@@ -6,6 +6,9 @@ jobs:
   debug:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
       - name: Copy Compose files to VM
         uses: appleboy/scp-action@master
         with:
