@@ -187,7 +187,12 @@ jobs:
 
           # Wait for backend to be healthy (ok = all up)
           echo "Waiting for backend to be ready..."
-          timeout 60 bash -c 'until curl -sf http://localhost:3001/health | grep -qE "\"status\":\"ok\""; do sleep 2; done'
+          if ! timeout 60 bash -c 'until curl -sf http://localhost:3001/health | grep -qE "\"status\":\"ok\""; do sleep 2; done'
+          then
+            echo "Backend failed to start. Logs:"
+            docker compose logs backend
+            exit 1
+          fi
 
       - name: Run smoke tests
         run: |
