@@ -324,15 +324,17 @@ router.get(
         },
       });
 
-      if (!doctor || !doctor.doctorProfile) {
+      if (!doctor) {
         return res.status(404).json({
           code: "NOT_FOUND",
-          message: "Doctor profile not found.",
+          message: "Doctor not found.",
         });
       }
 
       // Flatten object to match API client contract
-      const { doctorProfile, doctorPreferences, ...userInfo } = doctor;
+      const doctorProfile = doctor.doctorProfile || {};
+      const doctorPreferences = doctor.doctorPreferences || {};
+      const { doctorProfile: _dp, doctorPreferences: _pref, ...userInfo } = doctor;
       
       const flatDoctor = {
         user_id: doctor.id,
@@ -495,6 +497,92 @@ router.get(
         total_reports_reviewed: reportsCount,
         total_ai_analyses: aiAnalysesCount
       });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+
+/**
+ * PUT /api/doctors/:id/profile
+ * Updates the doctor's profile and preferences.
+ */
+router.put(
+  "/:id/profile",
+  authenticateJWT,
+  authorizeRole("DOCTOR", "ADMIN"),
+  async (req, res, next) => {
+    try {
+      if (req.user.sub !== req.params.id && req.user.role !== "ADMIN") {
+        return res.status(403).json({
+          code: "FORBIDDEN",
+          message: "You can only update your own profile.",
+        });
+      }
+
+      const {
+        full_name,
+        specialty, subspecialties, years_experience, hospital, phone, bio, license_number,
+        education, qualifications, board_certifications, certifications, country, city,
+        languages_spoken, consultation_fee, date_of_birth,
+        preferred_ai_model, enable_ai_suggestions, default_report_template,
+        notification_email, notification_sms, notification_push, notification_critical
+      } = req.body;
+
+      if (full_name) {
+        await prisma.user.update({
+          where: { id: req.params.id },
+          data: { full_name }
+        });
+      }
+
+      const profileData = {};
+      if (specialty !== undefined) profileData.specialty = specialty;
+      if (subspecialties !== undefined) profileData.subspecialties = subspecialties;
+      if (years_experience !== undefined) profileData.years_experience = years_experience;
+      if (hospital !== undefined) profileData.hospital = hospital;
+      if (phone !== undefined) profileData.phone = phone;
+      if (bio !== undefined) profileData.bio = bio;
+      // Default license_number to a generated one if undefined since it's required @unique
+      profileData.license_number = license_number !== undefined ? license_number : "LIC-PENDING-" + req.params.id.substring(0,8);
+      
+      if (education !== undefined) profileData.education = education;
+      if (qualifications !== undefined) profileData.qualifications = qualifications;
+      if (board_certifications !== undefined) profileData.board_certifications = board_certifications;
+      if (certifications !== undefined) profileData.certifications = certifications;
+      if (country !== undefined) profileData.country = country;
+      if (city !== undefined) profileData.city = city;
+      if (languages_spoken !== undefined) profileData.languages_spoken = languages_spoken;
+      if (consultation_fee !== undefined) profileData.consultation_fee = consultation_fee;
+      if (date_of_birth !== undefined) profileData.date_of_birth = date_of_birth ? new Date(date_of_birth) : null;
+
+      if (Object.keys(profileData).length > 0) {
+        await prisma.doctorProfile.upsert({
+          where: { user_id: req.params.id },
+          create: { user_id: req.params.id, ...profileData },
+          update: profileData,
+        });
+      }
+
+      const prefsData = {};
+      if (preferred_ai_model !== undefined) prefsData.preferred_ai_model = preferred_ai_model;
+      if (enable_ai_suggestions !== undefined) prefsData.enable_ai_suggestions = enable_ai_suggestions;
+      if (default_report_template !== undefined) prefsData.default_report_template = default_report_template;
+      if (notification_email !== undefined) prefsData.notification_email = notification_email;
+      if (notification_sms !== undefined) prefsData.notification_sms = notification_sms;
+      if (notification_push !== undefined) prefsData.notification_push = notification_push;
+      if (notification_critical !== undefined) prefsData.notification_critical = notification_critical;
+
+      if (Object.keys(prefsData).length > 0) {
+        await prisma.doctorPreferences.upsert({
+          where: { user_id: req.params.id },
+          create: { user_id: req.params.id, ...prefsData },
+          update: prefsData,
+        });
+      }
+
+      res.json({ ok: true, message: "Profile updated successfully." });
     } catch (err) {
       next(err);
     }

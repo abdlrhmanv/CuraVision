@@ -55,14 +55,15 @@ export default function DoctorDashboard() {
     load()
   }, [loading, user])
 
-  const [now, setNow] = useState<number | null>(null)
+  const [now, setNow] = useState<number>(0)
 
   useEffect(() => {
-    setNow(Date.now())
+    const timer = setTimeout(() => setNow(Date.now()), 0)
+    return () => clearTimeout(timer)
   }, [])
 
   const newScansCount = useMemo(() => {
-    if (!now) return 0
+    if (now === 0) return 0
     return scans.filter(s => new Date(s.uploaded_at).getTime() > now - 86400000).length
   }, [scans, now])
 
