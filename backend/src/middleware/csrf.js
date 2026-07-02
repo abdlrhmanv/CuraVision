@@ -13,6 +13,11 @@ function csrfMiddleware(req, res, next) {
     return next();
   }
 
+  // Bypass CSRF for internal server-to-server routes
+  if (req.originalUrl.startsWith("/api/internal") || req.path.startsWith("/api/internal")) {
+    return next();
+  }
+
   // Try to parse the token from the raw cookie header
   let token = null;
   const cookieHeader = req.headers["cookie"];
