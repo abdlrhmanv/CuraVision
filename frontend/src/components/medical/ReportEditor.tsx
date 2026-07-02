@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { reportsApi } from '@/lib/apiClient';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
 
@@ -35,16 +36,7 @@ export function ReportEditor({ reportId, initialReport, onSave, onApprove, isApp
     let isMounted = true;
     const pingLock = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`http://localhost:3001/api/reports/${reportId}/lock`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await reportsApi.pingLock(reportId);
         if (isMounted) {
           if (data.locked) {
             setLockWarning(data.message || 'Report is currently being edited by another doctor.');

@@ -372,6 +372,8 @@ export const reportsApi = {
     api.get<{ report_id: string; corrections: ReportCorrection[] }>(
       `/api/reports/${id}/corrections`
     ),
+  pingLock: (id: string) => 
+    api.post<{ locked: boolean; message?: string }>(`/api/reports/${id}/lock`),
 };
 
 export interface ChatMessage {

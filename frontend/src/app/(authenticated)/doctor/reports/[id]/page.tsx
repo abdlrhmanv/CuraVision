@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
+import { reportsApi } from '@/lib/apiClient';
 
 export default function DoctorReportRedirect({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -16,18 +17,11 @@ export default function DoctorReportRedirect({ params }: { params: Promise<{ id:
         
         // This endpoint doesn't exist explicitly for doctors to get by report ID,
         // but we just ping the corrections endpoint or anything to see if it exists.
-        const res = await fetch(`http://localhost:3001/api/reports/${id}/corrections`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        await reportsApi.corrections(id);
         
-        if (!res.ok) {
-          setError(true);
-          setTimeout(() => router.push('/doctor'), 2000);
-        } else {
-          // It exists, but direct navigation is unsupported in this app structure.
-          setError(true);
-          setTimeout(() => router.push('/doctor'), 2000);
-        }
+        // It exists, but direct navigation is unsupported in this app structure.
+        setError(true);
+        setTimeout(() => router.push('/doctor'), 2000);
       } catch {
         setError(true);
         setTimeout(() => router.push('/doctor'), 2000);

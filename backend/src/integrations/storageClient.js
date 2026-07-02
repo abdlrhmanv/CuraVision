@@ -164,7 +164,13 @@ async function getPresignedGetUrl(logicalPath, expiresInSeconds = 3600) {
     Bucket: S3_BUCKET,
     Key: key,
   });
-  return getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+  const url = await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+  if (process.env.BACKEND_URL && url.includes(process.env.S3_ENDPOINT)) {
+    // process.env.BACKEND_URL should be something like https://51.107.71.24
+    // We append /minio to it so Nginx can proxy it to Minio
+    return url.replace(process.env.S3_ENDPOINT, `${process.env.BACKEND_URL}/minio`);
+  }
+  return url;
 }
 
 async function getPresignedPutUrl(logicalPath, contentType = "image/png", expiresInSeconds = 3600) {
@@ -175,7 +181,11 @@ async function getPresignedPutUrl(logicalPath, contentType = "image/png", expire
     Key: key,
     ContentType: contentType,
   });
-  return getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+  const url = await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+  if (process.env.BACKEND_URL && url.includes(process.env.S3_ENDPOINT)) {
+    return url.replace(process.env.S3_ENDPOINT, `${process.env.BACKEND_URL}/minio`);
+  }
+  return url;
 }
 
 module.exports = {
