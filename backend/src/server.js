@@ -195,9 +195,16 @@ app.use((_req, res) => {
 // ── Global error handler ──────────────────────────────────────────────────────
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
-  const status = err.status || 500;
-  const code = err.code || "INTERNAL_ERROR";
-  const message = err.message || "An unexpected error occurred.";
+  let status = err.status || 500;
+  let code = err.code || "INTERNAL_ERROR";
+  let message = err.message || "An unexpected error occurred.";
+
+  // Handle Prisma Database connection issues gracefully
+  if (err.name === "PrismaClientInitializationError" || err.code === "P1001" || err.code === "P2024") {
+    status = 500;
+    code = "DATABASE_ERROR";
+    message = "Database connection failed";
+  }
 
   if (status >= 500) {
     logger.error({ err }, `Unexpected server error: ${message}`);

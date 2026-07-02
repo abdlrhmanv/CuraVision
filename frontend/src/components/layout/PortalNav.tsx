@@ -85,8 +85,13 @@ export function PortalSidebar({ user, portalLabel, accent, navItems }: PortalNav
   )
 }
 
+import { useState } from 'react'
+import { Menu, X } from 'lucide-react'
+
 export function PortalMobileNav({ navItems, accent }: Pick<PortalNavProps, 'navItems' | 'accent'>) {
   const pathname = usePathname()
+  const [isOpen, setIsOpen] = useState(false)
+  const { logout } = useAuth()
 
   const activeClass =
     accent === 'accent'
@@ -94,27 +99,72 @@ export function PortalMobileNav({ navItems, accent }: Pick<PortalNavProps, 'navI
       : 'bg-blue/15 text-blue border-blue/30'
 
   return (
-    <nav className="md:hidden border-b border-border bg-card/30 px-3 py-2 overflow-x-auto">
-      <div className="flex gap-2 min-w-max">
-        {navItems.map((item) => {
-          const Icon = item.icon
-          const active = isActive(pathname, item.href)
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border whitespace-nowrap transition ${
-                active
-                  ? activeClass
-                  : 'text-muted border-transparent hover:text-foreground'
-              }`}
-            >
-              <Icon size={14} />
-              {item.label}
-            </Link>
-          )
-        })}
+    <>
+      <div className="md:hidden flex items-center justify-end px-4 py-2 border-b border-border bg-card">
+        <button 
+          onClick={() => setIsOpen(true)}
+          className="p-2 border border-border rounded-md hover:bg-gray-100"
+          aria-label="Open menu"
+        >
+          <Menu size={20} />
+        </button>
       </div>
-    </nav>
+
+      {isOpen && (
+        <div className="fixed inset-0 z-[100] flex">
+          <div 
+            className="fixed inset-0 bg-black/50" 
+            onClick={() => setIsOpen(false)} 
+            aria-hidden="true" 
+          />
+          <div className="relative w-64 bg-card h-full flex flex-col shadow-xl">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <span className="font-bold text-sm uppercase tracking-wide">Menu</span>
+              <button 
+                onClick={() => setIsOpen(false)}
+                className="p-1 hover:bg-gray-100 rounded-md"
+                aria-label="Close menu"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+              {navItems.map((item) => {
+                const Icon = item.icon
+                const active = isActive(pathname, item.href)
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium border transition ${
+                      active
+                        ? activeClass
+                        : 'text-muted border-transparent hover:text-foreground hover:bg-gray-50'
+                    }`}
+                  >
+                    <Icon size={18} />
+                    {item.label}
+                  </Link>
+                )
+              })}
+            </nav>
+            <div className="p-4 border-t border-border">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  logout();
+                }}
+                className="w-full flex items-center justify-center gap-2 px-3 py-3 rounded-lg text-sm font-medium text-muted border border-border hover:border-warn/40 hover:text-warn transition"
+              >
+                <LogOut size={18} />
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

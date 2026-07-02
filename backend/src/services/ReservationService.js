@@ -2,7 +2,7 @@ const ReservationRepository = require("../repositories/ReservationRepository");
 const prisma = require("../config/prisma");
 const AuditService = require("./AuditService");
 const nodemailer = require("nodemailer");
-const logger = require("../config/logger");
+const logger = require("../utils/logger");
 
 const { notFound, forbidden, conflict, badRequest } = require("../utils/AppError");
 async function getAvailability(doctorId, { from, to }) {

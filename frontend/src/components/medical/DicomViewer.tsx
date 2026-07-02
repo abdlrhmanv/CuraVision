@@ -35,6 +35,7 @@ export default function DicomViewer({ src, caption, height = 360, maskSrc, heatm
   const [showHeatmap, setShowHeatmap] = useState(false)
   const [heatmapOpacity, setHeatmapOpacity] = useState(70)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [isColorBlindMode, setIsColorBlindMode] = useState(false)
 
   // Interaction state
   const isDraggingLeft = useRef(false)
@@ -257,6 +258,12 @@ export default function DicomViewer({ src, caption, height = 360, maskSrc, heatm
               )}
             </div>
           )}
+          <div className="flex items-center gap-2 bg-surface/50 px-2 py-1 rounded border border-border">
+            <label className="flex items-center gap-1.5 cursor-pointer select-none text-muted hover:text-white transition font-medium">
+              <input type="checkbox" checked={isColorBlindMode} onChange={e => setIsColorBlindMode(e.target.checked)} className="rounded border-border bg-surface accent-blue w-3.5 h-3.5 cursor-pointer" />
+              Color-Blind Mode
+            </label>
+          </div>
           <div className="w-px h-4 bg-border mx-1 hidden sm:block" />
           <button onClick={toggleFullscreen} className="p-1.5 rounded hover:bg-border/50 text-muted hover:text-white transition" title="Toggle Fullscreen">
             {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
@@ -267,6 +274,7 @@ export default function DicomViewer({ src, caption, height = 360, maskSrc, heatm
       {/* Viewer Canvas Wrapper */}
       <div 
         ref={wheelTargetRef}
+        aria-label="DICOM scan viewer canvas"
         className="relative flex-1 bg-black overflow-hidden flex items-center justify-center cursor-crosshair select-none"
         style={{ height: isFullscreen ? '100%' : height }}
         onMouseDown={handleMouseDown}
@@ -300,13 +308,17 @@ export default function DicomViewer({ src, caption, height = 360, maskSrc, heatm
               <img src={src} alt={caption ?? 'scan preview'} className="absolute inset-0 w-full h-full object-contain pointer-events-none" />
             )}
             
+            {/* AI Overlays */}
             {showMask && maskSrc && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={maskSrc}
-                alt="AI Mask"
+                alt="AI Segmentation Mask"
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity duration-200"
-                style={{ opacity: maskOpacity / 100 }}
+                style={{ 
+                  opacity: maskOpacity / 100, 
+                  filter: isColorBlindMode ? 'hue-rotate(180deg)' : 'none' 
+                }}
               />
             )}
             

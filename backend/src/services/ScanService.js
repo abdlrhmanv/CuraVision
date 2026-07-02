@@ -60,9 +60,20 @@ async function serializeAnalysis(analysis) {
   };
 }
 
+const scanCache = new Map();
+const listCache = new Map();
+
+function clearCache(doctorId, scanId) {
+  if (scanId) scanCache.delete(scanId);
+  if (doctorId) listCache.delete(doctorId);
+}
+
 async function getScanRecord(scanId) {
+  if (scanCache.has(scanId)) return scanCache.get(scanId);
   const scan = await prisma.scan.findUnique({ where: { id: scanId } });
-  return scan ? await serializeScan(scan) : null;
+  const result = scan ? await serializeScan(scan) : null;
+  if (result) scanCache.set(scanId, result);
+  return result;
 }
 
 async function updateScanStatus(scanId, status) {
@@ -70,6 +81,7 @@ async function updateScanStatus(scanId, status) {
     where: { id: scanId },
     data: { status },
   });
+  clearCache(scan.doctor_id, scanId);
   return await serializeScan(scan);
 }
 
@@ -111,7 +123,7 @@ async function uploadScan({ file, patientId, doctorId }) {
     file.buffer[130] !== 67 || // 'C'
     file.buffer[131] !== 77    // 'M'
   ) {
-    throw badRequest("Invalid DICOM file format. Only DICOM (.dcm) files are allowed.", "INVALID_DICOM");
+    throw badRequest("Invalid DICOM file metadata", "INVALID_DICOM");
   }
 
   const patient = await UserService.findUserById(patientId);
@@ -144,6 +156,8 @@ async function uploadScan({ file, patientId, doctorId }) {
     entity_id: scan.id,
     metadata: { scan_id: scan.id, patient_id: patientId, status: "UPLOADED" },
   });
+
+  clearCache(doctorId, scan.id);
 
   return { scan_id: scan.id, status: "UPLOADED" };
 }
@@ -453,6 +467,11 @@ async function listByPatient(patientId) {
 }
 
 async function listByDoctor(doctorId, { status, modality, search } = {}) {
+  const cacheKey = `${doctorId}_${status}_${modality}_${search}`;
+  if (listCache.has(cacheKey)) {
+    return listCache.get(cacheKey);
+  }
+
   const where = { doctor_id: doctorId };
   if (status) where.status = status;
   if (modality) where.modality = modality;
@@ -471,7 +490,7 @@ async function listByDoctor(doctorId, { status, modality, search } = {}) {
     orderBy: { uploaded_at: "desc" },
   });
 
-  return Promise.all(scans.map(async (scan) => {
+  const result = await Promise.all(scans.map(async (scan) => {
     const serialized = await serializeScan(scan);
     return {
       ...serialized,
@@ -480,6 +499,9 @@ async function listByDoctor(doctorId, { status, modality, search } = {}) {
       report_status: scan.report?.status ?? null,
     };
   }));
+
+  listCache.set(cacheKey, result);
+  return result;
 }
 
 async function deleteScan(scanId, { requester }) {
@@ -536,6 +558,8 @@ async function deleteScan(scanId, { requester }) {
     entity_type: "SCAN",
     entity_id: scanId,
   });
+
+  clearCache(scan.doctor_id, scanId);
 }
 
 module.exports = {
