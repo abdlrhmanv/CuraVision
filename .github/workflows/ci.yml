@@ -181,6 +181,8 @@ jobs:
           touch backend/.env
           touch frontend/.env.local
 
+          # Start backend first to initialize the shared volume and avoid race conditions
+          docker compose up -d backend
           docker compose up -d
 
           # Wait for backend to be healthy (ok = all up)
