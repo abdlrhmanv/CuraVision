@@ -377,6 +377,12 @@ export const patientApi = {
   getStats: () => api.get<PatientStats>("/api/patient/stats"),
   getReports: () => reportsApi.listForPatient(),
   getScans: () => api.get<{ scans: Scan[] }>("/api/patient/scans"),
+  uploadScan: (file: File, doctorId: string) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("doctor_id", doctorId);
+    return api.upload<{ scan_id: string; status: string }>("/api/patient/scans", fd);
+  },
 };
 
 export const adminApi = {

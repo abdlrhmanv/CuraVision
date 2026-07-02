@@ -1,4 +1,7 @@
 const express = require("express");
+const multer = require("multer");
+const fs = require("fs");
+const os = require("os");
 const { authenticateJWT } = require("../middleware/authenticateJWT");
 const { authorizeRole } = require("../middleware/authorizeRole");
 const ScanService = require("../services/ScanService");
@@ -7,6 +10,11 @@ const UserService = require("../services/UserService");
 const prisma = require("../config/prisma");
 
 const router = express.Router();
+
+const upload = multer({
+  dest: os.tmpdir(),
+  limits: { fileSize: 200 * 1024 * 1024 },
+});
 
 /**
  * GET /api/patients
@@ -94,6 +102,54 @@ router.get(
       const scans = await ScanService.listByPatient(req.user.sub);
       res.json({ scans });
     } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * POST /api/patient/scans
+ * Patient uploads a DICOM file and selects a doctor to examine it.
+ */
+router.post(
+  "/scans",
+  authenticateJWT,
+  authorizeRole("PATIENT"),
+  upload.single("file"),
+  async (req, res, next) => {
+    try {
+      const doctorId = req.body.doctor_id;
+      if (!doctorId) {
+        if (req.file) fs.unlink(req.file.path, () => {});
+        return res.status(400).json({
+          code: "VALIDATION_ERROR",
+          message: "doctor_id is required.",
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({
+          code: "FILE_REQUIRED",
+          message: "DICOM file is required.",
+        });
+      }
+
+      const fileBuffer = fs.readFileSync(req.file.path);
+      const fileObj = {
+        buffer: fileBuffer,
+        originalname: req.file.originalname,
+      };
+
+      const result = await ScanService.uploadScan({
+        file: fileObj,
+        patientId: req.user.sub,
+        doctorId,
+      });
+
+      fs.unlink(req.file.path, () => {});
+      res.status(201).json(result);
+    } catch (err) {
+      if (req.file) fs.unlink(req.file.path, () => {});
       next(err);
     }
   }
