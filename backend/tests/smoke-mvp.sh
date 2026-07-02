@@ -61,7 +61,16 @@ for i in {1..30}; do
   fi
   sleep 2
 done
-[ "$STATUS" = "ANALYSIS_COMPLETE" ] || { echo "scan did not complete"; exit 1; }
+[ "$STATUS" = "ANALYSIS_COMPLETE" ] || { 
+  echo "scan did not complete"
+  echo "--- AI Worker Logs ---"
+  docker logs curavision-ai-worker-1 || true
+  echo "--- AI Service Logs ---"
+  docker logs curavision-ai-service-1 || true
+  echo "--- Backend Logs ---"
+  docker logs curavision-backend-1 || true
+  exit 1 
+}
 
 echo "▶ Analysis payload"
 curl -sf -H "Authorization: Bearer $DOC_TOKEN" "$BASE_URL/api/scans/$SCAN_ID/analysis" | jq -c .
