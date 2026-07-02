@@ -6,6 +6,8 @@ import { Upload } from 'lucide-react'
 import { useRequireAuth } from '@/lib/authContext'
 import { ApiError, patientsApi, scansApi } from '@/lib/apiClient'
 
+const MAX_BYTES = 100 * 1024 * 1024
+
 export default function DoctorUploadPage() {
   const { user, loading } = useRequireAuth('DOCTOR')
   const router = useRouter()
@@ -14,6 +16,9 @@ export default function DoctorUploadPage() {
   const [file, setFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dragActive, setDragActive] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [cancelUpload, setCancelUpload] = useState<null | (() => void)>(null)
 
   useEffect(() => {
     if (loading || !user) return
@@ -33,14 +38,24 @@ export default function DoctorUploadPage() {
       setError('Select a patient and a DICOM file.')
       return
     }
+    if (file.size > MAX_BYTES) {
+      setError('File size exceeds maximum limit (100MB).')
+      return
+    }
     setSubmitting(true)
     setError(null)
+    setProgress(0)
     try {
-      const res = await scansApi.upload(file, patientId)
+      const { promise, cancel } = await scansApi.uploadWithProgress(file, patientId, {
+        onProgress: (pct) => setProgress(pct),
+      })
+      setCancelUpload(() => cancel)
+      const res = await promise
       router.push(`/doctor/scans/${res.scan_id}`)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Upload failed')
       setSubmitting(false)
+      setCancelUpload(null)
     }
   }
 
@@ -86,24 +101,63 @@ export default function DoctorUploadPage() {
           <label htmlFor="dicomUpload" className="text-[11px] tracking-wide uppercase text-muted font-semibold block mb-1.5">
             DICOM file
           </label>
-          <label htmlFor="dicomUpload" className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-blue transition cursor-pointer block">
+          <label
+            htmlFor="dicomUpload"
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition cursor-pointer block ${
+              dragActive ? 'border-blue bg-blue/5' : 'border-border hover:border-blue'
+            }`}
+            onDragOver={(e) => {
+              e.preventDefault()
+              setDragActive(true)
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault()
+              setDragActive(false)
+            }}
+            onDrop={(e) => {
+              e.preventDefault()
+              setDragActive(false)
+              const dropped = e.dataTransfer.files?.[0] ?? null
+              setFile(dropped)
+            }}
+          >
             <Upload size={28} className="mx-auto mb-2 text-muted" aria-hidden="true" />
             <div className="text-sm font-semibold">
               {file ? file.name : 'Click to choose a DICOM file'}
             </div>
             <div className="text-xs text-muted mt-1">
-              .dcm, max 200 MB
+              .dcm, max 100 MB
             </div>
             <input
               id="dicomUpload"
               type="file"
-              accept=".dcm,application/dicom,image/*"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              accept=".dcm,application/dicom"
+              onChange={(e) => {
+                const files = e.target.files
+                if (files && files.length > 1) {
+                  setError('Only one file can be uploaded at a time.')
+                  setFile(files[0] ?? null)
+                  return
+                }
+                setFile(files?.[0] ?? null)
+              }}
               className="hidden"
               aria-label="Upload DICOM file"
             />
           </label>
         </div>
+
+        {submitting && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs text-muted">
+              <span>Uploading...</span>
+              <span>{progress}%</span>
+            </div>
+            <div className="h-2 rounded bg-surface border border-border overflow-hidden">
+              <div className="h-full bg-blue" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="px-3 py-2 rounded-md bg-warn/10 border border-warn/30 text-sm text-warn">
@@ -113,11 +167,29 @@ export default function DoctorUploadPage() {
 
         <div className="flex gap-3 justify-end">
           <button
-            onClick={() => router.back()}
+            onClick={() => {
+              cancelUpload?.()
+              setSubmitting(false)
+              setCancelUpload(null)
+              router.back()
+            }}
             className="px-4 py-2 rounded-lg border border-border text-sm text-muted hover:text-white transition"
           >
             Cancel
           </button>
+          {submitting && cancelUpload && (
+            <button
+              onClick={() => {
+                cancelUpload()
+                setSubmitting(false)
+                setCancelUpload(null)
+                setError('Upload cancelled.')
+              }}
+              className="px-4 py-2 rounded-lg border border-border text-sm text-muted hover:text-white transition"
+            >
+              Cancel Upload
+            </button>
+          )}
           <button
             onClick={handleSubmit}
             disabled={submitting}

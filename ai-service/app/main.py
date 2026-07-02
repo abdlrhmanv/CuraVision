@@ -41,4 +41,11 @@ app.include_router(analysis.router, prefix="/ai", tags=["Analysis"])
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "CuraVision AI Microservice"}
+    return {
+        "status": "ok",
+        "service": "CuraVision AI Microservice",
+        "model_versions": {
+            "classification": "1.0",
+            "segmentation": "1.0"
+        }
+    }

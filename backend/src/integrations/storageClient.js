@@ -34,7 +34,7 @@ function ensureDir(dirPath) {
 }
 
 /**
- * Save a DICOM buffer to <storage>/dicoms/<scanId>/<filename>.
+ * Save a DICOM buffer to <storage>/scans/<scanId>.dcm.
  * Returns the absolute path and a logical (URL-ish) path used in DB.
  *
  * @param {string} scanId
@@ -42,17 +42,19 @@ function ensureDir(dirPath) {
  * @param {Buffer} buffer
  */
 async function saveDicom(scanId, filename, buffer) {
-  const logicalPath = `storage/dicoms/${scanId}/${filename}`;
+  // QA plan expects: scans/<uuid>.dcm
+  const normalizedName = `${scanId}.dcm`;
+  const logicalPath = `storage/scans/${normalizedName}`;
   
   // Always save locally so the local worker can access it
-  const dir = ensureDir(path.join(getStorageRoot(), "dicoms", scanId));
-  const absPath = path.join(dir, filename);
+  const dir = ensureDir(path.join(getStorageRoot(), "scans"));
+  const absPath = path.join(dir, normalizedName);
   fs.writeFileSync(absPath, buffer);
 
   if (s3Client) {
     await s3Client.send(new PutObjectCommand({
       Bucket: S3_BUCKET,
-      Key: `dicoms/${scanId}/${filename}`,
+      Key: `scans/${normalizedName}`,
       Body: buffer,
       ContentType: "application/dicom",
     }));
@@ -125,6 +127,26 @@ function isS3Enabled() {
 }
 
 /**
+ * Probe S3/MinIO connectivity for admin health dashboards.
+ * @returns {Promise<"up"|"down"|"disabled">}
+ */
+async function checkStorageHealth() {
+  if (!s3Client) return "disabled";
+  try {
+    await s3Client.send(new GetObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: "__health_probe__",
+    }));
+    return "up";
+  } catch (err) {
+    if (err.name === "NoSuchKey" || err.$metadata?.httpStatusCode === 404) {
+      return "up";
+    }
+    return "down";
+  }
+}
+
+/**
  * Reserve logical paths for derived assets (mask, heatmap) without writing
  * any bytes yet. Used by the mock analysis pipeline.
  */
@@ -162,6 +184,7 @@ module.exports = {
   uploadLocalFile,
   getObjectStream,
   isS3Enabled,
+  checkStorageHealth,
   derivedPaths,
   getPresignedGetUrl,
   getPresignedPutUrl,

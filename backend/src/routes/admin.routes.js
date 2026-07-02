@@ -81,6 +81,104 @@ router.get(
 );
 
 /**
+ * POST /api/admin/users
+ * Create a new user account (admin-provisioned, immediately active).
+ */
+router.post(
+  "/users",
+  authenticateJWT,
+  authorizeRole("ADMIN"),
+  [
+    body("email").isEmail().normalizeEmail().withMessage("Valid email is required."),
+    body("password")
+      .isLength({ min: 8 })
+      .withMessage("Password must be at least 8 characters."),
+    body("full_name")
+      .trim()
+      .isLength({ min: 1, max: 255 })
+      .withMessage("Full name is required."),
+    body("role")
+      .isIn(["PATIENT", "DOCTOR", "ADMIN"])
+      .withMessage("Role must be PATIENT, DOCTOR, or ADMIN."),
+  ],
+  async (req, res, next) => {
+    try {
+      if (!validate(req, res)) return;
+
+      const user = await UserService.createUserByAdmin({
+        email: req.body.email,
+        password: req.body.password,
+        full_name: req.body.full_name,
+        role: req.body.role,
+      });
+
+      AuditService.log({
+        user_id: req.user.sub,
+        action: "ADMIN_CREATE_USER",
+        entity_type: "USER",
+        entity_id: user.id,
+        metadata: { role: user.role },
+      });
+
+      res.status(201).json(user);
+    } catch (err) {
+      if (err.code === "EMAIL_IN_USE") {
+        return res.status(err.status).json({ code: err.code, message: err.message });
+      }
+      next(err);
+    }
+  }
+);
+
+/**
+ * GET /api/admin/system-health
+ * Connection status for database, AI service, and object storage.
+ */
+router.get(
+  "/system-health",
+  authenticateJWT,
+  authorizeRole("ADMIN"),
+  async (_req, res, next) => {
+    try {
+      const checks = {
+        database: "unknown",
+        ai_service: "unknown",
+        s3: "unknown",
+      };
+
+      try {
+        await prisma.$queryRaw`SELECT 1`;
+        checks.database = "up";
+      } catch (_err) {
+        checks.database = "down";
+      }
+
+      try {
+        const { fastapiClient } = require("../integrations/fastapiClient");
+        await fastapiClient.get("/health", { timeout: 2000 });
+        checks.ai_service = "up";
+      } catch (_err) {
+        checks.ai_service = "down";
+      }
+
+      const { checkStorageHealth } = require("../integrations/storageClient");
+      checks.s3 = await checkStorageHealth();
+
+      res.json({
+        status:
+          checks.database === "up" && checks.ai_service === "up"
+            ? "healthy"
+            : "degraded",
+        checks,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
  * PATCH /api/admin/users/:id
  * Update a user's role, status, or display name.
  */

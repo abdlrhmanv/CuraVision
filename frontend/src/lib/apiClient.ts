@@ -247,6 +247,55 @@ export const scansApi = {
     fd.append("patient_id", patientId);
     return api.upload<{ scan_id: string; status: string }>("/api/scans", fd);
   },
+  uploadWithProgress: async (
+    file: File,
+    patientId: string,
+    opts?: { onProgress?: (pct: number) => void }
+  ) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("patient_id", patientId);
+
+    const xhr = new XMLHttpRequest();
+    const xsrf = await ensureCsrfToken();
+    const promise = new Promise<{ scan_id: string; status: string }>((resolve, reject) => {
+      xhr.open("POST", `${API_BASE_URL}/api/scans`);
+      xhr.withCredentials = true;
+      xhr.responseType = "text";
+      if (xsrf) xhr.setRequestHeader("X-XSRF-TOKEN", xsrf);
+
+      xhr.upload.onprogress = (evt) => {
+        if (!evt.lengthComputable) return;
+        const pct = Math.max(0, Math.min(100, Math.round((evt.loaded / evt.total) * 100)));
+        opts?.onProgress?.(pct);
+      };
+
+      xhr.onload = () => {
+        const text = xhr.responseText || "";
+        let data: unknown = null;
+        if (text) {
+          try {
+            data = JSON.parse(text);
+          } catch {
+            data = text;
+          }
+        }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(data as { scan_id: string; status: string });
+        } else {
+          const d = (data ?? {}) as { code?: string; message?: string; errors?: unknown };
+          reject(new ApiError(xhr.status, d.code ?? "HTTP_ERROR", d.message ?? xhr.statusText, d.errors));
+        }
+      };
+
+      xhr.onerror = () => reject(new ApiError(0, "NETWORK_ERROR", "Network error during upload."));
+      xhr.onabort = () => reject(new ApiError(0, "UPLOAD_CANCELLED", "Upload cancelled."));
+
+      xhr.send(fd);
+    });
+
+    return { promise, cancel: () => xhr.abort() };
+  },
   get: (id: string) => api.get<Scan>(`/api/scans/${id}`),
   analysis: (id: string) => api.get<ScanAnalysis>(`/api/scans/${id}/analysis`),
   reportForScan: (id: string) => api.get<Report>(`/api/scans/${id}/report`),
@@ -272,6 +321,7 @@ export interface Report {
   scan_id: string;
   patient_id: string;
   doctor_id: string;
+  doctor_name?: string;
   status: "DRAFT" | "REVIEWED" | "PUBLISHED";
   patient_visible: boolean;
   ai_draft?: string;
@@ -293,8 +343,14 @@ export const reportsApi = {
   patch: (id: string, patch: { final_report?: string; corrections?: unknown[] }) =>
     api.patch<Report>(`/api/reports/${id}`, patch),
   approve: (id: string) => api.post<Report>(`/api/reports/${id}/approve`),
-  listForPatient: () =>
-    api.get<{ reports: Report[] }>("/api/patient/reports"),
+  listForPatient: (params?: { doctor_id?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.doctor_id) qs.set("doctor_id", params.doctor_id);
+    const query = qs.toString();
+    return api.get<{ reports: Report[] }>(
+      `/api/patient/reports${query ? `?${query}` : ""}`
+    );
+  },
   getForPatient: (id: string) => api.get<Report>(`/api/patient/reports/${id}`),
   corrections: (id: string) =>
     api.get<{ report_id: string; corrections: ReportCorrection[] }>(
@@ -411,9 +467,24 @@ export interface PatientStats {
   total_appointments: number;
 }
 
+export interface PatientProfile {
+  user_id: string;
+  email: string;
+  full_name: string;
+  date_of_birth: string | null;
+  gender: string | null;
+  phone: string | null;
+  country: string | null;
+  medical_history: string | null;
+  allergies: string | null;
+}
+
 export const patientApi = {
   getStats: () => api.get<PatientStats>("/api/patient/stats"),
-  getReports: () => reportsApi.listForPatient(),
+  getProfile: () => api.get<PatientProfile>("/api/patient/profile"),
+  updateProfile: (patch: Partial<PatientProfile>) =>
+    api.patch<PatientProfile>("/api/patient/profile", patch),
+  getReports: (params?: { doctor_id?: string }) => reportsApi.listForPatient(params),
   getScans: () => api.get<{ scans: Scan[] }>("/api/patient/scans"),
   uploadScan: (file: File, doctorId: string) => {
     const fd = new FormData();
@@ -445,7 +516,21 @@ export const adminApi = {
   updateUser: (userId: string, updates: Partial<User>) =>
     api.patch<User>(`/api/admin/users/${userId}`, updates),
 
-  getAuditLogs: (params?: {
+  createUser: (input: {
+    email: string;
+    password: string;
+    full_name: string;
+    role: User['role'];
+  }) => api.post<User>('/api/admin/users', input),
+
+  getSystemHealth: () =>
+    api.get<{
+      status: 'healthy' | 'degraded';
+      checks: { database: string; ai_service: string; s3: string };
+      timestamp: string;
+    }>('/api/admin/system-health'),
+
+  getAuditLogs: async (params?: {
     user_id?: string;
     action?: string;
     entity_type?: string;
@@ -466,6 +551,15 @@ export const adminApi = {
     if (params?.offset) searchParams.set('offset', params.offset.toString());
 
     const query = searchParams.toString();
-    return api.get<{ logs: AuditLog[]; total: number }>(`/api/admin/audit-logs${query ? `?${query}` : ''}`);
+    const result = await api.get<{
+      items?: AuditLog[];
+      logs?: AuditLog[];
+      total: number;
+    }>(`/api/admin/audit-logs${query ? `?${query}` : ''}`);
+
+    return {
+      logs: result.logs ?? result.items ?? [],
+      total: result.total,
+    };
   },
 };

@@ -32,7 +32,7 @@ export default function AdminDashboard() {
 
         // Fetch recent audit logs
         const logsResponse = await adminApi.getAuditLogs({ limit: 10 });
-        setRecentLogs(logsResponse.logs);
+        setRecentLogs(logsResponse.logs ?? []);
 
         // Fetch user stats
         const usersResponse = await adminApi.listUsers();
@@ -168,12 +168,13 @@ export default function AdminDashboard() {
                   <th className="px-4 py-3 font-medium text-gray-500">Action</th>
                   <th className="px-4 py-3 font-medium text-gray-500">Entity Type</th>
                   <th className="px-4 py-3 font-medium text-gray-500">Entity ID</th>
+                  <th className="px-4 py-3 font-medium text-gray-500">Metadata</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {recentLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                       No audit logs available
                     </td>
                   </tr>
@@ -191,6 +192,9 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-4 py-3">{log.entity_type}</td>
                       <td className="px-4 py-3 font-mono text-xs">{log.entity_id}</td>
+                      <td className="px-4 py-3 text-gray-500 text-xs max-w-xs truncate">
+                        {log.metadata ? JSON.stringify(log.metadata) : '-'}
+                      </td>
                     </tr>
                   ))
                 )}

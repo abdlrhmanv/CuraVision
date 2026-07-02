@@ -1,4 +1,6 @@
+const bcrypt = require("bcryptjs");
 const prisma = require("../config/prisma");
+const { conflict } = require("../utils/AppError");
 
 class UserService {
   static toPublicUser(user) {
@@ -46,6 +48,29 @@ class UserService {
       where: { id },
       data,
     });
+    return this.toPublicUser(user);
+  }
+
+  static async createUserByAdmin({ email, password, full_name, role }) {
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      throw conflict("Email already in use", "EMAIL_IN_USE");
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const password_hash = await bcrypt.hash(password, salt);
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password_hash,
+        full_name,
+        role,
+        status: "ACTIVE",
+        email_verified: true,
+      },
+    });
+
     return this.toPublicUser(user);
   }
 }

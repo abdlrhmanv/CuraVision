@@ -34,8 +34,22 @@ const os = require("os");
 
 const upload = multer({
   dest: os.tmpdir(),
-  limits: { fileSize: 200 * 1024 * 1024 },
+  // QA plan: max 100MB
+  limits: { fileSize: 100 * 1024 * 1024 },
 });
+
+function uploadSingleFile(req, res, next) {
+  upload.single("file")(req, res, (err) => {
+    if (!err) return next();
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({
+        code: "FILE_TOO_LARGE",
+        message: "File size exceeds maximum limit (100MB).",
+      });
+    }
+    return next(err);
+  });
+}
 
 /**
  * POST /api/scans
@@ -45,7 +59,7 @@ router.post(
   "/",
   authenticateJWT,
   authorizeRole("DOCTOR"),
-  upload.single("file"),
+  uploadSingleFile,
   async (req, res, next) => {
     try {
       const patientId = req.body.patient_id;
@@ -62,7 +76,7 @@ router.post(
       if (!req.file) {
         return res.status(400).json({
           code: "FILE_REQUIRED",
-          message: "DICOM file is required.",
+          message: "file is required",
         });
       }
 

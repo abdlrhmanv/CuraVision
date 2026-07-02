@@ -145,7 +145,7 @@ export default function PatientDashboard() {
           <div className="text-sm text-muted">Loading...</div>
         ) : reports.length === 0 ? (
           <div className="text-sm text-muted py-6 text-center">
-            No published reports yet. Your doctor will share them here once ready.
+            No reports available yet
           </div>
         ) : (
           <div className="space-y-2">
@@ -154,16 +154,15 @@ export default function PatientDashboard() {
                 key={report.id}
                 onClick={() => router.push(`/patient/reports/${report.id}`)}
                 className="w-full bg-surface border border-border rounded-lg p-3.5 flex items-center justify-between gap-3 flex-wrap hover:border-accent transition text-left focus:ring-2 focus:ring-accent"
-                aria-label={`View report for scan ${report.scan_id.slice(0, 8)}`}
+                aria-label={`View report from ${report.doctor_name ?? 'doctor'}`}
               >
                 <div className="flex-1">
                   <div className="text-sm font-semibold">
-                    Report for scan {report.scan_id.slice(0, 8)}
+                    {report.doctor_name ?? 'Your doctor'}
                   </div>
                   <div className="text-xs text-muted mt-1">
-                    {report.final_report
-                      ? report.final_report.substring(0, 80) + '...'
-                      : 'Report available — click to view.'}
+                    {new Date(report.updated_at).toLocaleDateString()} · Scan{' '}
+                    {report.scan_id.slice(0, 8)}
                   </div>
                 </div>
                 <span className={`text-[10px] px-2 py-1 rounded ${statusTone(report.status)}`}>

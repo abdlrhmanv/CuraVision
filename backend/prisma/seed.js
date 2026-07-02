@@ -158,6 +158,50 @@ async function main() {
     },
   });
 
+  console.log("Seeding patient profiles...");
+  await prisma.patientProfile.upsert({
+    where: { user_id: "patient-001" },
+    update: {},
+    create: {
+      user_id: "patient-001",
+      date_of_birth: new Date("1995-03-15"),
+      gender: "FEMALE",
+      phone: "+20 10 1234 5678",
+      country: "Egypt",
+      medical_history: "Neurological follow-up; migraine history.",
+      allergies: "None reported",
+    },
+  });
+  await prisma.patientProfile.upsert({
+    where: { user_id: "patient-002" },
+    update: {},
+    create: {
+      user_id: "patient-002",
+      date_of_birth: new Date("1988-07-22"),
+      gender: "MALE",
+      phone: "+20 11 9876 5432",
+      country: "Egypt",
+      medical_history: "Post-contrast MRI evaluation.",
+      allergies: "Penicillin",
+    },
+  });
+
+  console.log("Seeding draft report (hidden from patient)...");
+  await prisma.report.upsert({
+    where: { id: "report-draft-001" },
+    update: {},
+    create: {
+      id: "report-draft-001",
+      scan_id: "scan-005",
+      patient_id: "patient-001",
+      doctor_id: "doctor-001",
+      status: "DRAFT",
+      patient_visible: false,
+      ai_draft: "Draft AI findings — not yet reviewed by doctor.",
+      final_report: null,
+    },
+  });
+
   console.log("Seed complete.");
 }
 

@@ -70,4 +70,20 @@ router.get(
   }
 );
 
+router.post(
+  "/:id/lock",
+  authenticateJWT,
+  authorizeRole("DOCTOR"),
+  async (req, res, next) => {
+    try {
+      const lockStatus = await ReportService.pingReportLock(req.params.id, {
+        requester: req.user,
+      });
+      res.json(lockStatus);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 module.exports = router;

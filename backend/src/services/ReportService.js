@@ -72,6 +72,34 @@ async function getReportForScan(scanId, { requester }) {
   return report;
 }
 
+// In-memory lock map: reportId -> { doctorId, expiresAt }
+global.activeReportLocks = global.activeReportLocks || new Map();
+
+async function pingReportLock(reportId, { requester }) {
+  const report = await getReportById(reportId);
+  if (!report) throw notFound("Report not found.", "REPORT_NOT_FOUND");
+  
+  const now = Date.now();
+  const currentLock = global.activeReportLocks.get(reportId);
+
+  // If there's an active lock held by someone else, return warning
+  if (currentLock && currentLock.expiresAt > now && currentLock.doctorId !== requester.sub) {
+    return { 
+      locked: true, 
+      lockedBy: currentLock.doctorId,
+      message: "Report is currently being edited by another doctor."
+    };
+  }
+
+  // Acquire or refresh lock (valid for 45 seconds)
+  global.activeReportLocks.set(reportId, {
+    doctorId: requester.sub,
+    expiresAt: now + 45000,
+  });
+
+  return { locked: false, lockedBy: requester.sub };
+}
+
 async function editReport(reportId, { requester, final_report, corrections }) {
   const report = await getReportById(reportId);
   if (!report) throw notFound("Report not found.", "REPORT_NOT_FOUND");
@@ -80,6 +108,15 @@ async function editReport(reportId, { requester, final_report, corrections }) {
   }
   if (report.status === "PUBLISHED") {
     throw conflict("Published reports cannot be edited.", "REPORT_PUBLISHED");
+  }
+
+  if (typeof final_report === "string") {
+    if (final_report.trim().length === 0) {
+      throw badRequest("Report text cannot be empty.", "REPORT_EMPTY");
+    }
+    if (final_report.length > 100000) {
+      throw badRequest("Report text exceeds maximum length of 100,000 characters.", "REPORT_TOO_LONG");
+    }
   }
 
   const previousFinal = report.final_report;
@@ -229,23 +266,42 @@ async function sendNotificationEmail(patientId, reportId) {
   logger.info(`Email notification sent to ${user.email} (MessageID: ${info.messageId})`);
 }
 
-async function listForPatient(patientId) {
+async function listForPatient(patientId, { doctorId } = {}) {
+  const where = {
+    patient_id: patientId,
+    patient_visible: true,
+  };
+  if (doctorId) where.doctor_id = doctorId;
+
   const reports = await prisma.report.findMany({
-    where: {
-      patient_id: patientId,
-      patient_visible: true,
-    },
+    where,
+    include: { doctor: { select: { full_name: true } } },
     orderBy: { updated_at: "desc" },
   });
-  return reports.map(serializeReport);
+  return reports.map((report) => ({
+    ...serializeReport(report),
+    doctor_name: report.doctor.full_name,
+  }));
 }
 
 async function getForPatient(reportId, patientId) {
-  const report = await getReportById(reportId);
-  if (!report || !report.patient_visible || report.patient_id !== patientId) {
+  const report = await prisma.report.findUnique({
+    where: { id: reportId },
+    include: { doctor: { select: { full_name: true } } },
+  });
+  if (!report) {
     throw notFound("Report not found.", "REPORT_NOT_FOUND");
   }
-  return report;
+  if (report.patient_id !== patientId) {
+    throw notFound("Report not found.", "REPORT_NOT_FOUND");
+  }
+  if (!report.patient_visible || report.status === "DRAFT") {
+    throw forbidden("Draft reports are not available to patients.", "REPORT_FORBIDDEN");
+  }
+  return {
+    ...serializeReport(report),
+    doctor_name: report.doctor.full_name,
+  };
 }
 
 async function getCorrections(reportId, { requester }) {
@@ -274,4 +330,5 @@ module.exports = {
   listForPatient,
   getForPatient,
   getCorrections,
+  pingReportLock,
 };

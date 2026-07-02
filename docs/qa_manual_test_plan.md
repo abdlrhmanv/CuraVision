@@ -29,55 +29,55 @@ This document contains the comprehensive manual test plan for CuraVision. It cov
 
 ## Test Plan Details
 
-### Module: Authentication
+### Module: Authentication (DONE)
 
 | Test ID | Feature | Preconditions | Test Steps | Expected Result | Priority | Severity | Test Data | Pass/Fail |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
-| TC-AUTH-001 | User Login with Valid Credentials | User is registered and status is ACTIVE | 1. Navigate to login page.<br>2. Enter valid email and password.<br>3. Click Login. | User is authenticated and redirected to their respective dashboard. | P0 | Critical | doctor@curavision.com / Doctor@123 | [ ] |
-| TC-AUTH-002 | User Login with Invalid Password | User is registered | 1. Navigate to login page.<br>2. Enter valid email and incorrect password.<br>3. Click Login. | Validation error displayed: 'Email or password is incorrect.' | P0 | High | doctor@curavision.com / Wrong@123 | [ ] |
-| TC-AUTH-003 | User Login with Empty Fields | Login page is opened | 1. Leave email and password blank.<br>2. Click Login. | Frontend validation highlights fields; form submission blocked. | P1 | Medium | None | [ ] |
-| TC-AUTH-004 | User Login with Malformed Email | Login page is opened | 1. Enter email without '@' or domain.<br>2. Click Login. | Validation error: 'Please enter a valid email address.' | P1 | Medium | invalidemail | [ ] |
-| TC-AUTH-005 | New User Registration (Patient) | Registration page is opened | 1. Enter valid details (email, full name, password).<br>2. Click Register. | Account created in DISABLED state; verification email triggered via Ethereal. | P0 | High | new_patient@example.com / Patient@123 | [ ] |
-| TC-AUTH-006 | Email Verification Success Flow | User just registered; verification email sent | 1. Click verification link in email.<br>2. Verify redirection. | User status updated to ACTIVE in DB; redirected to login with success message. | P0 | High | Verification token | [ ] |
-| TC-AUTH-007 | Email Verification Link Expiry | Verification link sent to user | 1. Attempt to use expired verification token (>24h).<br>2. Click link. | Error message: 'Verification link expired or invalid.' | P1 | High | Expired token | [ ] |
-| TC-AUTH-008 | Login Attempt with Disabled Account | User is registered but email is not verified (status DISABLED) | 1. Enter credentials.<br>2. Click Login. | Login rejected with 403 Forbidden: 'This account is not active.' | P0 | High | disabled_user@example.com | [ ] |
-| TC-AUTH-009 | Forgot Password - Trigger Link | Login page is opened | 1. Click 'Forgot Password'.<br>2. Enter registered email.<br>3. Click Send Reset Link. | Success message displayed; reset token email sent. | P1 | High | doctor@curavision.com | [ ] |
-| TC-AUTH-010 | Forgot Password - Nonexistent Email | Login page is opened | 1. Click 'Forgot Password'.<br>2. Enter unregistered email.<br>3. Click Send Reset Link. | System returns success message (to prevent user enumeration) but sends no email. | P2 | Low | fakeemail@example.com | [ ] |
-| TC-AUTH-011 | Reset Password - Use Link | Reset token email received | 1. Click reset link.<br>2. Enter new password.<br>3. Click Reset Password. | Password successfully updated in DB; user redirected to login. | P0 | High | NewPassword@123 | [ ] |
-| TC-AUTH-012 | Reset Password - Invalid Token | Password reset page is opened | 1. Modify the reset token in URL.<br>2. Enter new password and click Reset. | Reset rejected with 401: 'Password reset token is invalid or has expired.' | P1 | High | Invalid token | [ ] |
-| TC-AUTH-013 | Session Persistence on Refresh | User is logged in | 1. Navigate to dashboard.<br>2. Refresh the page. | Session remains active using JWT; dashboard remains visible. | P1 | Medium | None | [ ] |
-| TC-AUTH-014 | Session Expiry (JWT 15m) | User is logged in | 1. Idle for 15 minutes.<br>2. Perform a dashboard action. | Redirected to login page; token refreshed or rejected. | P1 | High | None | [ ] |
-| TC-AUTH-015 | User Logout - Direct Action | User is logged in | 1. Click 'Logout' button in sidebar. | Session tokens cleared from client; redirected to login; back button does not restore session. | P0 | High | None | [ ] |
-| TC-AUTH-016 | Password Length Validation | Registration page is opened | 1. Register with a password of 7 characters.<br>2. Click Register. | Validation error: 'Password must be at least 8 characters long.' | P1 | Medium | short12 | [ ] |
-| TC-AUTH-017 | Password Masking Toggle | Login/Registration page opened | 1. Click visibility eye icon next to password input. | Password characters toggle between masked (dots) and plaintext. | P2 | Low | None | [ ] |
-| TC-AUTH-018 | Duplicate Email Registration | User email already exists in system | 1. Attempt to register with the same email.<br>2. Click Register. | Error message: 'Email already in use.' (409) | P0 | High | patient1@curavision.com | [ ] |
-| TC-AUTH-019 | Bearer Token Format Verification | API requests are sent | 1. Inspect outgoing requests for Authorization header format. | Header includes: 'Bearer <JWT_TOKEN>'. | P1 | High | None | [ ] |
-| TC-AUTH-020 | Refresh Token Handshake | User session is active | 1. Let short-lived JWT expire.<br>2. Attempt a fetch operation. | Refresh token exchanged silently for new JWT; no user interruption. | P1 | Medium | None | [ ] |
-| TC-AUTH-021 | Password Strength Indicator Visibility | Registration page opened | 1. Enter password with different complexities. | Displays strength level (e.g. Weak, Medium, Strong) dynamically. | P2 | Low | Pass123! | [ ] |
-| TC-AUTH-022 | Account Lockout Policy Trigger | Active account exists | 1. Submit incorrect login 5 times in a row. | Account status set to LOCKED; login blocked for 15 minutes. | P0 | High | doctor@curavision.com | [ ] |
-| TC-AUTH-023 | JWT Expiration Time Verification | Token generated | 1. Inspect token payload details. | exp timestamp is set to exactly 15 minutes in the future. | P1 | Medium | None | [ ] |
-| TC-AUTH-024 | Autofill Compatibility | Login form opened | 1. Focus email input. | Browser autofill suggestions pop up correctly. | P2 | Low | None | [ ] |
-| TC-AUTH-025 | Multiple Session Terminate | User logged in on browser A | 1. Log in on browser B.<br>2. Click Logout on browser B. | Browser B is logged out; browser A session remains unaffected. | P2 | Low | None | [ ] |
+| TC-AUTH-001 | User Login with Valid Credentials | User is registered and status is ACTIVE | 1. Navigate to login page.<br>2. Enter valid email and password.<br>3. Click Login. | User is authenticated and redirected to their respective dashboard. | P0 | Critical | doctor@curavision.com / Doctor@123 | [x] |
+| TC-AUTH-002 | User Login with Invalid Password | User is registered | 1. Navigate to login page.<br>2. Enter valid email and incorrect password.<br>3. Click Login. | Validation error displayed: 'Email or password is incorrect.' | P0 | High | doctor@curavision.com / Wrong@123 | [x] |
+| TC-AUTH-003 | User Login with Empty Fields | Login page is opened | 1. Leave email and password blank.<br>2. Click Login. | Frontend validation highlights fields; form submission blocked. | P1 | Medium | None | [x] |
+| TC-AUTH-004 | User Login with Malformed Email | Login page is opened | 1. Enter email without '@' or domain.<br>2. Click Login. | Validation error: 'Please enter a valid email address.' | P1 | Medium | invalidemail | [x] |
+| TC-AUTH-005 | New User Registration (Patient) | Registration page is opened | 1. Enter valid details (email, full name, password).<br>2. Click Register. | Account created in DISABLED state; verification email triggered via Ethereal. | P0 | High | new_patient@example.com / Patient@123 | [x] |
+| TC-AUTH-006 | Email Verification Success Flow | User just registered; verification email sent | 1. Click verification link in email.<br>2. Verify redirection. | User status updated to ACTIVE in DB; redirected to login with success message. | P0 | High | Verification token | [x] |
+| TC-AUTH-007 | Email Verification Link Expiry | Verification link sent to user | 1. Attempt to use expired verification token (>24h).<br>2. Click link. | Error message: 'Verification link expired or invalid.' | P1 | High | Expired token | [x] |
+| TC-AUTH-008 | Login Attempt with Disabled Account | User is registered but email is not verified (status DISABLED) | 1. Enter credentials.<br>2. Click Login. | Login rejected with 403 Forbidden: 'This account is not active.' | P0 | High | disabled_user@example.com | [x] |
+| TC-AUTH-009 | Forgot Password - Trigger Link | Login page is opened | 1. Click 'Forgot Password'.<br>2. Enter registered email.<br>3. Click Send Reset Link. | Success message displayed; reset token email sent. | P1 | High | doctor@curavision.com | [x] |
+| TC-AUTH-010 | Forgot Password - Nonexistent Email | Login page is opened | 1. Click 'Forgot Password'.<br>2. Enter unregistered email.<br>3. Click Send Reset Link. | System returns success message (to prevent user enumeration) but sends no email. | P2 | Low | fakeemail@example.com | [x] |
+| TC-AUTH-011 | Reset Password - Use Link | Reset token email received | 1. Click reset link.<br>2. Enter new password.<br>3. Click Reset Password. | Password successfully updated in DB; user redirected to login. | P0 | High | NewPassword@123 | [x] |
+| TC-AUTH-012 | Reset Password - Invalid Token | Password reset page is opened | 1. Modify the reset token in URL.<br>2. Enter new password and click Reset. | Reset rejected with 401: 'Password reset token is invalid or has expired.' | P1 | High | Invalid token | [x] |
+| TC-AUTH-013 | Session Persistence on Refresh | User is logged in | 1. Navigate to dashboard.<br>2. Refresh the page. | Session remains active using JWT; dashboard remains visible. | P1 | Medium | None | [x] |
+| TC-AUTH-014 | Session Expiry (JWT 15m) | User is logged in | 1. Idle for 15 minutes.<br>2. Perform a dashboard action. | Redirected to login page; token refreshed or rejected. | P1 | High | None | [x] |
+| TC-AUTH-015 | User Logout - Direct Action | User is logged in | 1. Click 'Logout' button in sidebar. | Session tokens cleared from client; redirected to login; back button does not restore session. | P0 | High | None | [x] |
+| TC-AUTH-016 | Password Length Validation | Registration page is opened | 1. Register with a password of 7 characters.<br>2. Click Register. | Validation error: 'Password must be at least 8 characters long.' | P1 | Medium | short12 | [x] |
+| TC-AUTH-017 | Password Masking Toggle | Login/Registration page opened | 1. Click visibility eye icon next to password input. | Password characters toggle between masked (dots) and plaintext. | P2 | Low | None | [x] |
+| TC-AUTH-018 | Duplicate Email Registration | User email already exists in system | 1. Attempt to register with the same email.<br>2. Click Register. | Error message: 'Email already in use.' (409) | P0 | High | patient1@curavision.com | [x] |
+| TC-AUTH-019 | Bearer Token Format Verification | API requests are sent | 1. Inspect outgoing requests for Authorization header format. | Header includes: 'Bearer <JWT_TOKEN>'. | P1 | High | None | [x] |
+| TC-AUTH-020 | Refresh Token Handshake | User session is active | 1. Let short-lived JWT expire.<br>2. Attempt a fetch operation. | Refresh token exchanged silently for new JWT; no user interruption. | P1 | Medium | None | [x] |
+| TC-AUTH-021 | Password Strength Indicator Visibility | Registration page opened | 1. Enter password with different complexities. | Displays strength level (e.g. Weak, Medium, Strong) dynamically. | P2 | Low | Pass123! | [x] |
+| TC-AUTH-022 | Account Lockout Policy Trigger | Active account exists | 1. Submit incorrect login 5 times in a row. | Account status set to LOCKED; login blocked for 15 minutes. | P0 | High | doctor@curavision.com | [x] |
+| TC-AUTH-023 | JWT Expiration Time Verification | Token generated | 1. Inspect token payload details. | exp timestamp is set to exactly 15 minutes in the future. | P1 | Medium | None | [x] |
+| TC-AUTH-024 | Autofill Compatibility | Login form opened | 1. Focus email input. | Browser autofill suggestions pop up correctly. | P2 | Low | None | [x] |
+| TC-AUTH-025 | Multiple Session Terminate | User logged in on browser A | 1. Log in on browser B.<br>2. Click Logout on browser B. | Browser B is logged out; browser A session remains unaffected. | P2 | Low | None | [x] |
 
-### Module: Authorization & RBAC
+### Module: Authorization & RBAC (DONE)
 
 | Test ID | Feature | Preconditions | Test Steps | Expected Result | Priority | Severity | Test Data | Pass/Fail |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
-| TC-RBAC-001 | Doctor Route Protection | Patient is logged in | 1. Attempt to navigate directly to /doctor/dashboard. | Access denied; redirected to patient dashboard or 403 page. | P0 | Critical | patient-token | [ ] |
-| TC-RBAC-002 | Patient Route Protection | Doctor is logged in | 1. Attempt to navigate directly to /patient/dashboard. | Access denied; redirected to doctor dashboard or 403 page. | P0 | Critical | doctor-token | [ ] |
-| TC-RBAC-003 | Admin Route Protection | Doctor is logged in | 1. Attempt to access /admin/audit-logs. | Access denied; error 403 Forbidden returned from API. | P0 | Critical | doctor-token | [ ] |
-| TC-RBAC-004 | Unauthenticated Route Access | User is logged out | 1. Attempt to access /doctor/dashboard or /patient/dashboard. | Access denied; redirected to login page. | P0 | Critical | None | [ ] |
-| TC-RBAC-005 | API Authentication Required | User is logged out | 1. Send GET request to /api/scans without headers. | Error 401 Unauthorized: 'Token is required'. | P0 | Critical | None | [ ] |
-| TC-RBAC-006 | Patient Scan Isolation | Patient A is logged in | 1. Request details for Scan B (Patient B) via API. | Error 403 Forbidden; patients can only view their own scans. | P0 | Critical | Patient B Scan ID | [ ] |
-| TC-RBAC-007 | Doctor Scan Access Verification | Doctor is logged in | 1. Request details for Scan A (assigned to this doctor). | Details returned successfully. | P0 | Critical | Scan A ID | [ ] |
-| TC-RBAC-008 | Doctor Cross-Patient Isolation | Doctor A is logged in | 1. Attempt to request scan details assigned to Doctor B. | Error 403 Forbidden; doctors can only access assigned scans. | P0 | Critical | Doctor B Scan ID | [ ] |
-| TC-RBAC-009 | Report Edit Role Restriction | Patient is logged in | 1. Send PATCH to /api/reports/1 with updated findings. | Error 403 Forbidden; patients cannot modify reports. | P0 | Critical | Report ID 1 | [ ] |
-| TC-RBAC-010 | Report Approval Restriction | Patient is logged in | 1. Send POST to /api/reports/1/approve. | Error 403 Forbidden; only doctors can approve reports. | P0 | Critical | Report ID 1 | [ ] |
-| TC-RBAC-011 | Admin Privilege Verification | Admin is logged in | 1. Send GET to /api/admin/audit-logs. | Full audit log dashboard loads successfully. | P0 | Critical | admin-token | [ ] |
-| TC-RBAC-012 | Role Escalation Attempt | Patient is logged in | 1. Attempt to send PATCH to /api/users/self with role: 'DOCTOR'. | Role update ignored or rejected; role remains PATIENT. | P0 | Critical | patient-token | [ ] |
-| TC-RBAC-013 | Audit Log Isolation | Doctor is logged in | 1. Send GET to /api/admin/audit-logs. | Access denied; 403 Forbidden returned. | P0 | Critical | doctor-token | [ ] |
-| TC-RBAC-014 | Token Forgery Verification | Manipulated JWT token header | 1. Send request with signed token containing fake claims. | Rejected with 401/403 due to cryptographic signature failure. | P0 | Critical | Forged JWT | [ ] |
-| TC-RBAC-015 | Route Access Matrix Validation | Role assigned as GUEST (if exists) | 1. Attempt to access any internal API endpoints. | All requests rejected; role has no explicit grants. | P0 | Critical | Guest token | [ ] |
+| TC-RBAC-001 | Doctor Route Protection | Patient is logged in | 1. Attempt to navigate directly to /doctor/dashboard. | Access denied; redirected to patient dashboard or 403 page. | P0 | Critical | patient-token | [x] |
+| TC-RBAC-002 | Patient Route Protection | Doctor is logged in | 1. Attempt to navigate directly to /patient/dashboard. | Access denied; redirected to doctor dashboard or 403 page. | P0 | Critical | doctor-token | [x] |
+| TC-RBAC-003 | Admin Route Protection | Doctor is logged in | 1. Attempt to access /admin/audit-logs. | Access denied; error 403 Forbidden returned from API. | P0 | Critical | doctor-token | [x] |
+| TC-RBAC-004 | Unauthenticated Route Access | User is logged out | 1. Attempt to access /doctor/dashboard or /patient/dashboard. | Access denied; redirected to login page. | P0 | Critical | None | [x] |
+| TC-RBAC-005 | API Authentication Required | User is logged out | 1. Send GET request to /api/scans without headers. | Error 401 Unauthorized: 'Token is required'. | P0 | Critical | None | [x] |
+| TC-RBAC-006 | Patient Scan Isolation | Patient A is logged in | 1. Request details for Scan B (Patient B) via API. | Error 403 Forbidden; patients can only view their own scans. | P0 | Critical | Patient B Scan ID | [x] |
+| TC-RBAC-007 | Doctor Scan Access Verification | Doctor is logged in | 1. Request details for Scan A (assigned to this doctor). | Details returned successfully. | P0 | Critical | Scan A ID | [x] |
+| TC-RBAC-008 | Doctor Cross-Patient Isolation | Doctor A is logged in | 1. Attempt to request scan details assigned to Doctor B. | Error 403 Forbidden; doctors can only access assigned scans. | P0 | Critical | Doctor B Scan ID | [x] |
+| TC-RBAC-009 | Report Edit Role Restriction | Patient is logged in | 1. Send PATCH to /api/reports/1 with updated findings. | Error 403 Forbidden; patients cannot modify reports. | P0 | Critical | Report ID 1 | [x] |
+| TC-RBAC-010 | Report Approval Restriction | Patient is logged in | 1. Send POST to /api/reports/1/approve. | Error 403 Forbidden; only doctors can approve reports. | P0 | Critical | Report ID 1 | [x] |
+| TC-RBAC-011 | Admin Privilege Verification | Admin is logged in | 1. Send GET to /api/admin/audit-logs. | Full audit log dashboard loads successfully. | P0 | Critical | admin-token | [x] |
+| TC-RBAC-012 | Role Escalation Attempt | Patient is logged in | 1. Attempt to send PATCH to /api/users/self with role: 'DOCTOR'. | Role update ignored or rejected; role remains PATIENT. | P0 | Critical | patient-token | [x] |
+| TC-RBAC-013 | Audit Log Isolation | Doctor is logged in | 1. Send GET to /api/admin/audit-logs. | Access denied; 403 Forbidden returned. | P0 | Critical | doctor-token | [x] |
+| TC-RBAC-014 | Token Forgery Verification | Manipulated JWT token header | 1. Send request with signed token containing fake claims. | Rejected with 401/403 due to cryptographic signature failure. | P0 | Critical | Forged JWT | [x] |
+| TC-RBAC-015 | Route Access Matrix Validation | Role assigned as GUEST (if exists) | 1. Attempt to access any internal API endpoints. | All requests rejected; role has no explicit grants. | P0 | Critical | Guest token | [x] |
 
 ### Module: Doctor Portal
 
@@ -101,55 +101,55 @@ This document contains the comprehensive manual test plan for CuraVision. It cov
 
 | Test ID | Feature | Preconditions | Test Steps | Expected Result | Priority | Severity | Test Data | Pass/Fail |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
-| TC-PATI-001 | Patient Dashboard Layout | Patient is logged in | 1. Load dashboard. | Dashboard displays welcome message, recent reports, and quick actions. | P1 | Medium | None | [ ] |
-| TC-PATI-002 | Reports List Loading | Patient is logged in | 1. View reports list. | List of approved reports is displayed with date and doctor name. | P1 | High | None | [ ] |
-| TC-PATI-003 | Reports Filter by Doctor | Patient is logged in | 1. Select doctor name from filters. | Only reports generated by selected doctor are displayed. | P2 | Medium | Doctor Name | [ ] |
-| TC-PATI-004 | Access Draft Report Restriction | Patient is logged in, report is in DRAFT | 1. Attempt to view report via link or API. | Error 403 Forbidden; draft reports must not be visible to patients. | P0 | Critical | Draft Report ID | [ ] |
-| TC-PATI-005 | View Approved Report Details | Patient is logged in, report is PUBLISHED | 1. Click on report from list. | Report contents (final report text, metadata) displayed. | P1 | High | Published Report ID | [ ] |
-| TC-PATI-006 | Empty Reports List Display | Patient logged in, no reports exist | 1. Open reports tab. | Displays message: 'No reports available yet'. | P2 | Low | None | [ ] |
-| TC-PATI-007 | Chat Widget Integration on Report View | Patient is viewing a report | 1. Check page bottom-right. | Chat interface with bot is visible. | P1 | High | Report ID | [ ] |
-| TC-PATI-008 | Patient Profile Overview | Patient is logged in | 1. Click Profile in sidebar. | Profile details (Name, DOB, Medical History) load correctly. | P1 | Medium | None | [ ] |
-| TC-PATI-009 | Update Profile Details | Patient is logged in | 1. Edit phone number in profile.<br>2. Click Save. | Profile updated in database; success toast shown. | P1 | Medium | Phone number | [ ] |
-| TC-PATI-010 | Patient Appointment Grid | Patient is logged in | 1. Navigate to appointments tab. | Lists upcoming and past appointments. | P1 | Medium | None | [ ] |
-| TC-PATI-011 | Book Appointment - Slot Selection | Patient logged in, doctor has slots | 1. Click Book Appointment.<br>2. Select doctor and slot.<br>3. Click Confirm. | Appointment created with status PENDING. | P1 | High | Doctor ID, Slot | [ ] |
-| TC-PATI-012 | Cancel Appointment - Success Flow | Patient has a pending appointment | 1. Click Cancel next to appointment. | Status changed to CANCELLED; slot released. | P1 | Medium | Appointment ID | [ ] |
-| TC-PATI-013 | Download Approved Report PDF | Patient is viewing an approved report | 1. Click 'Download PDF' button. | PDF file containing report findings downloaded. | P1 | High | Report ID | [ ] |
+| TC-PATI-001 | Patient Dashboard Layout | Patient is logged in | 1. Load dashboard. | Dashboard displays welcome message, recent reports, and quick actions. | P1 | Medium | None | [x] |
+| TC-PATI-002 | Reports List Loading | Patient is logged in | 1. View reports list. | List of approved reports is displayed with date and doctor name. | P1 | High | None | [x] |
+| TC-PATI-003 | Reports Filter by Doctor | Patient is logged in | 1. Select doctor name from filters. | Only reports generated by selected doctor are displayed. | P2 | Medium | Doctor Name | [x] |
+| TC-PATI-004 | Access Draft Report Restriction | Patient is logged in, report is in DRAFT | 1. Attempt to view report via link or API. | Error 403 Forbidden; draft reports must not be visible to patients. | P0 | Critical | Draft Report ID | [x] |
+| TC-PATI-005 | View Approved Report Details | Patient is logged in, report is PUBLISHED | 1. Click on report from list. | Report contents (final report text, metadata) displayed. | P1 | High | Published Report ID | [x] |
+| TC-PATI-006 | Empty Reports List Display | Patient logged in, no reports exist | 1. Open reports tab. | Displays message: 'No reports available yet'. | P2 | Low | None | [x] |
+| TC-PATI-007 | Chat Widget Integration on Report View | Patient is viewing a report | 1. Check page bottom-right. | Chat interface with bot is visible. | P1 | High | Report ID | [x] |
+| TC-PATI-008 | Patient Profile Overview | Patient is logged in | 1. Click Profile in sidebar. | Profile details (Name, DOB, Medical History) load correctly. | P1 | Medium | None | [x] |
+| TC-PATI-009 | Update Profile Details | Patient is logged in | 1. Edit phone number in profile.<br>2. Click Save. | Profile updated in database; success toast shown. | P1 | Medium | Phone number | [x] |
+| TC-PATI-010 | Patient Appointment Grid | Patient is logged in | 1. Navigate to appointments tab. | Lists upcoming and past appointments. | P1 | Medium | None | [x] |
+| TC-PATI-011 | Book Appointment - Slot Selection | Patient logged in, doctor has slots | 1. Click Book Appointment.<br>2. Select doctor and slot.<br>3. Click Confirm. | Appointment created with status PENDING. | P1 | High | Doctor ID, Slot | [x] |
+| TC-PATI-012 | Cancel Appointment - Success Flow | Patient has a pending appointment | 1. Click Cancel next to appointment. | Status changed to CANCELLED; slot released. | P1 | Medium | Appointment ID | [x] |
+| TC-PATI-013 | Download Approved Report PDF | Patient is viewing an approved report | 1. Click 'Download PDF' button. | PDF file containing report findings downloaded. | P1 | High | Report ID | [x] |
 
 ### Module: Admin Portal
 
 | Test ID | Feature | Preconditions | Test Steps | Expected Result | Priority | Severity | Test Data | Pass/Fail |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
-| TC-ADMI-001 | Admin Dashboard Layout | Admin is logged in | 1. Load admin page. | Admin navigation panel (Users, Audit Logs) renders correctly. | P1 | Medium | None | [ ] |
-| TC-ADMI-002 | Users List Display | Admin is logged in | 1. Navigate to Users tab. | All registered users displayed in a paginated list. | P1 | High | None | [ ] |
-| TC-ADMI-003 | Filter Users by Role | Admin is logged in | 1. Select role 'DOCTOR' from filter. | Only users with role DOCTOR are listed. | P2 | Medium | None | [ ] |
-| TC-ADMI-004 | Filter Users by Status | Admin is logged in | 1. Select status 'DISABLED' from filter. | Only disabled users are listed. | P2 | Medium | None | [ ] |
-| TC-ADMI-005 | Admin Deactivates User | Admin is logged in, user is ACTIVE | 1. Click 'Deactivate' next to user email. | User status set to DISABLED in DB; user loses active session. | P0 | High | User ID | [ ] |
-| TC-ADMI-006 | Admin Activates User | Admin is logged in, user is DISABLED | 1. Click 'Activate' next to user email. | User status set to ACTIVE in DB; user can now log in. | P0 | High | User ID | [ ] |
-| TC-ADMI-007 | Audit Logs Pagination | Admin is logged in | 1. View audit logs page. | Logs load in pages of 50 by default. | P2 | Medium | None | [ ] |
-| TC-ADMI-008 | Filter Audit Logs by Action | Admin is logged in | 1. Filter logs by action 'LOGIN_SUCCESS'. | Only login success events are shown. | P1 | High | None | [ ] |
-| TC-ADMI-009 | Filter Audit Logs by Date Range | Admin is logged in | 1. Set from/to dates in filters.<br>2. Click Apply. | Logs are filtered to date range. | P1 | High | Date Range | [ ] |
-| TC-ADMI-010 | Audit Log Fields Verification | Admin is logged in | 1. Inspect an audit log entry. | Shows timestamp, user ID, action, entity type, and metadata. | P1 | High | None | [ ] |
-| TC-ADMI-011 | Admin User Creation Flow | Admin is logged in | 1. Click Add User.<br>2. Enter details (set role DOCTOR).<br>3. Click Save. | Doctor account created and enabled. | P1 | High | New user info | [ ] |
-| TC-ADMI-012 | Search Users by Full Name | Admin is logged in | 1. Search for user by name in search box. | User list displays matching names. | P2 | Medium | Name query | [ ] |
-| TC-ADMI-013 | System Config Overview | Admin is logged in | 1. View system configuration tab. | Shows database, AI service, S3 connection statuses. | P1 | Medium | None | [ ] |
+| TC-ADMI-001 | Admin Dashboard Layout | Admin is logged in | 1. Load admin page. | Admin navigation panel (Users, Audit Logs) renders correctly. | P1 | Medium | None | [x] |
+| TC-ADMI-002 | Users List Display | Admin is logged in | 1. Navigate to Users tab. | All registered users displayed in a paginated list. | P1 | High | None | [x] |
+| TC-ADMI-003 | Filter Users by Role | Admin is logged in | 1. Select role 'DOCTOR' from filter. | Only users with role DOCTOR are listed. | P2 | Medium | None | [x] |
+| TC-ADMI-004 | Filter Users by Status | Admin is logged in | 1. Select status 'DISABLED' from filter. | Only disabled users are listed. | P2 | Medium | None | [x] |
+| TC-ADMI-005 | Admin Deactivates User | Admin is logged in, user is ACTIVE | 1. Click 'Deactivate' next to user email. | User status set to DISABLED in DB; user loses active session. | P0 | High | User ID | [x] |
+| TC-ADMI-006 | Admin Activates User | Admin is logged in, user is DISABLED | 1. Click 'Activate' next to user email. | User status set to ACTIVE in DB; user can now log in. | P0 | High | User ID | [x] |
+| TC-ADMI-007 | Audit Logs Pagination | Admin is logged in | 1. View audit logs page. | Logs load in pages of 50 by default. | P2 | Medium | None | [x] |
+| TC-ADMI-008 | Filter Audit Logs by Action | Admin is logged in | 1. Filter logs by action 'LOGIN_SUCCESS'. | Only login success events are shown. | P1 | High | None | [x] |
+| TC-ADMI-009 | Filter Audit Logs by Date Range | Admin is logged in | 1. Set from/to dates in filters.<br>2. Click Apply. | Logs are filtered to date range. | P1 | High | Date Range | [x] |
+| TC-ADMI-010 | Audit Log Fields Verification | Admin is logged in | 1. Inspect an audit log entry. | Shows timestamp, user ID, action, entity type, and metadata. | P1 | High | None | [x] |
+| TC-ADMI-011 | Admin User Creation Flow | Admin is logged in | 1. Click Add User.<br>2. Enter details (set role DOCTOR).<br>3. Click Save. | Doctor account created and enabled. | P1 | High | New user info | [x] |
+| TC-ADMI-012 | Search Users by Full Name | Admin is logged in | 1. Search for user by name in search box. | User list displays matching names. | P2 | Medium | Name query | [x] |
+| TC-ADMI-013 | System Config Overview | Admin is logged in | 1. View system configuration tab. | Shows database, AI service, S3 connection statuses. | P1 | Medium | None | [x] |
 
 ### Module: DICOM Upload
 
 | Test ID | Feature | Preconditions | Test Steps | Expected Result | Priority | Severity | Test Data | Pass/Fail |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
-| TC-UPLD-001 | Upload Valid DICOM File | Doctor is logged in, patient selected | 1. Drag and drop valid .dcm file into upload area.<br>2. Click Upload. | Upload succeeds; file uploaded to Minio; scan status set to UPLOADED. | P0 | Critical | valid_scan.dcm | [ ] |
-| TC-UPLD-002 | Upload Invalid File Type | Doctor is logged in, patient selected | 1. Drag and drop a .txt file.<br>2. Click Upload. | Validation error: 'Invalid file format. Only DICOM (.dcm) files are allowed.' (400) | P0 | High | test.txt | [ ] |
-| TC-UPLD-003 | Upload DICOM with Missing File | Doctor is logged in, patient selected | 1. Submit upload form without selecting any file. | Validation error: 'file is required' (400). | P1 | High | None | [ ] |
-| TC-UPLD-004 | Upload DICOM without Patient ID | Doctor is logged in, file selected | 1. Send upload API request without patient_id. | Rejected with 400 Bad Request. | P0 | High | valid_scan.dcm | [ ] |
-| TC-UPLD-005 | Upload Excessively Large DICOM File | Doctor is logged in, patient selected | 1. Select a file larger than 100MB.<br>2. Click Upload. | Rejected with 'File size exceeds maximum limit (100MB)'. | P1 | High | large_scan.dcm | [ ] |
-| TC-UPLD-006 | Upload Empty DICOM File | Doctor is logged in, patient selected | 1. Select a 0-byte .dcm file.<br>2. Click Upload. | Rejected with validation error. | P1 | Medium | empty.dcm | [ ] |
-| TC-UPLD-007 | Drag and Drop Interface Interaction | Doctor is logged in, scan upload modal open | 1. Drag file over target dropzone. | Dropzone UI background changes color/highlights. | P2 | Low | valid_scan.dcm | [ ] |
-| TC-UPLD-008 | Multiple Files Selection Block | Doctor is logged in | 1. Attempt to select multiple files in file chooser. | Only single file selection is allowed. | P2 | Low | None | [ ] |
-| TC-UPLD-009 | Upload Progress Bar Verification | Doctor uploading large valid DICOM | 1. Click Upload.<br>2. Watch the modal interface. | Progress bar animates and displays percentage accurately. | P1 | Medium | valid_scan.dcm | [ ] |
-| TC-UPLD-010 | Cancel Upload Mid-Process | Doctor uploading valid DICOM | 1. Click 'Cancel' while upload is at 50%. | Upload terminated; temporary chunks cleaned up; no scan created. | P1 | Medium | valid_scan.dcm | [ ] |
-| TC-UPLD-011 | Upload Sanitization (EXIF/Header) | Doctor uploading valid DICOM | 1. Upload DICOM file containing non-ASCII metadata. | Saves safely to DB; special characters encoded correctly. | P2 | Low | unicode_scan.dcm | [ ] |
-| TC-UPLD-012 | Audit Log on Scan Upload | Scan successfully uploaded | 1. View admin audit logs. | Entry recorded for action: 'SCAN_UPLOAD' with scan_id. | P1 | High | None | [ ] |
-| TC-UPLD-013 | DICOM Path Structure in Storage | Scan successfully uploaded | 1. Inspect Minio storage buckets. | File stored under 'scans/<uuid>.dcm' structure. | P1 | High | None | [ ] |
+| TC-UPLD-001 | Upload Valid DICOM File | Doctor is logged in, patient selected | 1. Drag and drop valid .dcm file into upload area.<br>2. Click Upload. | Upload succeeds; file uploaded to Minio; scan status set to UPLOADED. | P0 | Critical | valid_scan.dcm | [x] |
+| TC-UPLD-002 | Upload Invalid File Type | Doctor is logged in, patient selected | 1. Drag and drop a .txt file.<br>2. Click Upload. | Validation error: 'Invalid file format. Only DICOM (.dcm) files are allowed.' (400) | P0 | High | test.txt | [x] |
+| TC-UPLD-003 | Upload DICOM with Missing File | Doctor is logged in, patient selected | 1. Submit upload form without selecting any file. | Validation error: 'file is required' (400). | P1 | High | None | [x] |
+| TC-UPLD-004 | Upload DICOM without Patient ID | Doctor is logged in, file selected | 1. Send upload API request without patient_id. | Rejected with 400 Bad Request. | P0 | High | valid_scan.dcm | [x] |
+| TC-UPLD-005 | Upload Excessively Large DICOM File | Doctor is logged in, patient selected | 1. Select a file larger than 100MB.<br>2. Click Upload. | Rejected with 'File size exceeds maximum limit (100MB)'. | P1 | High | large_scan.dcm | [x] |
+| TC-UPLD-006 | Upload Empty DICOM File | Doctor is logged in, patient selected | 1. Select a 0-byte .dcm file.<br>2. Click Upload. | Rejected with validation error. | P1 | Medium | empty.dcm | [x] |
+| TC-UPLD-007 | Drag and Drop Interface Interaction | Doctor is logged in, scan upload modal open | 1. Drag file over target dropzone. | Dropzone UI background changes color/highlights. | P2 | Low | valid_scan.dcm | [x] |
+| TC-UPLD-008 | Multiple Files Selection Block | Doctor is logged in | 1. Attempt to select multiple files in file chooser. | Only single file selection is allowed. | P2 | Low | None | [x] |
+| TC-UPLD-009 | Upload Progress Bar Verification | Doctor uploading large valid DICOM | 1. Click Upload.<br>2. Watch the modal interface. | Progress bar animates and displays percentage accurately. | P1 | Medium | valid_scan.dcm | [x] |
+| TC-UPLD-010 | Cancel Upload Mid-Process | Doctor uploading valid DICOM | 1. Click 'Cancel' while upload is at 50%. | Upload terminated; temporary chunks cleaned up; no scan created. | P1 | Medium | valid_scan.dcm | [x] |
+| TC-UPLD-011 | Upload Sanitization (EXIF/Header) | Doctor uploading valid DICOM | 1. Upload DICOM file containing non-ASCII metadata. | Saves safely to DB; special characters encoded correctly. | P2 | Low | unicode_scan.dcm | [x] |
+| TC-UPLD-012 | Audit Log on Scan Upload | Scan successfully uploaded | 1. View admin audit logs. | Entry recorded for action: 'SCAN_UPLOAD' with scan_id. | P1 | High | None | [x] |
+| TC-UPLD-013 | DICOM Path Structure in Storage | Scan successfully uploaded | 1. Inspect Minio storage buckets. | File stored under 'scans/<uuid>.dcm' structure. | P1 | High | None | [x] |
 
 ### Module: DICOM Viewer
 

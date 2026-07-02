@@ -23,7 +23,7 @@ export function TopNav({ user }: TopNavProps) {
       </div>
       <div className="flex items-center gap-4">
         <button
-          onClick={() => router.push('/admin/settings')}
+          onClick={() => router.push('/admin/system')}
           className="p-2 hover:bg-gray-100 rounded-lg transition"
           title="Settings"
         >

@@ -81,6 +81,10 @@ async function upsertAnalysis(scanId, payload) {
 async function uploadScan({ file, patientId, doctorId }) {
   if (!file) throw badRequest("DICOM file is required.", "FILE_REQUIRED");
 
+  if (!file.buffer || file.buffer.length === 0) {
+    throw badRequest("Invalid DICOM file format. Only DICOM (.dcm) files are allowed.", "INVALID_DICOM");
+  }
+
   // Validate DICOM Magic Number signature
   if (
     !file.buffer ||
@@ -90,7 +94,7 @@ async function uploadScan({ file, patientId, doctorId }) {
     file.buffer[130] !== 67 || // 'C'
     file.buffer[131] !== 77    // 'M'
   ) {
-    throw badRequest("Invalid DICOM file format. Missing magic signature 'DICM' at byte offset 128.", "INVALID_DICOM");
+    throw badRequest("Invalid DICOM file format. Only DICOM (.dcm) files are allowed.", "INVALID_DICOM");
   }
 
   const patient = await UserService.findUserById(patientId);
@@ -107,11 +111,7 @@ async function uploadScan({ file, patientId, doctorId }) {
     },
   });
 
-  const { logicalPath } = await saveDicom(
-    created.id,
-    file.originalname || "scan.dcm",
-    file.buffer
-  );
+  const { logicalPath } = await saveDicom(created.id, file.originalname || "scan.dcm", file.buffer);
 
   const scan = await prisma.scan.update({
     where: { id: created.id },
@@ -122,10 +122,10 @@ async function uploadScan({ file, patientId, doctorId }) {
 
   AuditService.log({
     user_id: doctorId,
-    action: "UPLOAD_SCAN",
+    action: "SCAN_UPLOAD",
     entity_type: "SCAN",
     entity_id: scan.id,
-    metadata: { patient_id: patientId, status: "UPLOADED" },
+    metadata: { scan_id: scan.id, patient_id: patientId, status: "UPLOADED" },
   });
 
   return { scan_id: scan.id, status: "UPLOADED" };
@@ -322,6 +322,30 @@ async function completeAnalysis(scanId, payload) {
   };
 }
 
+async function failAnalysis(scanId, errorMsg) {
+  const scan = await getScanRecord(scanId);
+  if (!scan) throw notFound("Scan not found.", "SCAN_NOT_FOUND");
+
+  await upsertAnalysis(scanId, {
+    inference_log: errorMsg,
+  });
+
+  await updateScanStatus(scanId, "FAILED");
+
+  AuditService.log({
+    user_id: null,
+    action: "ANALYSIS_FAILED_CALLBACK",
+    entity_type: "SCAN",
+    entity_id: scanId,
+    metadata: { error: errorMsg },
+  });
+
+  return {
+    scan_id: scanId,
+    status: "FAILED",
+  };
+}
+
 function localStubAnalysis(scanId) {
   const { mask_path, gradcam_path } = derivedPaths(scanId);
   const volume = Number((8 + Math.random() * 8).toFixed(2));
@@ -429,6 +453,7 @@ module.exports = {
   createReportForScan,
   scheduleAnalysis,
   completeAnalysis,
+  failAnalysis,
   getScanSummary,
   getScanAnalysis,
   listByPatient,

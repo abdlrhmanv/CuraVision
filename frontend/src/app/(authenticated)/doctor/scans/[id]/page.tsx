@@ -216,8 +216,6 @@ export default function DoctorScanReviewPage() {
   const isFailed = scan.status === 'FAILED';
   const isAnalyzing = scan.status === 'ANALYSIS_PENDING' || scan.status === 'ANALYSIS_RUNNING';
   const dicomSrc = storageUrl(scan.dicom_path);
-  const heatmapSrc = storageUrl(analysis?.gradcam_path);
-
   return (
     <>
       <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
@@ -265,8 +263,9 @@ export default function DoctorScanReviewPage() {
       <div className="mb-6">
         <DicomViewer
           src={dicomSrc}
-          overlaySrc={isAnalysisComplete && analysis ? heatmapSrc : null}
-          caption={isAnalysisComplete ? "Source DICOM with Grad-CAM overlay" : "Source DICOM"}
+          maskSrc={isAnalysisComplete && analysis?.unet_mask_path ? storageUrl(analysis.unet_mask_path) : null}
+          heatmapSrc={isAnalysisComplete && analysis?.gradcam_path ? storageUrl(analysis.gradcam_path) : null}
+          caption={isAnalysisComplete ? "Source DICOM with AI Analysis Overlays" : "Source DICOM"}
           height={500}
         />
       </div>
@@ -428,6 +427,7 @@ export default function DoctorScanReviewPage() {
             </div>
           ) : (
             <ReportEditor
+              reportId={report?.id}
               initialReport={draftText}
               onSave={handleSave}
               onApprove={handleApprove}

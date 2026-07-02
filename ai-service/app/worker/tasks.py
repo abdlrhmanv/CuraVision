@@ -59,6 +59,23 @@ def send_callback_task(self, scan_id: str, result: dict[str, Any]) -> None:
     resp.raise_for_status()
 
 
+@celery.task(
+    name="curavision.send_failure_callback",
+    bind=True,
+    autoretry_for=(httpx.HTTPError, Exception),
+    retry_backoff=True,
+    max_retries=3
+)
+def send_failure_callback_task(self, scan_id: str, error_msg: str) -> None:
+    """Send failure back to Node.js backend. Retries on failure."""
+    resp = httpx.post(
+        f"{BACKEND_CALLBACK_URL}/api/internal/scans/{scan_id}/analysis-failed",
+        json={"error": error_msg},
+        timeout=10.0,
+    )
+    resp.raise_for_status()
+
+
 @celery.task(name="curavision.run_full_analysis", bind=True)
 def run_full_analysis(
     self,
@@ -70,16 +87,24 @@ def run_full_analysis(
 ) -> dict[str, Any]:
     """Full pipeline executed as a single Celery task."""
     from app.services.inference_strategy import get_inference_strategy
-    strategy = get_inference_strategy()
-    result = strategy.run_full_analysis(
-        scan_id,
-        dicom_path,
-        dicom_url=dicom_url,
-        mask_put_url=mask_put_url,
-        gradcam_put_url=gradcam_put_url,
-    )
+    try:
+        strategy = get_inference_strategy()
+        result = strategy.run_full_analysis(
+            scan_id,
+            dicom_path,
+            dicom_url=dicom_url,
+            mask_put_url=mask_put_url,
+            gradcam_put_url=gradcam_put_url,
+        )
 
-    # Asynchronously trigger the callback task with retry configurations
-    send_callback_task.delay(scan_id, result)
+        # Asynchronously trigger the callback task with retry configurations
+        send_callback_task.delay(scan_id, result)
 
-    return result
+        return result
+    except Exception as e:
+        import traceback
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Analysis failed for scan {scan_id}: {str(e)}\n{traceback.format_exc()}")
+        send_failure_callback_task.delay(scan_id, str(e))
+        raise e

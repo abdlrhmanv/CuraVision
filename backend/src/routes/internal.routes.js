@@ -18,4 +18,20 @@ router.post("/scans/:scanId/analysis-complete", async (req, res, next) => {
   }
 });
 
+/**
+ * POST /api/internal/scans/:scanId/analysis-failed
+ */
+router.post("/scans/:scanId/analysis-failed", async (req, res, next) => {
+  try {
+    const { error } = req.body ?? {};
+    const result = await ScanService.failAnalysis(
+      req.params.scanId,
+      error || "Unknown error during AI analysis"
+    );
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

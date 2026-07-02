@@ -3,7 +3,7 @@
 import { useRequireAuth } from '../../../lib/authContext';
 import Sidebar from '../../../components/layout/Sidebar';
 import { TopNav } from '../../../components/layout/TopNav';
-import { Activity, Users, Settings } from 'lucide-react';
+import { Activity, Users, FileText, Settings } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useRequireAuth('ADMIN');
@@ -15,7 +15,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navItems = [
     { label: 'Dashboard', href: '/admin', icon: Activity },
     { label: 'Users', href: '/admin/users', icon: Users },
-    { label: 'Settings', href: '/admin/settings', icon: Settings },
+    { label: 'Audit Logs', href: '/admin/audit-logs', icon: FileText },
+    { label: 'System Config', href: '/admin/system', icon: Settings },
   ];
 
   return (

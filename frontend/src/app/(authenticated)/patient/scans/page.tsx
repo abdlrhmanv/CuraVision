@@ -61,20 +61,40 @@ export default function PatientScans() {
       .finally(() => setLoading(false))
   }, [])
 
-  useEffect(() => { loadScans() }, [loadScans])
+  useEffect(() => {
+    let mounted = true;
+    const timer = setTimeout(() => {
+      if (mounted) loadScans()
+    }, 0);
+    return () => { 
+      mounted = false;
+      clearTimeout(timer);
+    }
+  }, [loadScans])
 
   // Fetch doctors when modal opens
   useEffect(() => {
     if (!showUploadModal) return
-    setDoctorsLoading(true)
-    reservationsApi
-      .listDoctors()
-      .then((res) => {
-        setDoctors(res.doctors)
-        if (res.doctors.length > 0) setSelectedDoctorId(res.doctors[0].id)
-      })
-      .catch(() => setDoctors([]))
-      .finally(() => setDoctorsLoading(false))
+    let mounted = true;
+    
+    const fetchDoctors = async () => {
+      setDoctorsLoading(true)
+      try {
+        const res = await reservationsApi.listDoctors()
+        if (mounted) {
+          setDoctors(res.doctors)
+          if (res.doctors.length > 0) setSelectedDoctorId(res.doctors[0].id)
+        }
+      } catch {
+        if (mounted) setDoctors([])
+      } finally {
+        if (mounted) setDoctorsLoading(false)
+      }
+    }
+    
+    fetchDoctors()
+    
+    return () => { mounted = false }
   }, [showUploadModal])
 
   const handleFileSelect = useCallback((file: File) => {

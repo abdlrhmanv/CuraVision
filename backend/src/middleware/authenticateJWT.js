@@ -1,10 +1,28 @@
 const jwt = require("jsonwebtoken");
+const prisma = require("../config/prisma");
+
+async function assertActiveUser(payload, res) {
+  const user = await prisma.user.findUnique({
+    where: { id: payload.sub },
+    select: { status: true },
+  });
+  if (!user || user.status === "DISABLED") {
+    res.clearCookie("token");
+    res.clearCookie("refreshToken");
+    res.status(403).json({
+      code: "ACCOUNT_DISABLED",
+      message: "This account is not active.",
+    });
+    return false;
+  }
+  return true;
+}
 
 /**
  * Express middleware — verify the Bearer JWT from the Authorization header.
  * Attaches the decoded payload to `req.user` on success.
  */
-function authenticateJWT(req, res, next) {
+async function authenticateJWT(req, res, next) {
   let token;
   const authHeader = req.headers["authorization"];
   const cookieHeader = req.headers["cookie"];
@@ -32,8 +50,9 @@ function authenticateJWT(req, res, next) {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
+    if (!(await assertActiveUser(payload, res))) return;
     req.user = payload; // { sub, role, full_name, exp, iat }
-    next();
+    return next();
   } catch (err) {
     const refreshToken = cookies.refreshToken;
     if (refreshToken) {
@@ -63,8 +82,9 @@ function authenticateJWT(req, res, next) {
           maxAge: 15 * 60 * 1000, // 15m
         });
 
-        // Attach decoded payload to req
-        req.user = jwt.verify(newAccessToken, process.env.JWT_SECRET);
+        const payload = jwt.verify(newAccessToken, process.env.JWT_SECRET);
+        if (!(await assertActiveUser(payload, res))) return;
+        req.user = payload;
         return next();
       } catch (refreshErr) {
         return res.status(401).json({

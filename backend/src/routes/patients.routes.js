@@ -164,9 +164,11 @@ router.get(
   authorizeRole("PATIENT"),
   async (req, res, next) => {
     try {
-      const reports = (await ReportService.listForPatient(req.user.sub)).map(
-        stripClinical
-      );
+      const reports = (
+        await ReportService.listForPatient(req.user.sub, {
+          doctorId: req.query.doctor_id || undefined,
+        })
+      ).map(stripClinical);
       res.json({ reports });
     } catch (err) {
       next(err);
@@ -203,6 +205,89 @@ function stripClinical(report) {
   const { ai_draft, ...rest } = report;
   return rest;
 }
+
+/**
+ * GET /api/patient/profile
+ */
+router.get(
+  "/profile",
+  authenticateJWT,
+  authorizeRole("PATIENT"),
+  async (req, res, next) => {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.sub },
+        include: { patientProfile: true },
+      });
+      if (!user) {
+        return res.status(404).json({ code: "NOT_FOUND", message: "User not found." });
+      }
+      const profile = user.patientProfile;
+      res.json({
+        user_id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        date_of_birth: profile?.date_of_birth?.toISOString().slice(0, 10) ?? null,
+        gender: profile?.gender ?? null,
+        phone: profile?.phone ?? null,
+        country: profile?.country ?? null,
+        medical_history: profile?.medical_history ?? null,
+        allergies: profile?.allergies ?? null,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * PATCH /api/patient/profile
+ */
+router.patch(
+  "/profile",
+  authenticateJWT,
+  authorizeRole("PATIENT"),
+  async (req, res, next) => {
+    try {
+      const { phone, date_of_birth, gender, country, medical_history, allergies } =
+        req.body;
+      const profileData = {};
+      if (phone !== undefined) profileData.phone = phone;
+      if (date_of_birth !== undefined) {
+        profileData.date_of_birth = date_of_birth ? new Date(date_of_birth) : null;
+      }
+      if (gender !== undefined) profileData.gender = gender;
+      if (country !== undefined) profileData.country = country;
+      if (medical_history !== undefined) profileData.medical_history = medical_history;
+      if (allergies !== undefined) profileData.allergies = allergies;
+
+      await prisma.patientProfile.upsert({
+        where: { user_id: req.user.sub },
+        create: { user_id: req.user.sub, ...profileData },
+        update: profileData,
+      });
+
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.sub },
+        include: { patientProfile: true },
+      });
+      const profile = user.patientProfile;
+      res.json({
+        user_id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        date_of_birth: profile?.date_of_birth?.toISOString().slice(0, 10) ?? null,
+        gender: profile?.gender ?? null,
+        phone: profile?.phone ?? null,
+        country: profile?.country ?? null,
+        medical_history: profile?.medical_history ?? null,
+        allergies: profile?.allergies ?? null,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 /**
  * GET /api/patient/stats

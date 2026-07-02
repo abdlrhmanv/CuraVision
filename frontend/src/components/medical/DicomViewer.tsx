@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { Brain, AlertTriangle } from 'lucide-react'
-import type { RenderingEngine } from '@cornerstonejs/core'
+import { useEffect, useRef, useState, MouseEvent as ReactMouseEvent } from 'react'
+import { Brain, AlertTriangle, ZoomIn, ZoomOut, Maximize, RotateCcw, Minimize } from 'lucide-react'
+import type { RenderingEngine, Types } from '@cornerstonejs/core'
 
 interface DicomViewerProps {
   /** HTTPS/HTTP URL to a DICOM file OR a preview image (png/jpg). */
@@ -11,28 +11,35 @@ interface DicomViewerProps {
   caption?: string
   /** Optional height override (px or CSS length). */
   height?: number | string
-  /** Optional overlay image URL */
-  overlaySrc?: string | null
+  /** Optional AI Mask overlay URL */
+  maskSrc?: string | null
+  /** Optional GradCAM heatmap overlay URL */
+  heatmapSrc?: string | null
 }
 
-/**
- * Lightweight DICOM-or-image viewer.
- *
- * For the MVP:
- *   - If `src` ends in a DICOM-ish extension (.dcm / wadouri: / wadors:),
- *     initialises Cornerstone.js on demand and renders the first frame.
- *   - Otherwise falls back to a plain <img>, which is the common case for
- *     the Grad-CAM heatmap PNGs and DICOM preview thumbnails.
- *
- * The Cornerstone bundle is loaded dynamically so that it does not bloat
- * the initial client JS, and so Next.js SSR never touches it.
- */
-export default function DicomViewer({ src, caption, height = 360, overlaySrc }: DicomViewerProps) {
+export default function DicomViewer({ src, caption, height = 360, maskSrc, heatmapSrc }: DicomViewerProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLDivElement>(null)
+  const wheelTargetRef = useRef<HTMLDivElement>(null)
   const engineRef = useRef<RenderingEngine | null>(null)
+  const viewportIdRef = useRef('curavision-viewport')
+  
   const [error, setError] = useState<string | null>(null)
   const [initialised, setInitialised] = useState(false)
-  const [opacity, setOpacity] = useState(100)
+  
+  // Controls state
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [showMask, setShowMask] = useState(false)
+  const [maskOpacity, setMaskOpacity] = useState(70)
+  const [showHeatmap, setShowHeatmap] = useState(false)
+  const [heatmapOpacity, setHeatmapOpacity] = useState(70)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  // Interaction state
+  const isDraggingLeft = useRef(false)
+  const isDraggingRight = useRef(false)
+  const lastMousePos = useRef({ x: 0, y: 0 })
 
   const isDicom =
     !!src &&
@@ -40,6 +47,7 @@ export default function DicomViewer({ src, caption, height = 360, overlaySrc }: 
       src.startsWith('wadouri:') ||
       src.startsWith('wadors:'))
 
+  // Initialize Cornerstone
   useEffect(() => {
     let disposed = false
 
@@ -56,7 +64,6 @@ export default function DicomViewer({ src, caption, height = 360, overlaySrc }: 
 
         await init()
 
-        // Wire the DICOM image loader into cornerstone core the first time.
         if (!initialised) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const dil = dicomImageLoader as any
@@ -65,20 +72,21 @@ export default function DicomViewer({ src, caption, height = 360, overlaySrc }: 
         }
 
         const renderingEngineId = 'curavision-engine'
-        const viewportId = 'curavision-viewport'
+        const viewportId = viewportIdRef.current
 
-        const engine = new RenderingEngine(renderingEngineId)
-        engineRef.current = engine
+        let engine = engineRef.current
+        if (!engine) {
+            engine = new RenderingEngine(renderingEngineId)
+            engineRef.current = engine
+        }
+        
         engine.enableElement({
           viewportId,
           element: hostRef.current as HTMLDivElement,
           type: Enums.ViewportType.STACK,
         })
 
-        const viewport = engine.getViewport(viewportId) as unknown as {
-          setStack: (ids: string[]) => Promise<void>
-          render: () => void
-        }
+        const viewport = engine.getViewport(viewportId) as Types.IStackViewport
 
         const imageId = src.startsWith('wadouri:') ? src : `wadouri:${src}`
         await imageLoader.loadImage(imageId)
@@ -97,19 +105,175 @@ export default function DicomViewer({ src, caption, height = 360, overlaySrc }: 
       if (engineRef.current) {
         try {
           engineRef.current.destroy()
-        } catch {
-          /* ignore */
-        }
+        } catch {}
         engineRef.current = null
       }
     }
   }, [src, isDicom, initialised])
 
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '+' || e.key === '=') setZoom(z => Math.min(z + 0.1, 5))
+      if (e.key === '-') setZoom(z => Math.max(z - 0.1, 0.2))
+      if (e.key === 'Escape') {
+        if (document.fullscreenElement) {
+          document.exitFullscreen()
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // Fullscreen Listener
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  // Non-passive wheel listener for zoom
+  useEffect(() => {
+    const el = wheelTargetRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      setZoom(z => Math.min(Math.max(z - e.deltaY * 0.002, 0.2), 5))
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+
+  const resetView = () => {
+    setZoom(1)
+    setPan({ x: 0, y: 0 })
+    if (engineRef.current && isDicom) {
+      const viewport = engineRef.current.getViewport(viewportIdRef.current) as Types.IStackViewport
+      if (viewport) {
+        viewport.resetProperties()
+        viewport.render()
+      }
+    }
+  }
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen().catch(() => {})
+    } else {
+      document.exitFullscreen()
+    }
+  }
+
+  // Mouse Handlers for Pan and WindowLevel
+  const handleMouseDown = (e: ReactMouseEvent) => {
+    e.preventDefault()
+    if (e.button === 0) {
+      isDraggingLeft.current = true
+    } else if (e.button === 2) {
+      isDraggingRight.current = true
+    }
+    lastMousePos.current = { x: e.clientX, y: e.clientY }
+  }
+
+  const handleMouseMove = (e: ReactMouseEvent) => {
+    if (!isDraggingLeft.current && !isDraggingRight.current) return
+    
+    const dx = e.clientX - lastMousePos.current.x
+    const dy = e.clientY - lastMousePos.current.y
+    lastMousePos.current = { x: e.clientX, y: e.clientY }
+
+    if (isDraggingLeft.current) {
+      setPan(p => ({ x: p.x + dx, y: p.y + dy }))
+    } else if (isDraggingRight.current && engineRef.current && isDicom) {
+      const viewport = engineRef.current.getViewport(viewportIdRef.current) as Types.IStackViewport
+      if (viewport) {
+        const props = viewport.getProperties()
+        if (props.voiRange) {
+          const { lower, upper } = props.voiRange
+          const width = upper - lower
+          const center = lower + width / 2
+          
+          const newWidth = Math.max(1, width + dx * 4)
+          const newCenter = center + dy * 4
+          
+          viewport.setProperties({
+            voiRange: {
+              lower: newCenter - newWidth / 2,
+              upper: newCenter + newWidth / 2
+            }
+          })
+          viewport.render()
+        }
+      }
+    }
+  }
+
+  const handleMouseUp = () => {
+    isDraggingLeft.current = false
+    isDraggingRight.current = false
+  }
+
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
-      <div
-        className="relative w-full bg-black flex items-center justify-center"
-        style={{ height }}
+    <div ref={containerRef} className={`bg-card border border-border flex flex-col overflow-hidden transition-all ${isFullscreen ? 'fixed inset-0 z-50 rounded-none border-none' : 'rounded-xl relative'}`}>
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center justify-between px-4 py-2 border-b border-border bg-surface/50 text-xs gap-2">
+        <div className="flex items-center gap-2">
+          <button onClick={resetView} className="p-1.5 rounded hover:bg-border/50 text-muted hover:text-white transition" title="Reset View">
+            <RotateCcw size={16} />
+          </button>
+          <div className="w-px h-4 bg-border mx-1" />
+          <button onClick={() => setZoom(z => Math.min(z + 0.1, 5))} className="p-1.5 rounded hover:bg-border/50 text-muted hover:text-white transition" title="Zoom In">
+            <ZoomIn size={16} />
+          </button>
+          <button onClick={() => setZoom(z => Math.max(z - 0.1, 0.2))} className="p-1.5 rounded hover:bg-border/50 text-muted hover:text-white transition" title="Zoom Out">
+            <ZoomOut size={16} />
+          </button>
+          <div className="text-muted ml-2 w-10">{Math.round(zoom * 100)}%</div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-4">
+          {maskSrc && (
+            <div className="flex items-center gap-2 bg-surface/50 px-2 py-1 rounded border border-border">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-muted hover:text-white transition font-medium">
+                <input type="checkbox" checked={showMask} onChange={e => setShowMask(e.target.checked)} className="rounded border-border bg-surface accent-accent w-3.5 h-3.5 cursor-pointer" />
+                AI Mask
+              </label>
+              {showMask && (
+                <input type="range" min="0" max="100" value={maskOpacity} onChange={e => setMaskOpacity(parseInt(e.target.value))} className="w-16 md:w-20 accent-accent cursor-pointer" title="Mask Opacity" />
+              )}
+            </div>
+          )}
+          {heatmapSrc && (
+            <div className="flex items-center gap-2 bg-surface/50 px-2 py-1 rounded border border-border">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-muted hover:text-white transition font-medium">
+                <input type="checkbox" checked={showHeatmap} onChange={e => setShowHeatmap(e.target.checked)} className="rounded border-border bg-surface accent-blue w-3.5 h-3.5 cursor-pointer" />
+                Heatmap
+              </label>
+              {showHeatmap && (
+                <input type="range" min="0" max="100" value={heatmapOpacity} onChange={e => setHeatmapOpacity(parseInt(e.target.value))} className="w-16 md:w-20 accent-blue cursor-pointer" title="Heatmap Opacity" />
+              )}
+            </div>
+          )}
+          <div className="w-px h-4 bg-border mx-1 hidden sm:block" />
+          <button onClick={toggleFullscreen} className="p-1.5 rounded hover:bg-border/50 text-muted hover:text-white transition" title="Toggle Fullscreen">
+            {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Viewer Canvas Wrapper */}
+      <div 
+        ref={wheelTargetRef}
+        className="relative flex-1 bg-black overflow-hidden flex items-center justify-center cursor-crosshair select-none"
+        style={{ height: isFullscreen ? '100%' : height }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onContextMenu={e => e.preventDefault()}
       >
         {!src ? (
           <div className="text-center text-muted text-sm">
@@ -120,47 +284,49 @@ export default function DicomViewer({ src, caption, height = 360, overlaySrc }: 
           <div className="text-center text-warn text-sm max-w-sm px-4">
             <AlertTriangle size={32} className="mx-auto mb-2" />
             {error}
-            <div className="text-xs text-muted mt-2">
-              Displaying fallback preview.
-            </div>
           </div>
-        ) : isDicom ? (
-          <div ref={hostRef} className="w-full h-full" />
         ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={src}
-            alt={caption ?? 'scan preview'}
-            className="max-h-full max-w-full object-contain"
-          />
-        )}
-        
-        {overlaySrc && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={overlaySrc}
-            alt="heatmap overlay"
-            className="absolute inset-0 max-h-full max-w-full m-auto object-contain pointer-events-none transition-opacity duration-200"
-            style={{ opacity: opacity / 100 }}
-          />
+          <div 
+            className="relative will-change-transform w-full h-full flex items-center justify-center"
+            style={{ 
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, 
+              transformOrigin: 'center'
+            }}
+          >
+            {isDicom ? (
+              <div ref={hostRef} className="absolute inset-0 w-full h-full" />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={src} alt={caption ?? 'scan preview'} className="absolute inset-0 w-full h-full object-contain pointer-events-none" />
+            )}
+            
+            {showMask && maskSrc && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={maskSrc}
+                alt="AI Mask"
+                className="absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity duration-200"
+                style={{ opacity: maskOpacity / 100 }}
+              />
+            )}
+            
+            {showHeatmap && heatmapSrc && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={heatmapSrc}
+                alt="Heatmap"
+                className="absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity duration-200 mix-blend-screen"
+                style={{ opacity: heatmapOpacity / 100 }}
+              />
+            )}
+          </div>
         )}
       </div>
-      {(caption || overlaySrc) && (
-        <div className="px-4 py-3 text-xs border-t border-border flex items-center justify-between bg-surface/50">
-          <span className="text-muted">{caption}</span>
-          {overlaySrc && (
-            <div className="flex items-center gap-3 bg-surface px-3 py-1.5 rounded-md border border-border">
-              <span className="text-muted font-semibold">Grad-CAM Opacity: {opacity}%</span>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={opacity}
-                onChange={(e) => setOpacity(parseInt(e.target.value))}
-                className="w-24 md:w-32 accent-blue cursor-pointer"
-              />
-            </div>
-          )}
+
+      {/* Footer */}
+      {caption && (
+        <div className="px-4 py-2 text-xs border-t border-border bg-surface/30 text-muted">
+          {caption}
         </div>
       )}
     </div>

@@ -31,6 +31,13 @@ async function log(event) {
 
   try {
     await redisClient.rpush("audit_log_queue", JSON.stringify(payload));
+    // Also write-through to DB so admin dashboards/tests see it immediately.
+    // Use a stable ID so duplicates are safe.
+    try {
+      await prisma.auditLog.create({ data: payload });
+    } catch (_dbErr) {
+      // ignore duplicate/constraint errors
+    }
   } catch (err) {
     logger.warn({ error: err.message }, "[AuditService] Redis queue failed. Falling back to sync DB insert.");
     try {
@@ -88,14 +95,21 @@ startQueueProcessor();
 async function search(filters) {
   const where = {};
   if (filters.user_id) where.user_id = filters.user_id;
-  if (filters.action) where.action = filters.action;
+  if (filters.action) {
+    // LOGIN_SUCCESS is the canonical action; legacy rows may still use LOGIN.
+    if (filters.action === "LOGIN_SUCCESS") {
+      where.action = { in: ["LOGIN_SUCCESS", "LOGIN"] };
+    } else {
+      where.action = filters.action;
+    }
+  }
   if (filters.entity_type) where.entity_type = filters.entity_type;
   if (filters.entity_id) where.entity_id = filters.entity_id;
   
   if (filters.from || filters.to) {
     where.timestamp = {};
-    if (filters.from) where.timestamp.gte = new Date(filters.from);
-    if (filters.to) where.timestamp.lte = new Date(filters.to);
+    if (filters.from) where.timestamp.gte = new Date(`${filters.from}T00:00:00.000Z`);
+    if (filters.to) where.timestamp.lte = new Date(`${filters.to}T23:59:59.999Z`);
   }
 
   const limit = filters.limit || 50;

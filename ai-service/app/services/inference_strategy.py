@@ -180,6 +180,7 @@ def get_inference_strategy() -> InferenceStrategy:
             
             logger.info(f"Using classification model: {cls_path}")
             logger.info(f"Using segmentation model: {seg_path}")
+            logger.info("Model loaded")
 
             config = {
                 "class_names": ["glioma", "meningioma", "pituitary", "no_tumor"],

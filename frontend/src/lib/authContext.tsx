@@ -113,7 +113,13 @@ export function useRequireAuth(requiredRole?: AuthUser["role"]): AuthState {
       return;
     }
     if (requiredRole && auth.user.role !== requiredRole) {
-      router.replace(auth.user.role === "DOCTOR" ? "/doctor" : "/patient");
+      const home =
+        auth.user.role === "ADMIN"
+          ? "/admin"
+          : auth.user.role === "DOCTOR"
+            ? "/doctor"
+            : "/patient";
+      router.replace(home);
     }
   }, [auth.loading, auth.user, requiredRole, router]);
 

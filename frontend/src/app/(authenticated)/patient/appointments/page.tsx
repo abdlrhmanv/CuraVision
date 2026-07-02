@@ -143,6 +143,75 @@ export default function PatientAppointmentsPage() {
 
   if (loading || !user) return <div className="p-6 text-sm text-muted">Loading...</div>
 
+  const now = new Date()
+  const upcoming = reservations.filter(
+    (r) =>
+      r.status !== 'CANCELLED' &&
+      r.status !== 'COMPLETED' &&
+      new Date(r.start_time) >= now
+  )
+  const past = reservations.filter(
+    (r) =>
+      r.status === 'CANCELLED' ||
+      r.status === 'COMPLETED' ||
+      new Date(r.start_time) < now
+  )
+
+  const renderTable = (items: Reservation[], emptyText: string) => (
+    items.length === 0 ? (
+      <p className="p-5 text-sm text-muted">{emptyText}</p>
+    ) : (
+      <table className="w-full text-sm">
+        <thead className="bg-surface/70 border-b border-border">
+          <tr>
+            <th className="text-left py-2 px-4 font-semibold text-muted text-xs uppercase tracking-wide">
+              Doctor
+            </th>
+            <th className="text-left py-2 px-4 font-semibold text-muted text-xs uppercase tracking-wide">
+              When
+            </th>
+            <th className="text-left py-2 px-4 font-semibold text-muted text-xs uppercase tracking-wide">
+              Status
+            </th>
+            <th className="text-right py-2 px-4" />
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((r) => (
+            <tr key={r.id} className="border-b border-border last:border-0">
+              <td className="py-3 px-4 font-medium">
+                {doctorById.get(r.doctor_id)?.full_name ?? r.doctor_id}
+              </td>
+              <td className="py-3 px-4">{formatDateTime(r.start_time)}</td>
+              <td className="py-3 px-4">
+                <span
+                  className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${statusTone(
+                    r.status
+                  )}`}
+                >
+                  {r.status}
+                </span>
+              </td>
+              <td className="py-3 px-4 text-right">
+                {r.status === 'PENDING' || r.status === 'CONFIRMED' ? (
+                  <button
+                    onClick={() => handleCancel(r.id)}
+                    disabled={busy}
+                    className="text-xs text-warn hover:underline flex items-center gap-1 ml-auto disabled:opacity-50"
+                  >
+                    <XCircle size={12} /> Cancel
+                  </button>
+                ) : r.status === 'COMPLETED' ? (
+                  <CheckCircle2 size={14} className="text-blue ml-auto" />
+                ) : null}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )
+  )
+
   return (
     <>
       <div className="mb-6">
@@ -235,62 +304,20 @@ export default function PatientAppointmentsPage() {
 
       <div className="mb-4 flex items-center gap-2">
         <Calendar size={14} className="text-muted" />
-        <h2 className="text-sm font-semibold">My appointments</h2>
+        <h2 className="text-sm font-semibold">Upcoming appointments</h2>
+      </div>
+
+      <div className="bg-card border border-border rounded-xl overflow-hidden mb-8">
+        {renderTable(upcoming, 'No upcoming appointments.')}
+      </div>
+
+      <div className="mb-4 flex items-center gap-2">
+        <Calendar size={14} className="text-muted" />
+        <h2 className="text-sm font-semibold">Past appointments</h2>
       </div>
 
       <div className="bg-card border border-border rounded-xl overflow-hidden">
-        {reservations.length === 0 ? (
-          <p className="p-5 text-sm text-muted">No appointments yet.</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-surface/70 border-b border-border">
-              <tr>
-                <th className="text-left py-2 px-4 font-semibold text-muted text-xs uppercase tracking-wide">
-                  Doctor
-                </th>
-                <th className="text-left py-2 px-4 font-semibold text-muted text-xs uppercase tracking-wide">
-                  When
-                </th>
-                <th className="text-left py-2 px-4 font-semibold text-muted text-xs uppercase tracking-wide">
-                  Status
-                </th>
-                <th className="text-right py-2 px-4" />
-              </tr>
-            </thead>
-            <tbody>
-              {reservations.map((r) => (
-                <tr key={r.id} className="border-b border-border last:border-0">
-                  <td className="py-3 px-4 font-medium">
-                    {doctorById.get(r.doctor_id)?.full_name ?? r.doctor_id}
-                  </td>
-                  <td className="py-3 px-4">{formatDateTime(r.start_time)}</td>
-                  <td className="py-3 px-4">
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${statusTone(
-                        r.status
-                      )}`}
-                    >
-                      {r.status}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    {r.status === 'PENDING' || r.status === 'CONFIRMED' ? (
-                      <button
-                        onClick={() => handleCancel(r.id)}
-                        disabled={busy}
-                        className="text-xs text-warn hover:underline flex items-center gap-1 ml-auto disabled:opacity-50"
-                      >
-                        <XCircle size={12} /> Cancel
-                      </button>
-                    ) : r.status === 'COMPLETED' ? (
-                      <CheckCircle2 size={14} className="text-blue ml-auto" />
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        {renderTable(past, 'No past appointments yet.')}
       </div>
     </>
   )

@@ -125,10 +125,16 @@ export default function Sidebar({ role, collapsed = false, onNavigate, navItems 
       href: "/admin/users",
     },
     {
-      id: "settings",
-      label: "Settings",
+      id: "audit-logs",
+      label: "Audit Logs",
+      icon: FileText,
+      href: "/admin/audit-logs",
+    },
+    {
+      id: "system",
+      label: "System Config",
       icon: Settings,
-      href: "/admin/settings",
+      href: "/admin/system",
     },
   ];
 

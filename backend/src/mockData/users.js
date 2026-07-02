@@ -45,6 +45,16 @@ const USERS = [
     updated_at: "2026-01-01T00:00:00Z",
   },
   {
+    id: "patient-disabled-001",
+    email: "disabled@curavision.com",
+    password_hash: bcrypt.hashSync("Disabled@123", 10),
+    role: "PATIENT",
+    full_name: "Disabled Test User",
+    status: "DISABLED",
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  },
+  {
     id: "admin-001",
     email: "admin@curavision.com",
     password_hash: bcrypt.hashSync("Admin@123", 10),

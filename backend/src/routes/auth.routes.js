@@ -98,7 +98,7 @@ router.post(
 
       AuditService.log({
         user_id: user.id,
-        action: "LOGIN",
+        action: "LOGIN_SUCCESS",
         entity_type: "USER",
         entity_id: user.id,
       });
