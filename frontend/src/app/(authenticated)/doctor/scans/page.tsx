@@ -57,6 +57,7 @@ export default function DoctorScansPage() {
 
   useEffect(() => {
     if (loading || !user) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchScans()
   }, [loading, user, fetchScans])
 
