@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Calendar, Plus, Trash2, Clock } from 'lucide-react'
 import { useRequireAuth } from '@/lib/authContext'
 import { reservationsApi, AvailabilityRule, ApiError } from '@/lib/apiClient'
+import { WeeklyScheduleGrid } from '@/components/medical/WeeklyScheduleGrid'
 import Swal from 'sweetalert2'
 
 const DAYS = [
@@ -138,6 +139,17 @@ export default function DoctorAvailability() {
           {error}
         </div>
       )}
+
+      <div className="bg-card border border-border rounded-xl p-5 mb-6">
+        <h3 className="font-semibold text-sm mb-4 flex items-center gap-2 text-text">
+          <Calendar size={16} className="text-blue" /> Weekly calendar
+        </h3>
+        {fetching ? (
+          <div className="text-sm text-muted">Loading...</div>
+        ) : (
+          <WeeklyScheduleGrid rules={rules} onDeleteRule={handleDeleteRule} />
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Add Slot Form */}

@@ -175,13 +175,15 @@ test("full doctor flow: upload → analysis → report → approve", async (t) =
 
   const scanId = upload.body.scan_id;
   assert.ok(scanId);
-  assert.ok(
-    ["ANALYSIS_PENDING", "ANALYSIS_RUNNING", "ANALYSIS_COMPLETE"].includes(upload.body.status),
-    `unexpected upload status: ${upload.body.status}`
-  );
+  assert.equal(upload.body.status, "UPLOADED");
+
+  await request(app)
+    .post(`/api/scans/${scanId}/analyze`)
+    .set("Authorization", `Bearer ${doc.token}`)
+    .expect(200);
 
   // Poll until the async pipeline completes (stub resolves in ~1s).
-  let status = upload.body.status;
+  let status = "ANALYSIS_PENDING";
   for (let i = 0; i < 20; i += 1) {
     const s = await request(app)
       .get(`/api/scans/${scanId}`)

@@ -35,6 +35,9 @@ function csrfMiddleware(req, res, next) {
     });
   }
 
+  // Expose token via header so cross-origin SPAs can read it (cookie may be on another port).
+  res.setHeader("X-XSRF-TOKEN", token);
+
   // Safe methods bypass validation
   if (safeMethods.includes(req.method)) {
     return next();

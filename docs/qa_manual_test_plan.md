@@ -83,19 +83,19 @@ This document contains the comprehensive manual test plan for CuraVision. It cov
 
 | Test ID | Feature | Preconditions | Test Steps | Expected Result | Priority | Severity | Test Data | Pass/Fail |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
-| TC-DOCT-001 | Doctor Dashboard Layout | Doctor is logged in | 1. Load doctor dashboard. | Dashboard displays statistics, scan queue, and scheduler. | P1 | Medium | None | [ ] |
-| TC-DOCT-002 | Scan Queue Loading | Doctor is logged in | 1. View scan list. | List of scans is displayed with status, patient name, and uploaded date. | P1 | High | None | [ ] |
-| TC-DOCT-003 | Scan Queue Filtering by Status | Doctor is logged in | 1. Select status 'UPLOADED' from filters. | Only scans with status UPLOADED are displayed. | P1 | Medium | None | [ ] |
-| TC-DOCT-004 | Scan Queue Filtering by Modality | Doctor is logged in | 1. Select modality 'MRI' from filters. | Only MRI scans are displayed. | P1 | Medium | None | [ ] |
-| TC-DOCT-005 | Scan Queue Search by Patient Name | Doctor is logged in | 1. Enter patient name in search box. | Scan list is filtered to display matching patient names. | P1 | Medium | Patient name query | [ ] |
-| TC-DOCT-006 | Empty Scan Queue Display | Doctor logged in, no scans in DB | 1. Load scans page. | Displays placeholder message: 'No scans found'. | P2 | Low | None | [ ] |
-| TC-DOCT-007 | Select Scan to View Details | Doctor is logged in | 1. Click on a scan item from the queue. | Details panel loads with patient info, status, and viewer option. | P1 | High | Scan ID | [ ] |
-| TC-DOCT-008 | Create Report Button Visibility | Doctor is logged in, scan is UPLOADED | 1. View scan details. | Button to 'Create Report' or 'Trigger Analysis' is visible. | P1 | Medium | Scan ID | [ ] |
-| TC-DOCT-009 | Create Report Button Disabled | Doctor is logged in, scan status is FAILED | 1. View scan details. | Button to 'Create Report' is disabled. | P1 | Medium | Scan ID | [ ] |
-| TC-DOCT-010 | Access Denied on Other Doctor's Portal | Doctor A logged in | 1. Attempt to access Doctor B's availability settings via API. | Access denied; 403 Forbidden. | P0 | High | Doctor B ID | [ ] |
-| TC-DOCT-011 | Scheduler Grid Display | Doctor is logged in | 1. Open availability calendar tab. | Displays weekly calendar grid correctly. | P1 | Medium | None | [ ] |
-| TC-DOCT-012 | Save Availability Rule Success | Doctor is logged in | 1. Add a slot (e.g. Mon 9-17).<br>2. Click Save. | Slot persists in DB and updates grid layout. | P1 | High | Monday 09:00 - 17:00 | [ ] |
-| TC-DOCT-013 | Delete Availability Rule | Doctor is logged in, slot exists | 1. Click delete on existing slot.<br>2. Confirm deletion. | Slot is removed from DB and grid is updated. | P1 | Medium | Slot ID | [ ] |
+| TC-DOCT-001 | Doctor Dashboard Layout | Doctor is logged in | 1. Load doctor dashboard. | Dashboard displays statistics, scan queue, and scheduler. | P1 | Medium | None | [x] |
+| TC-DOCT-002 | Scan Queue Loading | Doctor is logged in | 1. View scan list. | List of scans is displayed with status, patient name, and uploaded date. | P1 | High | None | [x] |
+| TC-DOCT-003 | Scan Queue Filtering by Status | Doctor is logged in | 1. Select status 'UPLOADED' from filters. | Only scans with status UPLOADED are displayed. | P1 | Medium | None | [x] |
+| TC-DOCT-004 | Scan Queue Filtering by Modality | Doctor is logged in | 1. Select modality 'MRI' from filters. | Only MRI scans are displayed. | P1 | Medium | None | [x] |
+| TC-DOCT-005 | Scan Queue Search by Patient Name | Doctor is logged in | 1. Enter patient name in search box. | Scan list is filtered to display matching patient names. | P1 | Medium | Patient name query | [x] |
+| TC-DOCT-006 | Empty Scan Queue Display | Doctor logged in, no scans in DB | 1. Load scans page. | Displays placeholder message: 'No scans found'. | P2 | Low | None | [x] |
+| TC-DOCT-007 | Select Scan to View Details | Doctor is logged in | 1. Click on a scan item from the queue. | Details panel loads with patient info, status, and viewer option. | P1 | High | Scan ID | [x] |
+| TC-DOCT-008 | Create Report Button Visibility | Doctor is logged in, scan is UPLOADED | 1. View scan details. | Button to 'Create Report' or 'Trigger Analysis' is visible. | P1 | Medium | Scan ID | [x] |
+| TC-DOCT-009 | Create Report Button Disabled | Doctor is logged in, scan status is FAILED | 1. View scan details. | Button to 'Create Report' is disabled. | P1 | Medium | Scan ID | [x] |
+| TC-DOCT-010 | Access Denied on Other Doctor's Portal | Doctor A logged in | 1. Attempt to access Doctor B's availability settings via API. | Access denied; 403 Forbidden. | P0 | High | Doctor B ID | [x] |
+| TC-DOCT-011 | Scheduler Grid Display | Doctor is logged in | 1. Open availability calendar tab. | Displays weekly calendar grid correctly. | P1 | Medium | None | [x] |
+| TC-DOCT-012 | Save Availability Rule Success | Doctor is logged in | 1. Add a slot (e.g. Mon 9-17).<br>2. Click Save. | Slot persists in DB and updates grid layout. | P1 | High | Monday 09:00 - 17:00 | [x] |
+| TC-DOCT-013 | Delete Availability Rule | Doctor is logged in, slot exists | 1. Click delete on existing slot.<br>2. Confirm deletion. | Slot is removed from DB and grid is updated. | P1 | Medium | Slot ID | [x] |
 
 ### Module: Patient Portal
 

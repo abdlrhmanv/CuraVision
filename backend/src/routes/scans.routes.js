@@ -17,7 +17,11 @@ router.get(
   authorizeRole("DOCTOR"),
   async (req, res, next) => {
     try {
-      const scans = await ScanService.listByDoctor(req.user.sub);
+      const scans = await ScanService.listByDoctor(req.user.sub, {
+        status: req.query.status || undefined,
+        modality: req.query.modality || undefined,
+        search: req.query.search || undefined,
+      });
       res.json({ scans });
     } catch (err) {
       next(err);
@@ -80,6 +84,56 @@ router.post(
       if (req.file) {
         fs.unlink(req.file.path, () => {});
       }
+      next(err);
+    }
+  }
+);
+
+/**
+ * POST /api/scans/:id/analyze
+ * Doctor manually triggers AI analysis for an UPLOADED scan.
+ */
+router.post(
+  "/:id/analyze",
+  authenticateJWT,
+  authorizeRole("DOCTOR"),
+  async (req, res, next) => {
+    try {
+      const result = await ScanService.triggerAnalysis(req.params.id, {
+        requester: req.user,
+      });
+      req.audit?.({
+        action: "TRIGGER_ANALYSIS",
+        entity_type: "SCAN",
+        entity_id: req.params.id,
+      });
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * POST /api/scans/:id/report
+ * Create a draft report after analysis is complete.
+ */
+router.post(
+  "/:id/report",
+  authenticateJWT,
+  authorizeRole("DOCTOR"),
+  async (req, res, next) => {
+    try {
+      const report = await ScanService.createReportForScan(req.params.id, {
+        requester: req.user,
+      });
+      req.audit?.({
+        action: "CREATE_REPORT",
+        entity_type: "REPORT",
+        entity_id: report.id,
+      });
+      res.status(201).json(report);
+    } catch (err) {
       next(err);
     }
   }

@@ -113,34 +113,87 @@ async function uploadScan({ file, patientId, doctorId }) {
     file.buffer
   );
 
-  const scan = await updateScanStatus(created.id, "ANALYSIS_PENDING");
-  await prisma.scan.update({
+  const scan = await prisma.scan.update({
     where: { id: created.id },
-    data: { dicom_path: logicalPath },
+    data: { dicom_path: logicalPath, status: "UPLOADED" },
   });
-  scan.dicom_path = logicalPath;
+  const serialized = serializeScan(scan);
+  serialized.dicom_path = logicalPath;
 
   AuditService.log({
     user_id: doctorId,
     action: "UPLOAD_SCAN",
     entity_type: "SCAN",
     entity_id: scan.id,
-    metadata: { patient_id: patientId, status: "ANALYSIS_PENDING" },
+    metadata: { patient_id: patientId, status: "UPLOADED" },
   });
 
-  scheduleAnalysis(scan.id).catch((err) => {
-    logger.error({ err }, `[ScanService] Analysis failed for scan ${scan.id}`);
-    updateScanStatus(scan.id, "FAILED").catch(() => {});
+  return { scan_id: scan.id, status: "UPLOADED" };
+}
+
+async function triggerAnalysis(scanId, { requester }) {
+  const scan = await prisma.scan.findUnique({ where: { id: scanId } });
+  if (!scan) throw notFound("Scan not found.", "SCAN_NOT_FOUND");
+  if (requester.role === "DOCTOR" && scan.doctor_id !== requester.sub) {
+    throw forbidden("You do not have access to this scan.");
+  }
+  if (scan.status === "ANALYSIS_PENDING" || scan.status === "ANALYSIS_RUNNING") {
+    throw badRequest("Analysis already in progress.", "ANALYSIS_IN_PROGRESS");
+  }
+  if (scan.status === "ANALYSIS_COMPLETE") {
+    throw badRequest("Analysis is already complete.", "ANALYSIS_COMPLETE");
+  }
+  if (scan.status === "FAILED") {
+    throw badRequest("Cannot analyze a failed scan.", "SCAN_FAILED");
+  }
+  if (scan.status !== "UPLOADED") {
+    throw badRequest("Scan is not ready for analysis.", "INVALID_SCAN_STATUS");
+  }
+
+  await updateScanStatus(scanId, "ANALYSIS_PENDING");
+
+  scheduleAnalysis(scanId).catch((err) => {
+    logger.error({ err }, `[ScanService] Analysis failed for scan ${scanId}`);
+    updateScanStatus(scanId, "FAILED").catch(() => {});
     AuditService.log({
       user_id: null,
       action: "ANALYSIS_FAILED",
       entity_type: "SCAN",
-      entity_id: scan.id,
+      entity_id: scanId,
       metadata: { error: err.message },
     });
   });
 
-  return { scan_id: scan.id, status: "ANALYSIS_PENDING" };
+  return { scan_id: scanId, status: "ANALYSIS_PENDING" };
+}
+
+async function createReportForScan(scanId, { requester }) {
+  const scan = await prisma.scan.findUnique({ where: { id: scanId } });
+  if (!scan) throw notFound("Scan not found.", "SCAN_NOT_FOUND");
+  if (requester.role === "DOCTOR" && scan.doctor_id !== requester.sub) {
+    throw forbidden("You do not have access to this scan.");
+  }
+  if (scan.status !== "ANALYSIS_COMPLETE") {
+    throw badRequest("Report can only be created after analysis is complete.", "ANALYSIS_NOT_COMPLETE");
+  }
+
+  const existing = await ReportService.getReportByScan(scanId);
+  if (existing) {
+    return existing;
+  }
+
+  const analysis = await prisma.scanAnalysis.findUnique({ where: { scan_id: scanId } });
+  const aiDraft =
+    analysis?.tumor_location_description && analysis?.tumor_volume_cc != null
+      ? `AI findings: ${analysis.tumor_volume_cc} cc lesion in ${analysis.tumor_location_description}.`
+      : "AI draft pending review.";
+
+  return ReportService.upsertDraftReport({
+    scan_id: scanId,
+    patient_id: scan.patient_id,
+    doctor_id: scan.doctor_id,
+    ai_draft: aiDraft,
+  });
 }
 
 async function scheduleAnalysis(scanId) {
@@ -343,9 +396,18 @@ async function listByPatient(patientId) {
   return scans.map(serializeScan);
 }
 
-async function listByDoctor(doctorId) {
+async function listByDoctor(doctorId, { status, modality, search } = {}) {
+  const where = { doctor_id: doctorId };
+  if (status) where.status = status;
+  if (modality) where.modality = modality;
+  if (search) {
+    where.patient = {
+      full_name: { contains: search, mode: "insensitive" },
+    };
+  }
+
   const scans = await prisma.scan.findMany({
-    where: { doctor_id: doctorId },
+    where,
     include: {
       patient: { select: { full_name: true } },
       report: { select: { id: true, status: true } },
@@ -363,6 +425,8 @@ async function listByDoctor(doctorId) {
 
 module.exports = {
   uploadScan,
+  triggerAnalysis,
+  createReportForScan,
   scheduleAnalysis,
   completeAnalysis,
   getScanSummary,

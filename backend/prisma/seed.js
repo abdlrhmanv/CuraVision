@@ -145,6 +145,19 @@ async function main() {
     },
   });
 
+  await prisma.scan.upsert({
+    where: { id: "scan-005" },
+    update: {},
+    create: {
+      id: "scan-005",
+      patient_id: "patient-001",
+      doctor_id: "doctor-001",
+      dicom_path: "storage/scans/scan-005.dcm",
+      modality: "MRI",
+      status: "UPLOADED",
+    },
+  });
+
   console.log("Seed complete.");
 }
 

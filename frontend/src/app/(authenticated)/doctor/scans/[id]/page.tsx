@@ -50,7 +50,39 @@ export default function DoctorScanReviewPage() {
     }
   }, [])
 
-  const { scan, analysis, loading: pollingLoading, error: pollingError } = useScanAnalysisStatus(id);
+  const { scan, analysis, loading: pollingLoading, error: pollingError, refetch } = useScanAnalysisStatus(id);
+
+  const handleTriggerAnalysis = async () => {
+    if (!id) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await scansApi.triggerAnalysis(id);
+      setMessage('AI analysis started.');
+      refetch();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to start analysis');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCreateReport = async () => {
+    if (!id) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await scansApi.createReport(id);
+      setReport(r);
+      setDraftText(r.final_report ?? r.ai_draft ?? '');
+      loadCorrections(r.id);
+      setMessage('Draft report created.');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to create report');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const fetchReport = useCallback(async () => {
     if (!id || !scan || scan.status !== 'ANALYSIS_COMPLETE') return;
@@ -180,6 +212,9 @@ export default function DoctorScanReviewPage() {
   }
 
   const isAnalysisComplete = scan.status === 'ANALYSIS_COMPLETE';
+  const isUploaded = scan.status === 'UPLOADED';
+  const isFailed = scan.status === 'FAILED';
+  const isAnalyzing = scan.status === 'ANALYSIS_PENDING' || scan.status === 'ANALYSIS_RUNNING';
   const dicomSrc = storageUrl(scan.dicom_path);
   const heatmapSrc = storageUrl(analysis?.gradcam_path);
 
@@ -236,7 +271,7 @@ export default function DoctorScanReviewPage() {
         />
       </div>
 
-      {!isAnalysisComplete && (
+      {!isAnalysisComplete && !isUploaded && !isFailed && isAnalyzing && (
         <div className="bg-card border border-border rounded-xl flex flex-col items-center justify-center p-6 text-muted relative overflow-hidden mb-6 h-32">
           <Skeleton className="absolute inset-0 bg-surface/10" />
           <div className="relative z-10 flex flex-col items-center gap-3 text-center">
@@ -244,6 +279,39 @@ export default function DoctorScanReviewPage() {
             <p className="text-sm font-semibold">AI analysis in progress...</p>
             <p className="text-xs text-muted">Running segmentation and Grad-CAM overlays</p>
           </div>
+        </div>
+      )}
+
+      {isUploaded && (
+        <div className="bg-card border border-border rounded-xl p-6 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold">Scan uploaded — ready for AI analysis</p>
+            <p className="text-xs text-muted mt-1">Run analysis to generate segmentation masks and a draft report.</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleTriggerAnalysis}
+            disabled={busy}
+            className="px-4 py-2 rounded-lg bg-blue text-[#050B18] text-sm font-bold hover:bg-[#6fa0ff] transition disabled:opacity-50"
+          >
+            {busy ? 'Starting...' : 'Run AI Analysis'}
+          </button>
+        </div>
+      )}
+
+      {isFailed && (
+        <div className="bg-card border border-warn/30 rounded-xl p-6 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-warn">Analysis failed</p>
+            <p className="text-xs text-muted mt-1">This scan could not be processed. Create Report is unavailable.</p>
+          </div>
+          <button
+            type="button"
+            disabled
+            className="px-4 py-2 rounded-lg bg-surface border border-border text-sm font-bold text-muted cursor-not-allowed opacity-60"
+          >
+            Create Report
+          </button>
         </div>
       )}
 
@@ -323,7 +391,7 @@ export default function DoctorScanReviewPage() {
             </>
           )}
         </div>
-      ) : !isAnalysisComplete ? (
+      ) : !isAnalysisComplete && isAnalyzing ? (
         <div className="bg-card border border-border rounded-xl p-5 mb-6 grid sm:grid-cols-3 gap-4 text-sm relative overflow-hidden">
           <Skeleton className="absolute inset-0 bg-surface/10" />
           <div className="relative z-10">
@@ -343,15 +411,32 @@ export default function DoctorScanReviewPage() {
 
       {isAnalysisComplete ? (
         <div className="mt-6">
-          <ReportEditor
-            initialReport={draftText}
-            onSave={handleSave}
-            onApprove={handleApprove}
-            isApproving={busy}
-            status={report?.status ?? 'LOADING'}
-          />
+          {!report ? (
+            <div className="bg-card border border-border rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold">Analysis complete</p>
+                <p className="text-xs text-muted mt-1">Create a draft report from AI findings.</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCreateReport}
+                disabled={busy}
+                className="px-4 py-2 rounded-lg bg-blue text-[#050B18] text-sm font-bold hover:bg-[#6fa0ff] transition disabled:opacity-50"
+              >
+                {busy ? 'Creating...' : 'Create Report'}
+              </button>
+            </div>
+          ) : (
+            <ReportEditor
+              initialReport={draftText}
+              onSave={handleSave}
+              onApprove={handleApprove}
+              isApproving={busy}
+              status={report?.status ?? 'LOADING'}
+            />
+          )}
         </div>
-      ) : (
+      ) : !isAnalyzing && !isUploaded && !isFailed ? (
         <div className="bg-card border border-border rounded-xl p-6 relative overflow-hidden mt-6">
           <Skeleton className="absolute inset-0 bg-surface/10" />
           <div className="relative z-10 space-y-4">
@@ -363,7 +448,7 @@ export default function DoctorScanReviewPage() {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {report && (
         <div className="bg-card border border-border rounded-xl p-5 mt-6">

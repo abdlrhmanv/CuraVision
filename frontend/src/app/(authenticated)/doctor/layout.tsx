@@ -6,6 +6,7 @@ import {
   Activity,
   Brain,
   Calendar,
+  CalendarClock,
   Upload,
   User,
   Users,
@@ -29,6 +30,7 @@ const navItems = [
   { label: 'All Scans', href: '/doctor/scans', icon: Brain },
   { label: 'Patients', href: '/doctor/patients', icon: Users },
   { label: 'Appointments', href: '/doctor/appointments', icon: Calendar },
+  { label: 'Availability', href: '/doctor/availability', icon: CalendarClock },
   { label: 'Profile', href: '/doctor/profile', icon: User },
 ]
 

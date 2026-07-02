@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { Brain, FileText, Upload, Users } from 'lucide-react'
+import { Brain, Calendar, FileText, Upload, Users } from 'lucide-react'
 import { useRequireAuth } from '@/lib/authContext'
-import { ApiError, DoctorScan, scansApi } from '@/lib/apiClient'
+import { ApiError, AvailabilityRule, DoctorScan, reservationsApi, scansApi } from '@/lib/apiClient'
+import { WeeklyScheduleGrid } from '@/components/medical/WeeklyScheduleGrid'
 
 function statusTone(status: string): string {
   if (status === 'ANALYSIS_COMPLETE') return 'bg-green/15 text-green'
@@ -16,23 +17,28 @@ function statusTone(status: string): string {
 export default function DoctorDashboard() {
   const { user, loading } = useRequireAuth('DOCTOR')
   const [scans, setScans] = useState<DoctorScan[]>([])
+  const [rules, setRules] = useState<AvailabilityRule[]>([])
   const [fetching, setFetching] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (loading || !user) return
-    const fetchScans = async () => {
+    const load = async () => {
       setFetching(true)
       try {
-        const res = await scansApi.listForDoctor()
-        setScans(res.scans)
+        const [scansRes, rulesRes] = await Promise.all([
+          scansApi.listForDoctor(),
+          reservationsApi.getRules(user.id),
+        ])
+        setScans(scansRes.scans)
+        setRules(rulesRes.rules)
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Failed to load scans')
+        setError(err instanceof ApiError ? err.message : 'Failed to load dashboard')
       } finally {
         setFetching(false)
       }
     }
-    fetchScans()
+    load()
   }, [loading, user])
 
   if (loading || !user) return <div className="p-6 text-sm text-muted">Loading...</div>
@@ -89,48 +95,74 @@ export default function DoctorDashboard() {
         })}
       </section>
 
-      <section aria-label="Recent Scans" className="bg-card border border-border rounded-xl p-5">
-        <h2 className="text-[10px] tracking-[2px] uppercase text-muted font-semibold mb-3">
-          Recent scans
-        </h2>
+      <div className="grid lg:grid-cols-2 gap-6 mb-6">
+        <section aria-label="Recent Scans" className="bg-card border border-border rounded-xl p-5">
+          <h2 className="text-[10px] tracking-[2px] uppercase text-muted font-semibold mb-3">
+            Scan queue
+          </h2>
 
-        {error && (
-          <div className="mb-3 px-3 py-2 rounded-md bg-warn/10 border border-warn/30 text-sm text-warn">
-            {error}
-          </div>
-        )}
+          {error && (
+            <div className="mb-3 px-3 py-2 rounded-md bg-warn/10 border border-warn/30 text-sm text-warn">
+              {error}
+            </div>
+          )}
 
-        {fetching ? (
-          <div className="text-sm text-muted">Loading...</div>
-        ) : scans.length === 0 ? (
-          <div className="text-sm text-muted py-6 text-center">
-            No scans yet. Use <span className="text-blue">Upload Scan</span> to add one.
+          {fetching ? (
+            <div className="text-sm text-muted">Loading...</div>
+          ) : scans.length === 0 ? (
+            <div className="text-sm text-muted py-6 text-center">No scans found</div>
+          ) : (
+            <div className="space-y-2">
+              {scans.slice(0, 8).map((s) => (
+                <Link
+                  key={s.id}
+                  href={`/doctor/scans/${s.id}`}
+                  className="bg-surface border border-border rounded-lg p-3.5 flex items-center justify-between gap-3 flex-wrap hover:border-blue transition focus:ring-2 focus:ring-blue"
+                  aria-label={`View scan details for ${s.patient_name ?? 'Unknown patient'} - Modality ${s.modality}`}
+                >
+                  <div>
+                    <div className="text-sm font-semibold">
+                      {s.patient_name ?? 'Unknown patient'} · {s.modality}
+                    </div>
+                    <div className="text-xs text-muted mt-1 font-mono">
+                      {s.id.slice(0, 8)} · {new Date(s.uploaded_at).toLocaleString()}
+                    </div>
+                  </div>
+                  <span className={`text-[10px] px-2 py-1 rounded ${statusTone(s.status)}`}>
+                    {s.status}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section aria-label="Scheduler" className="bg-card border border-border rounded-xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[10px] tracking-[2px] uppercase text-muted font-semibold flex items-center gap-2">
+              <Calendar size={14} /> Weekly scheduler
+            </h2>
+            <Link
+              href="/doctor/availability"
+              className="text-xs text-blue hover:underline font-semibold"
+            >
+              Manage
+            </Link>
           </div>
-        ) : (
-          <div className="space-y-2">
-            {scans.slice(0, 8).map((s) => (
-              <Link
-                key={s.id}
-                href={`/doctor/scans/${s.id}`}
-                className="bg-surface border border-border rounded-lg p-3.5 flex items-center justify-between gap-3 flex-wrap hover:border-blue transition focus:ring-2 focus:ring-blue"
-                aria-label={`View scan details for ${s.patient_name ?? 'Unknown patient'} - Modality ${s.modality}`}
-              >
-                <div>
-                  <div className="text-sm font-semibold">
-                    {s.patient_name ?? 'Unknown patient'} · {s.modality}
-                  </div>
-                  <div className="text-xs text-muted mt-1 font-mono">
-                    {s.id.slice(0, 8)} · {new Date(s.uploaded_at).toLocaleString()}
-                  </div>
-                </div>
-                <span className={`text-[10px] px-2 py-1 rounded ${statusTone(s.status)}`}>
-                  {s.status}
-                </span>
+          {fetching ? (
+            <div className="text-sm text-muted">Loading...</div>
+          ) : rules.length === 0 ? (
+            <div className="text-sm text-muted py-6 text-center">
+              No availability slots yet.{' '}
+              <Link href="/doctor/availability" className="text-blue hover:underline">
+                Add slots
               </Link>
-            ))}
-          </div>
-        )}
-      </section>
+            </div>
+          ) : (
+            <WeeklyScheduleGrid rules={rules} compact />
+          )}
+        </section>
+      </div>
     </main>
   )
 }

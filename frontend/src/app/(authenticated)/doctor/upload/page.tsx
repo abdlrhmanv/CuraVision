@@ -123,7 +123,7 @@ export default function DoctorUploadPage() {
             disabled={submitting}
             className="px-4 py-2 rounded-lg bg-blue text-[#050B18] text-sm font-bold hover:bg-[#6fa0ff] transition disabled:opacity-50"
           >
-            {submitting ? 'Uploading...' : 'Upload & Analyse'}
+            {submitting ? 'Uploading...' : 'Upload Scan'}
           </button>
         </div>
       </div>

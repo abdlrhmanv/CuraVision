@@ -48,6 +48,10 @@ SCAN_ID=$(echo "$UPLOAD" | jq -r .scan_id)
 rm -f "$TMPFILE"
 echo "  scan id: $SCAN_ID"
 
+echo "▶ Trigger AI analysis"
+curl -sf -X POST "$BASE_URL/api/scans/$SCAN_ID/analyze" $CSRF_ARGS \
+  -H "Authorization: Bearer $DOC_TOKEN" > /dev/null
+
 echo "▶ Polling scan status"
 for i in 1 2 3 4 5 6 7 8 9 10; do
   STATUS=$(curl -sf -H "Authorization: Bearer $DOC_TOKEN" "$BASE_URL/api/scans/$SCAN_ID" | jq -r .status)

@@ -73,8 +73,31 @@ type RequestOptions = Omit<RequestInit, "body" | "headers"> & {
   formData?: boolean;
 };
 
+let cachedXsrfToken: string | null = null;
+
+async function ensureCsrfToken(): Promise<string | null> {
+  if (typeof document !== "undefined") {
+    const xsrfCookie = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("XSRF-TOKEN="));
+    if (xsrfCookie) {
+      cachedXsrfToken = xsrfCookie.split("=")[1] || "";
+      return cachedXsrfToken;
+    }
+  }
+  if (cachedXsrfToken) return cachedXsrfToken;
+
+  const res = await fetch(`${API_BASE_URL}/health`, { credentials: "include" });
+  const headerToken = res.headers.get("X-XSRF-TOKEN");
+  if (headerToken) {
+    cachedXsrfToken = headerToken;
+    return headerToken;
+  }
+  return null;
+}
+
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const { body, headers = {}, formData, ...rest } = opts;
+  const { body, headers = {}, formData, method = "GET", ...rest } = opts;
   const token = getToken();
 
   const requestHeaders: Record<string, string> = { Accept: "application/json", ...headers };
@@ -83,7 +106,11 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     requestHeaders["Content-Type"] = "application/json";
   }
 
-  if (typeof document !== "undefined") {
+  const safeMethods = ["GET", "HEAD", "OPTIONS"];
+  if (!safeMethods.includes(method)) {
+    const xsrf = await ensureCsrfToken();
+    if (xsrf) requestHeaders["X-XSRF-TOKEN"] = xsrf;
+  } else if (typeof document !== "undefined") {
     const xsrfCookie = document.cookie
       .split("; ")
       .find((row) => row.startsWith("XSRF-TOKEN="));
@@ -98,6 +125,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...rest,
+    method,
     headers: requestHeaders,
     body: payload,
     credentials: "include",
@@ -222,7 +250,17 @@ export const scansApi = {
   get: (id: string) => api.get<Scan>(`/api/scans/${id}`),
   analysis: (id: string) => api.get<ScanAnalysis>(`/api/scans/${id}/analysis`),
   reportForScan: (id: string) => api.get<Report>(`/api/scans/${id}/report`),
-  listForDoctor: () => api.get<{ scans: DoctorScan[] }>("/api/scans"),
+  triggerAnalysis: (id: string) =>
+    api.post<{ scan_id: string; status: string }>(`/api/scans/${id}/analyze`),
+  createReport: (id: string) => api.post<Report>(`/api/scans/${id}/report`),
+  listForDoctor: (params?: { status?: string; modality?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.modality) qs.set("modality", params.modality);
+    if (params?.search) qs.set("search", params.search);
+    const query = qs.toString();
+    return api.get<{ scans: DoctorScan[] }>(`/api/scans${query ? `?${query}` : ""}`);
+  },
   listForPatient: (patientId: string) =>
     api.get<{ patient_id: string; scans: Scan[] }>(
       `/api/patients/${patientId}/scans`
