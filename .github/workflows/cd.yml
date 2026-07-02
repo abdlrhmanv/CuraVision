@@ -134,6 +134,8 @@ jobs:
                 -out /opt/curavision/nginx/certs/curavision.crt \
                 -subj "/C=US/ST=State/L=City/O=CuraVision/CN=localhost"
             fi
+            # Ensure certificates are readable by Nginx container
+            chmod 644 /opt/curavision/nginx/certs/curavision.crt /opt/curavision/nginx/certs/curavision.key
 
       - name: Copy Compose files and Nginx config to VM
         uses: appleboy/scp-action@master
