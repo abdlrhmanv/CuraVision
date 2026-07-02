@@ -26,6 +26,7 @@ jobs:
           key: ${{ secrets.PROD_SSH_KEY }}
           script: |
             cd /opt/curavision
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
-            docker ps -a
+            echo "--- ENV SMTP VARS ---"
+            grep SMTP .env || echo "No SMTP vars found in .env"
+            echo "--- BACKEND LOGS ---"
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail 100 backend
