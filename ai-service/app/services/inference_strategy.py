@@ -190,6 +190,12 @@ def get_inference_strategy() -> InferenceStrategy:
                 if p.exists():
                     return str(p)
                 
+                # Docker mount path: /ml/artifacts/onnx/
+                docker_dir = Path("/ml/artifacts/onnx")
+                p_docker = docker_dir / f"{default_name}.onnx"
+                if p_docker.exists():
+                    return str(p_docker)
+                
                 # Prod path: ai-service/app/ml_models/
                 prod_dir = Path(__file__).resolve().parents[2] / "ml_models"
                 p = prod_dir / f"{default_name}.onnx"
