@@ -218,7 +218,7 @@ def _lesion_mask(image: Image.Image) -> np.ndarray:
 
 def _estimate_volume_cc(mask: np.ndarray, metadata: dict[str, Any], scan_id: str) -> float:
     area_pixels = int(mask.sum())
-    if area_pixels <= 0:
+    if area_pixels < 50:
         return 0.0
 
     spacing = metadata.get("pixel_spacing_mm")
@@ -244,7 +244,7 @@ def _estimate_volume_cc(mask: np.ndarray, metadata: dict[str, Any], scan_id: str
 
 def _describe_location(mask: np.ndarray, scan_id: str) -> str:
     ys, xs = np.where(mask)
-    if xs.size == 0:
+    if xs.size < 50:
         return "No tumor detected"
 
     x_pct = float(xs.mean() / max(mask.shape[1] - 1, 1))
@@ -427,10 +427,15 @@ def run_segmentation(scan_id: str, dicom_path: str, dicom_url: str | None = None
     if isinstance(strategy, OnnxPipelineStrategy):
         seg_raw = strategy.pipeline.segmenter.predict(image)
         mask = seg_raw["mask"]
+        if mask.sum() < 50:
+            mask = np.zeros_like(mask)
+            seg_raw["mask_found"] = False
         source = "onnx-segmenter"
         inference_log = f"onnx-segmenter-analysis source={source}; mask_found={seg_raw['mask_found']}"
     else:
         mask = _lesion_mask(image)
+        if mask.sum() < 50:
+            mask = np.zeros_like(mask)
         source = "dicom" if loaded_dicom else "synthetic-fallback"
         inference_log = f"interim-dicom-analysis v0.2 source={source}; {_metadata_summary(metadata)}"
 

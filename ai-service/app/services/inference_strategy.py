@@ -78,8 +78,6 @@ class OnnxPipelineStrategy(InferenceStrategy):
         
         stop_early = (
             class_result.predicted_index == self.pipeline.no_tumor_index
-            and class_result.confidence >= self.pipeline.no_tumor_stop_threshold
-            and tumor_probability < self.pipeline.segmentation_trigger_threshold
         )
         
         should_run_segmentation = (
@@ -103,6 +101,10 @@ class OnnxPipelineStrategy(InferenceStrategy):
             
             if seg_raw["mask_found"]:
                 mask = seg_raw["mask"]
+                if mask.sum() < 150:
+                    seg_raw["mask_found"] = False
+                    
+            if seg_raw["mask_found"]:
                 # Save mask and gradcam using analysis_service helpers
                 mask_path = analysis_service._save_mask(mask, scan_id, mask_put_url)
                 gradcam_path = analysis_service._save_heatmap(image, mask, scan_id, gradcam_put_url)
