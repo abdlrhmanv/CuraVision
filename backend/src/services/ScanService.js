@@ -55,6 +55,16 @@ async function serializeAnalysis(analysis) {
     tumor_volume_cc: analysis.tumor_volume_cc,
     tumor_location_description: analysis.tumor_location_description,
     inference_log: analysis.inference_log,
+    confidence: analysis.confidence,
+    tumor_type: analysis.tumor_type,
+    risk_level: analysis.risk_level,
+    estimated_diameter: analysis.estimated_diameter,
+    brain_hemisphere: analysis.brain_hemisphere,
+    lobe: analysis.lobe,
+    segmentation_quality: analysis.segmentation_quality,
+    growth_pct: analysis.growth_pct,
+    suggested_action: analysis.suggested_action,
+    processing_time_sec: analysis.processing_time_sec,
     created_at: analysis.created_at.toISOString(),
     updated_at: analysis.updated_at.toISOString(),
   };
@@ -70,9 +80,19 @@ function clearCache(doctorId, scanId) {
 
 async function getScanRecord(scanId) {
   if (scanCache.has(scanId)) return scanCache.get(scanId);
-  const scan = await prisma.scan.findUnique({ where: { id: scanId } });
-  const result = scan ? await serializeScan(scan) : null;
-  if (result) scanCache.set(scanId, result);
+  const scan = await prisma.scan.findUnique({
+    where: { id: scanId },
+    include: {
+      patient: { select: { full_name: true } },
+    },
+  });
+  if (!scan) return null;
+  const serialized = await serializeScan(scan);
+  const result = {
+    ...serialized,
+    patient_name: scan.patient?.full_name ?? null,
+  };
+  scanCache.set(scanId, result);
   return result;
 }
 
@@ -86,6 +106,26 @@ async function updateScanStatus(scanId, status) {
 }
 
 async function upsertAnalysis(scanId, payload) {
+  const scan = await prisma.scan.findUnique({ where: { id: scanId } });
+  
+  let growth_pct = null;
+  if (scan && payload.tumor_volume_cc != null) {
+    const prevScan = await prisma.scan.findFirst({
+      where: {
+        patient_id: scan.patient_id,
+        status: "ANALYSIS_COMPLETE",
+        id: { not: scanId },
+        uploaded_at: { lt: scan.uploaded_at },
+      },
+      orderBy: { uploaded_at: "desc" },
+      include: { analysis: true },
+    });
+    if (prevScan?.analysis?.tumor_volume_cc != null) {
+      const prevVolume = prevScan.analysis.tumor_volume_cc;
+      growth_pct = parseFloat((((payload.tumor_volume_cc - prevVolume) / prevVolume) * 100).toFixed(1));
+    }
+  }
+
   const analysis = await prisma.scanAnalysis.upsert({
     where: { scan_id: scanId },
     create: {
@@ -95,6 +135,16 @@ async function upsertAnalysis(scanId, payload) {
       tumor_volume_cc: payload.tumor_volume_cc ?? null,
       tumor_location_description: payload.tumor_location_description ?? null,
       inference_log: payload.inference_log ?? null,
+      confidence: payload.confidence ?? null,
+      tumor_type: payload.tumor_type ?? null,
+      risk_level: payload.risk_level ?? null,
+      estimated_diameter: payload.estimated_diameter ?? null,
+      brain_hemisphere: payload.brain_hemisphere ?? null,
+      lobe: payload.lobe ?? null,
+      segmentation_quality: payload.segmentation_quality ?? null,
+      growth_pct: growth_pct !== null ? growth_pct : (payload.growth_pct ?? null),
+      suggested_action: payload.suggested_action ?? null,
+      processing_time_sec: payload.processing_time_sec ?? null,
     },
     update: {
       unet_mask_path: payload.unet_mask_path ?? undefined,
@@ -102,6 +152,16 @@ async function upsertAnalysis(scanId, payload) {
       tumor_volume_cc: payload.tumor_volume_cc ?? undefined,
       tumor_location_description: payload.tumor_location_description ?? undefined,
       inference_log: payload.inference_log ?? undefined,
+      confidence: payload.confidence ?? undefined,
+      tumor_type: payload.tumor_type ?? undefined,
+      risk_level: payload.risk_level ?? undefined,
+      estimated_diameter: payload.estimated_diameter ?? undefined,
+      brain_hemisphere: payload.brain_hemisphere ?? undefined,
+      lobe: payload.lobe ?? undefined,
+      segmentation_quality: payload.segmentation_quality ?? undefined,
+      growth_pct: growth_pct !== null ? growth_pct : (payload.growth_pct !== undefined ? payload.growth_pct : undefined),
+      suggested_action: payload.suggested_action ?? undefined,
+      processing_time_sec: payload.processing_time_sec ?? undefined,
     },
   });
   return await serializeAnalysis(analysis);
@@ -272,6 +332,16 @@ async function scheduleAnalysis(scanId) {
     tumor_volume_cc: segmentation.tumor_volume_cc,
     tumor_location_description: segmentation.tumor_location_description,
     inference_log: segmentation.inference_log,
+    confidence: segmentation.confidence,
+    tumor_type: segmentation.tumor_type,
+    risk_level: segmentation.risk_level,
+    estimated_diameter: segmentation.estimated_diameter,
+    brain_hemisphere: segmentation.brain_hemisphere,
+    lobe: segmentation.lobe,
+    segmentation_quality: segmentation.segmentation_quality,
+    growth_pct: segmentation.growth_pct,
+    suggested_action: segmentation.suggested_action,
+    processing_time_sec: segmentation.processing_time_sec,
   });
 
   if (segmentation.mask_path) {
@@ -324,6 +394,16 @@ async function completeAnalysis(scanId, payload) {
     tumor_volume_cc: segmentation.tumor_volume_cc,
     tumor_location_description: segmentation.tumor_location_description,
     inference_log: segmentation.inference_log,
+    confidence: segmentation.confidence,
+    tumor_type: segmentation.tumor_type,
+    risk_level: segmentation.risk_level,
+    estimated_diameter: segmentation.estimated_diameter,
+    brain_hemisphere: segmentation.brain_hemisphere,
+    lobe: segmentation.lobe,
+    segmentation_quality: segmentation.segmentation_quality,
+    growth_pct: segmentation.growth_pct,
+    suggested_action: segmentation.suggested_action,
+    processing_time_sec: segmentation.processing_time_sec,
   });
 
   if (segmentation.mask_path) {
@@ -398,6 +478,29 @@ function localStubAnalysis(scanId) {
     SAMPLE_TUMOR_LOCATIONS[
       Math.floor(Math.random() * SAMPLE_TUMOR_LOCATIONS.length)
     ];
+
+  const diameter = parseFloat((2 * Math.pow((3 * volume) / (4 * Math.PI), 1 / 3)).toFixed(1));
+  const locLower = (location || "").toLowerCase();
+  const hemisphere = locLower.includes("left") ? "Left" : locLower.includes("right") ? "Right" : "Bilateral";
+  
+  let lobe = "Brain";
+  if (locLower.includes("frontal")) lobe = "Frontal";
+  else if (locLower.includes("temporal")) lobe = "Temporal";
+  else if (locLower.includes("parietal-temporal")) lobe = "Parietal-Temporal";
+  else if (locLower.includes("parietal")) lobe = "Parietal";
+  else if (locLower.includes("occipital")) lobe = "Occipital";
+  else if (locLower.includes("brainstem")) lobe = "Brainstem";
+
+  const confidence = parseFloat((95.0 + Math.random() * 4.5).toFixed(1));
+  
+  const types = ["Glioma (Predicted)", "Meningioma (Predicted)", "Pituitary (Predicted)"];
+  const tumor_type = types[Math.floor(Math.random() * types.length)];
+  
+  const risk_level = volume > 8.0 || lobe === "Brainstem" ? "High" : volume > 3.0 ? "Moderate" : "Low";
+  const suggested_action = risk_level === "High" ? "Urgent Radiologist Review" : "Standard Radiologist Review";
+  const segmentation_quality = confidence >= 97.0 ? "Excellent" : "Good";
+  const processing_time_sec = parseFloat((1.5 + Math.random() * 2.0).toFixed(1));
+
   return {
     scan_id: scanId,
     segmentation: {
@@ -406,6 +509,15 @@ function localStubAnalysis(scanId) {
       tumor_volume_cc: volume,
       tumor_location_description: location,
       inference_log: "local-stub v0.1",
+      confidence,
+      tumor_type,
+      risk_level,
+      estimated_diameter: diameter,
+      brain_hemisphere: hemisphere,
+      lobe,
+      segmentation_quality,
+      suggested_action,
+      processing_time_sec,
     },
     gradcam: {
       scan_id: scanId,

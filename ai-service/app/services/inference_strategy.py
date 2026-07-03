@@ -54,6 +54,9 @@ class OnnxPipelineStrategy(InferenceStrategy):
         mlflow.set_experiment("CuraVision-Tumor-Segmentation")
 
     def run_full_analysis(self, scan_id: str, dicom_path: str, dicom_url: str | None = None, mask_put_url: str | None = None, gradcam_put_url: str | None = None) -> dict[str, Any]:
+        import time
+        start_time = time.time()
+
         from PIL import Image
         import importlib
         schemas_mod = importlib.import_module("src.inference.schemas")
@@ -125,15 +128,27 @@ class OnnxPipelineStrategy(InferenceStrategy):
             mlflow.log_metric("confidence", class_result.confidence)
             mlflow.log_param("decision_reason", decision_reason)
         
+        elapsed = round(time.time() - start_time, 2)
+        metrics = analysis_service.compute_derived_metrics(
+            scan_id=scan_id,
+            volume=volume,
+            location=location,
+            confidence=class_result.confidence,
+            processing_time_sec=elapsed
+        )
+        
+        segmentation_data = {
+            "scan_id": scan_id,
+            "mask_path": mask_path,
+            "tumor_volume_cc": volume,
+            "tumor_location_description": location,
+            "inference_log": decision_reason
+        }
+        segmentation_data.update(metrics)
+
         return {
             "scan_id": scan_id,
-            "segmentation": {
-                "scan_id": scan_id,
-                "mask_path": mask_path,
-                "tumor_volume_cc": volume,
-                "tumor_location_description": location,
-                "inference_log": decision_reason
-            },
+            "segmentation": segmentation_data,
             "gradcam": {
                 "scan_id": scan_id,
                 "gradcam_path": gradcam_path,

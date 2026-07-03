@@ -126,6 +126,16 @@ async function main() {
           r.scan_id === "scan-001"
             ? "left frontal lobe"
             : "right temporal lobe",
+        confidence: r.scan_id === "scan-001" ? 97.8 : 96.5,
+        tumor_type: r.scan_id === "scan-001" ? "Glioma (Predicted)" : "Meningioma (Predicted)",
+        risk_level: r.scan_id === "scan-001" ? "High" : "Low",
+        estimated_diameter: r.scan_id === "scan-001" ? 2.9 : 1.6,
+        brain_hemisphere: r.scan_id === "scan-001" ? "Left" : "Right",
+        lobe: r.scan_id === "scan-001" ? "Frontal" : "Temporal",
+        segmentation_quality: r.scan_id === "scan-001" ? "Excellent" : "Good",
+        growth_pct: r.scan_id === "scan-001" ? 12.0 : null,
+        suggested_action: r.scan_id === "scan-001" ? "Urgent Radiologist Review" : "Standard Radiologist Review",
+        processing_time_sec: r.scan_id === "scan-001" ? 2.9 : 1.8,
         inference_log: "seed fixture",
       },
     });

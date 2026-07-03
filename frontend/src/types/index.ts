@@ -27,6 +27,16 @@ export interface ScanAnalysis {
   tumor_volume_cc: number | null;
   tumor_location_description: string | null;
   inference_log: string | null;
+  confidence: number | null;
+  tumor_type: string | null;
+  risk_level: string | null;
+  estimated_diameter: number | null;
+  brain_hemisphere: string | null;
+  lobe: string | null;
+  segmentation_quality: string | null;
+  growth_pct: number | null;
+  suggested_action: string | null;
+  processing_time_sec: number | null;
 }
 
 export interface Report {

@@ -128,6 +128,16 @@ model ScanAnalysis {
   tumor_volume_cc            Float?
   tumor_location_description String?
   inference_log              String?
+  confidence                 Float?
+  tumor_type                 String?
+  risk_level                 String?
+  estimated_diameter         Float?
+  brain_hemisphere           String?
+  lobe                       String?
+  segmentation_quality       String?
+  growth_pct                 Float?
+  suggested_action           String?
+  processing_time_sec        Float?
   created_at                 DateTime @default(now())
   updated_at                 DateTime @updatedAt
   scan                       Scan     @relation(fields: [scan_id], references: [id], onDelete: Cascade)

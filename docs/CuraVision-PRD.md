@@ -2,8 +2,8 @@
 
 | Field | Value |
 |-------|-------|
-| **Document Version** | 2.3 |
-| **Date** | March 13, 2026 |
+| **Document Version** | 2.5 |
+| **Date** | July 3, 2026 |
 | **Author** | Abdelrahman Hisham |
 | **Status** | Active |
 | **Project Type** | DEPI Graduation Project — ML Engineer Track |
@@ -199,27 +199,30 @@ Login → View approved report → (Optional) View visuals
 
 | Layer | Technology |
 |-------|------------|
-| Framework | Next.js |
+| Framework | Next.js 16 (React 19) |
+| Styling | Tailwind CSS 4 |
 | Medical Imaging | Cornerstone.js |
-| State | Redux Toolkit / React Query |
+| State | Context API & Local State |
 
 ### 6.2 Backend
 
 | Layer | Technology |
 |-------|------------|
-| Runtime | Node.js |
-| Framework | Express |
+| Runtime | Node.js 20+ |
+| Framework | Express 5 |
 | Database | PostgreSQL |
+| ORM | Prisma 7 |
+| Storage | Local Filesystem / MinIO (S3-compatible) |
 
 ### 6.3 AI Microservice
 
 | Layer | Technology |
 |-------|------------|
-| Framework | Python + FastAPI |
-| ML | PyTorch / TensorFlow (U-Net, Grad-CAM) |
-| Task Queue | Redis + Celery (or RabbitMQ) |
-| Vector DB | ChromaDB / Pinecone |
-| LLM | Local (Ollama: Llama 3 8B Q4 / MedAlpaca) — 6GB VRAM target |
+| Framework | Python 3.11+ + FastAPI 0.136 |
+| ML | PyTorch & ONNX (U-Net, Grad-CAM) |
+| Task Queue | Redis + Celery |
+| Vector DB | ChromaDB |
+| LLM | Groq API (default) / local Ollama fallback |
 
 ---
 
@@ -286,6 +289,7 @@ Login → View approved report → (Optional) View visuals
 | 2.1 | 2026-03-13 | Improved structure, added glossary, architecture, NFRs |
 | 2.2 | 2026-03-13 | PostgreSQL (replacing MongoDB); Next.js as sole frontend framework |
 | 2.3 | 2026-03-13 | Dataset marked as TBD; no selection made yet |
+| 2.5 | 2026-07-03 | Aligned stack details (Next.js 16, React 19, Tailwind 4, Prisma 7, MinIO); documented premium Doctor Appointments SaaS dashboard and clinical review queue. |
 
 ### B. References
 

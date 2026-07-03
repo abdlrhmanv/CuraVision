@@ -47,13 +47,13 @@ GP/
 # 1. Infra (Postgres + Redis)
 docker compose up -d
 
-# 2. Backend
+# 2. Backend & Database Setup
 cd backend
 cp .env.example .env
 npm install
-# Optional: run the real database instead of mock data
-#   npx prisma migrate dev --name init
-#   npm run db:seed
+# Run Prisma migrations to initialize the PostgreSQL database and seed demo data
+npx prisma migrate dev --name init
+npm run db:seed
 npm run dev            # http://localhost:3001
 
 # 3. AI service (new terminal)
@@ -230,19 +230,12 @@ service is unreachable. Switching to Celery is a one-line change in
 
 ## Frontend highlights
 
-- **Real auth**: `src/lib/apiClient.ts` attaches `Authorization: Bearer`
-  from `localStorage`. `src/lib/authContext.tsx` provides `useAuth()`
-  and `useRequireAuth(role)` helpers.
-- **Patient portal**: dashboard, reports (from `/api/patient/reports`),
-  and chatbot wired to `/api/chat/:reportId/message` with source citations.
-- **Doctor portal** (`/doctor`): dashboard, scan list, upload, review +
-  approve (with HITL corrections history panel), and appointment queue.
-  Grad-CAM heatmaps render beside the source DICOM.
-- **Patient portal** (`/patient`): reports, chatbot, **appointments**
-  (pick a doctor + open slot → PENDING request → doctor confirmation).
-- **DICOM viewer**: `src/components/medical/DicomViewer.tsx` dynamically
-  imports `@cornerstonejs/core` on the client and falls back to a plain
-  `<img>` for PNG/JPEG previews (e.g. Grad-CAM heatmaps).
+- **Real auth**: `src/lib/apiClient.ts` attaches `Authorization: Bearer` from `localStorage`. `src/lib/authContext.tsx` provides `useAuth()` and `useRequireAuth(role)` helpers.
+- **Patient portal**: Contains dynamic dashboard, reports (fetched from `/api/patient/reports`), and a chatbot wired to `/api/chat/:reportId/message` complete with source citations.
+- **Doctor portal** (`/doctor`): Features a complete clinical dashboard, scan lists, scan upload tools, and an advanced review panel rendering Grad-CAM heatmaps beside native DICOM scans (with dynamic overlay opacity controls).
+- **Premium Appointment Scheduler**: The doctor appointments manager is rebuilt as a premium Medical SaaS dashboard. It displays detailed queues, upcoming appointments, actions to approve or cancel slots, and direct patient navigation.
+- **Clinical Review Queue**: Fully integrated review list connecting real backend API endpoints to the Cornerstone-powered `DicomViewer` for scan assessments.
+- **DICOM viewer**: `src/components/medical/DicomViewer.tsx` dynamically imports `@cornerstonejs/core` on the client, offering tools for zooming, panning, contrast adjustment, slice navigation, and toggleable AI mask layers, falling back to a clean `<img>` rendering for PNG/JPEG previews (e.g., Grad-CAM heatmaps).
 
 > **Note (Next.js 16):** dev/build use the webpack backend
 > (`next dev --webpack`, `next build --webpack`) because Cornerstone's WASM

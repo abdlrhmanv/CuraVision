@@ -165,14 +165,92 @@ async function editReport(reportId, { requester, final_report, corrections }) {
           explicitCorrections += 1;
 
           if (c.field === "tumor_volume_cc") {
+            const newVolume = parseFloat(c.new_value) || null;
+            let estimated_diameter = null;
+            let risk_level = null;
+            let suggested_action = null;
+            let growth_pct = null;
+
+            if (newVolume !== null) {
+              estimated_diameter = parseFloat((2 * Math.pow((3 * newVolume) / (4 * Math.PI), 1 / 3)).toFixed(1));
+              
+              // We need the current lobe to see if it's a brainstem tumor (which forces High risk)
+              const currentAnalysis = await tx.scanAnalysis.findUnique({
+                where: { scan_id: report.scan_id },
+              });
+              const currentLobe = currentAnalysis?.lobe ?? "Brain";
+              
+              risk_level = newVolume > 8.0 || currentLobe === "Brainstem" ? "High" : newVolume > 3.0 ? "Moderate" : "Low";
+              suggested_action = risk_level === "High" ? "Urgent Radiologist Review" : "Standard Radiologist Review";
+
+              const scan = await tx.scan.findUnique({
+                where: { id: report.scan_id },
+              });
+              if (scan) {
+                const prevScan = await tx.scan.findFirst({
+                  where: {
+                    patient_id: scan.patient_id,
+                    status: "ANALYSIS_COMPLETE",
+                    id: { not: scan.id },
+                    uploaded_at: { lt: scan.uploaded_at },
+                  },
+                  orderBy: { uploaded_at: "desc" },
+                  include: { analysis: true },
+                });
+                if (prevScan?.analysis?.tumor_volume_cc != null) {
+                  const prevVolume = prevScan.analysis.tumor_volume_cc;
+                  growth_pct = parseFloat((((newVolume - prevVolume) / prevVolume) * 100).toFixed(1));
+                }
+              }
+            }
+
             await tx.scanAnalysis.update({
               where: { scan_id: report.scan_id },
-              data: { tumor_volume_cc: parseFloat(c.new_value) || null },
+              data: {
+                tumor_volume_cc: newVolume,
+                estimated_diameter,
+                risk_level,
+                suggested_action,
+                growth_pct,
+              },
             });
           } else if (c.field === "tumor_location_description") {
+            const newLocation = c.new_value ?? null;
+            let brain_hemisphere = null;
+            let lobe = null;
+            let risk_level = null;
+            let suggested_action = null;
+
+            if (newLocation !== null) {
+              const locLower = newLocation.toLowerCase();
+              brain_hemisphere = locLower.includes("left") ? "Left" : locLower.includes("right") ? "Right" : (locLower.includes("midline") || locLower.includes("stem")) ? "Bilateral" : "Unspecified";
+
+              lobe = "Brain";
+              if (locLower.includes("frontal")) lobe = "Frontal";
+              else if (locLower.includes("temporal")) lobe = "Temporal";
+              else if (locLower.includes("parietal-temporal")) lobe = "Parietal-Temporal";
+              else if (locLower.includes("parietal")) lobe = "Parietal";
+              else if (locLower.includes("occipital")) lobe = "Occipital";
+              else if (locLower.includes("brainstem")) lobe = "Brainstem";
+
+              const currentAnalysis = await tx.scanAnalysis.findUnique({
+                where: { scan_id: report.scan_id },
+              });
+              const volume = currentAnalysis?.tumor_volume_cc;
+              
+              risk_level = volume > 8.0 || lobe === "Brainstem" ? "High" : volume > 3.0 ? "Moderate" : "Low";
+              suggested_action = risk_level === "High" ? "Urgent Radiologist Review" : "Standard Radiologist Review";
+            }
+
             await tx.scanAnalysis.update({
               where: { scan_id: report.scan_id },
-              data: { tumor_location_description: c.new_value ?? null },
+              data: {
+                tumor_location_description: newLocation,
+                brain_hemisphere,
+                lobe,
+                risk_level,
+                suggested_action,
+              },
             });
           }
         }

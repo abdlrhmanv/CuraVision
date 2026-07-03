@@ -469,17 +469,26 @@ export default function DoctorScanReviewPage() {
             </div>
 
             {/* AI Confidence Visualizer */}
-            {isAnalysisComplete && (
+            {isAnalysisComplete && analysis?.confidence != null && (
               <div className="mb-5 bg-[#0f1526] p-3 rounded-lg border border-slate-800/80">
                 <div className="flex justify-between items-center text-[10px] uppercase font-bold text-slate-400 mb-1.5">
                   <span className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      analysis.confidence >= 90 ? 'bg-emerald-500' :
+                      analysis.confidence >= 70 ? 'bg-amber-500' : 'bg-rose-500'
+                    }`} />
                     AI Confidence
                   </span>
-                  <span className="text-emerald-400 font-mono font-bold">97.8%</span>
+                  <span className={`font-mono font-bold ${
+                    analysis.confidence >= 90 ? 'text-emerald-400' :
+                    analysis.confidence >= 70 ? 'text-amber-400' : 'text-rose-400'
+                  }`}>{analysis.confidence.toFixed(1)}%</span>
                 </div>
-                <div className="text-emerald-400 font-mono text-xs tracking-tight break-all">
-                  ███████████████
+                <div className={`${
+                  analysis.confidence >= 90 ? 'text-emerald-400' :
+                  analysis.confidence >= 70 ? 'text-amber-400' : 'text-rose-400'
+                } font-mono text-xs tracking-tight break-all`}>
+                  {'█'.repeat(Math.round(analysis.confidence / 6.6))}
                 </div>
               </div>
             )}
@@ -492,49 +501,96 @@ export default function DoctorScanReviewPage() {
               </h3>
               <div className="grid grid-cols-2 gap-y-2.5 gap-x-2 text-xs border-t border-slate-800/50 pt-3">
                 <div className="text-slate-400">Confidence</div>
-                <div className="text-right font-mono font-semibold text-slate-200">97.8%</div>
+                <div className="text-right font-mono font-semibold text-slate-200">
+                  {isAnalysisComplete && analysis?.confidence != null ? `${analysis.confidence.toFixed(1)}%` : '—'}
+                </div>
 
                 <div className="text-slate-400">Tumor Type</div>
-                <div className="text-right font-semibold text-slate-200">Glioma (Predicted)</div>
+                <div className="text-right font-semibold text-slate-200">
+                  {isAnalysisComplete ? (analysis?.tumor_type ?? '—') : '—'}
+                </div>
 
                 <div className="text-slate-400">Risk Level</div>
-                <div className="text-right font-semibold text-rose-400 flex items-center justify-end gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                  High
-                </div>
+                {isAnalysisComplete && analysis?.risk_level ? (
+                  <div className={`text-right font-semibold flex items-center justify-end gap-1 ${
+                    analysis.risk_level === 'High' ? 'text-rose-400' :
+                    analysis.risk_level === 'Moderate' ? 'text-amber-400' : 'text-emerald-400'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      analysis.risk_level === 'High' ? 'bg-rose-500' :
+                      analysis.risk_level === 'Moderate' ? 'bg-amber-500' : 'bg-emerald-500'
+                    }`} />
+                    {analysis.risk_level}
+                  </div>
+                ) : (
+                  <div className="text-right font-semibold text-slate-200">—</div>
+                )}
 
                 <div className="text-slate-400">Tumor Volume</div>
                 <div className="text-right font-mono font-semibold text-slate-200">
-                  {isAnalysisComplete ? (analysis?.tumor_volume_cc ?? '5.21') : '—'} cc
+                  {isAnalysisComplete && analysis?.tumor_volume_cc != null ? `${analysis.tumor_volume_cc} cc` : '—'}
                 </div>
 
                 <div className="text-slate-400">Estimated Diameter</div>
-                <div className="text-right font-mono font-semibold text-slate-200">2.8 cm</div>
+                <div className="text-right font-mono font-semibold text-slate-200">
+                  {isAnalysisComplete && analysis?.estimated_diameter != null ? `${analysis.estimated_diameter} cm` : '—'}
+                </div>
 
                 <div className="text-slate-400">Brain Hemisphere</div>
-                <div className="text-right font-semibold text-slate-200">Left</div>
+                <div className="text-right font-semibold text-slate-200">
+                  {isAnalysisComplete ? (analysis?.brain_hemisphere ?? '—') : '—'}
+                </div>
 
                 <div className="text-slate-400">Lobe</div>
-                <div className="text-right font-semibold text-slate-200">Temporal</div>
+                <div className="text-right font-semibold text-slate-200">
+                  {isAnalysisComplete ? (analysis?.lobe ?? '—') : '—'}
+                </div>
 
                 <div className="text-slate-400">Location</div>
                 <div className="text-right text-slate-300 text-[11px] leading-tight">
-                  {isAnalysisComplete ? (analysis?.tumor_location_description ?? 'Left Parietal-Temporal') : '—'}
+                  {isAnalysisComplete ? (analysis?.tumor_location_description ?? '—') : '—'}
                 </div>
 
                 <div className="text-slate-400">Segmentation Quality</div>
-                <div className="text-right text-emerald-400 font-medium">Excellent</div>
+                {isAnalysisComplete && analysis?.segmentation_quality ? (
+                  <div className={`text-right font-medium ${
+                    analysis.segmentation_quality === 'Excellent' ? 'text-emerald-400' :
+                    analysis.segmentation_quality === 'Good' ? 'text-sky-400' : 'text-slate-400'
+                  }`}>
+                    {analysis.segmentation_quality}
+                  </div>
+                ) : (
+                  <div className="text-right font-medium text-slate-200">—</div>
+                )}
 
                 <div className="text-slate-400">Growth vs. Prev Scan</div>
-                <div className="text-right font-semibold text-rose-400 font-mono">+12%</div>
+                {isAnalysisComplete ? (
+                  analysis?.growth_pct != null ? (
+                    <div className={`text-right font-semibold font-mono ${analysis.growth_pct > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      {analysis.growth_pct > 0 ? `+${analysis.growth_pct}%` : `${analysis.growth_pct}%`}
+                    </div>
+                  ) : (
+                    <div className="text-right text-slate-400 font-medium">N/A (Baseline Scan)</div>
+                  )
+                ) : (
+                  <div className="text-right font-semibold text-slate-200">—</div>
+                )}
 
                 <div className="text-slate-400">Suggested Action</div>
-                <div className="text-right text-amber-400 text-[10px] leading-tight font-medium">
-                  Urgent Radiologist Review
-                </div>
+                {isAnalysisComplete && analysis?.suggested_action ? (
+                  <div className={`text-right text-[10px] leading-tight font-medium ${
+                    analysis.risk_level === 'High' ? 'text-rose-400' : 'text-amber-400'
+                  }`}>
+                    {analysis.suggested_action}
+                  </div>
+                ) : (
+                  <div className="text-right text-[10px] leading-tight font-medium text-slate-200">—</div>
+                )}
 
                 <div className="text-slate-400">Processing Time</div>
-                <div className="text-right font-mono text-slate-400">2.9 sec</div>
+                <div className="text-right font-mono text-slate-400">
+                  {isAnalysisComplete && analysis?.processing_time_sec != null ? `${analysis.processing_time_sec.toFixed(1)} sec` : '—'}
+                </div>
               </div>
             </div>
           </div>
@@ -712,15 +768,17 @@ export default function DoctorScanReviewPage() {
             <div className="p-5 space-y-4">
               <div className="grid grid-cols-2 gap-3 text-xs border border-slate-800/80 bg-[#0f1526]/50 p-4 rounded-lg">
                 <div className="text-slate-400 font-medium">Patient</div>
-                <div className="text-right font-semibold text-slate-200">John Doe</div>
+                <div className="text-right font-semibold text-slate-200">{scan.patient_name ?? scan.patient_id}</div>
 
                 <div className="text-slate-400 font-medium">Tumor Volume</div>
                 <div className="text-right font-mono font-semibold text-slate-200">
-                  {isAnalysisComplete ? (analysis?.tumor_volume_cc ?? '5.2') : '5.2'} cc
+                  {isAnalysisComplete && analysis?.tumor_volume_cc != null ? `${analysis.tumor_volume_cc} cc` : '—'}
                 </div>
 
                 <div className="text-slate-400 font-medium">AI Confidence</div>
-                <div className="text-right font-mono font-semibold text-slate-200">97%</div>
+                <div className="text-right font-mono font-semibold text-slate-200">
+                  {isAnalysisComplete && analysis?.confidence != null ? `${analysis.confidence.toFixed(1)}%` : '—'}
+                </div>
               </div>
 
               <div className="text-center py-2">

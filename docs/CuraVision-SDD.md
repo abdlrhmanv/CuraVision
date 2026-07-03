@@ -2,8 +2,8 @@
 
 | Field | Value |
 |-------|-------|
-| **Document Version** | 1.0 |
-| **Date** | March 13, 2026 |
+| **Document Version** | 1.1 |
+| **Date** | July 3, 2026 |
 | **Author** | Abdelrahman Hisham |
 | **Status** | Active |
 | **Project Type** | DEPI Graduation Project — ML Engineer Track |
@@ -61,11 +61,12 @@ This SDD focuses on the **MVP scope** corresponding to PRD P0/P1 features.
 |-----------|-----------------|
 | CuraVision PRD | v2.5 |
 | PostgreSQL | 15+ |
-| Next.js | 14+ (App Router) |
-| Node.js | 20+ (Express) |
-| FastAPI | Python 3.10+ |
-| ML Framework | PyTorch / TensorFlow |
-| Vector DB | ChromaDB or Pinecone |
+| Next.js | 16+ (App Router, Webpack builder) |
+| Node.js | 20+ (Express 5) |
+| Prisma | 7+ ORM |
+| FastAPI | Python 3.11+ (FastAPI 0.136) |
+| ML Framework | PyTorch & ONNX |
+| Vector DB | ChromaDB |
 | Accessibility | WCAG 2.1 AA |
 
 ---
@@ -839,6 +840,7 @@ services:
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2026-03-13 | Initial SDD aligned with PRD v2.5 |
+| 1.1 | 2026-07-03 | Updated technical stack choices, resolved design questions (Prisma ORM, MinIO S3 storage, status polling, and premium Doctor portal redesign). |
 
 ### B. Design Decisions Log
 
@@ -854,7 +856,7 @@ services:
 
 | # | Question | Status |
 |---|----------|--------|
-| 1 | Dataset selection for U-Net training | TBD |
-| 2 | Prisma vs TypeORM vs Sequelize | TBD |
-| 3 | WebSocket vs polling for analysis status | TBD |
-| 4 | DICOM storage: local FS vs MinIO | TBD |
+| 1 | Dataset selection for U-Net training | Under active investigation (classification dataset completed, U-Net dataset acquisition in progress) |
+| 2 | Prisma vs TypeORM vs Sequelize | Resolved: Prisma ORM selected and implemented |
+| 3 | WebSocket vs polling for analysis status | Resolved: Polling implemented on client (polling `GET /api/scans/:id` every 3 seconds during analysis) |
+| 4 | DICOM storage: local FS vs MinIO | Resolved: MinIO (S3-compatible) storage client configured with local filesystem fallback for development |

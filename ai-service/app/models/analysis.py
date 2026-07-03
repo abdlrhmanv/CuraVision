@@ -15,6 +15,15 @@ class SegmentationResponse(BaseModel):
     tumor_volume_cc: float
     tumor_location_description: str
     inference_log: str
+    confidence: float | None = None
+    tumor_type: str | None = None
+    risk_level: str | None = None
+    estimated_diameter: float | None = None
+    brain_hemisphere: str | None = None
+    lobe: str | None = None
+    segmentation_quality: str | None = None
+    suggested_action: str | None = None
+    processing_time_sec: float | None = None
 
 
 class GradCamRequest(BaseModel):
