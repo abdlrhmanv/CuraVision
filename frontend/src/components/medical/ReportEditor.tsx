@@ -3,6 +3,54 @@ import ReactMarkdown from 'react-markdown';
 import { reportsApi } from '@/lib/apiClient';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
+import { Search, AlertTriangle, Brain } from 'lucide-react';
+
+function parseReportSections(text: string) {
+  const sections = {
+    findings: '',
+    impression: '',
+    recommendation: ''
+  };
+
+  const lines = text.split('\n');
+  let currentSection: 'findings' | 'impression' | 'recommendation' | null = null;
+
+  for (const line of lines) {
+    const cleanLine = line.trim().toLowerCase();
+    
+    // Check for section headers (e.g., "# Findings", "Findings:", "## findings")
+    if (/findings|finding/i.test(cleanLine) && (cleanLine.includes('#') || cleanLine.endsWith(':') || cleanLine.length < 15)) {
+      currentSection = 'findings';
+      continue;
+    } else if (/impression|impressions/i.test(cleanLine) && (cleanLine.includes('#') || cleanLine.endsWith(':') || cleanLine.length < 15)) {
+      currentSection = 'impression';
+      continue;
+    } else if (/recommendation|recommendations/i.test(cleanLine) && (cleanLine.includes('#') || cleanLine.endsWith(':') || cleanLine.length < 15)) {
+      currentSection = 'recommendation';
+      continue;
+    }
+
+    if (currentSection) {
+      sections[currentSection] += line + '\n';
+    } else {
+      // Before any section header is found, put in findings by default
+      sections.findings += line + '\n';
+    }
+  }
+
+  // Fallback default messages if sections are not detected/written yet
+  if (!sections.findings.trim()) {
+    sections.findings = '*No findings recorded yet.*';
+  }
+  if (!sections.impression.trim()) {
+    sections.impression = '*No impression recorded. Please finalize findings first.*';
+  }
+  if (!sections.recommendation.trim()) {
+    sections.recommendation = '*No recommendations recorded.*';
+  }
+
+  return sections;
+}
 
 interface ReportEditorProps {
   reportId?: string;
@@ -141,8 +189,46 @@ export function ReportEditor({ reportId, initialReport, onSave, onApprove, isApp
               {isTextTooLong && <p className="text-red-500 text-xs mt-1">Report text exceeds maximum length of 100,000 characters.</p>}
             </div>
           ) : (
-            <div className="w-full min-h-[300px] p-4 border rounded-md bg-surface text-sm overflow-auto prose prose-sm max-w-none">
-              <ReactMarkdown>{reportText || '*Empty report*'}</ReactMarkdown>
+            <div className="space-y-4 min-h-[300px]">
+              {(() => {
+                const sections = parseReportSections(reportText);
+                return (
+                  <div className="grid gap-4">
+                    {/* Findings Card */}
+                    <div className="bg-slate-900/20 border border-slate-800 rounded-lg p-4 shadow-sm">
+                      <div className="flex items-center gap-2 text-sky-400 font-semibold mb-2.5 text-sm pb-1.5 border-b border-slate-800">
+                        <Search size={16} />
+                        <span>Findings</span>
+                      </div>
+                      <div className="text-slate-300 text-xs leading-relaxed prose prose-invert prose-sm max-w-none">
+                        <ReactMarkdown>{sections.findings}</ReactMarkdown>
+                      </div>
+                    </div>
+
+                    {/* Impression Card */}
+                    <div className="bg-slate-900/20 border border-slate-800 rounded-lg p-4 shadow-sm">
+                      <div className="flex items-center gap-2 text-teal-400 font-semibold mb-2.5 text-sm pb-1.5 border-b border-slate-800">
+                        <Brain size={16} />
+                        <span>Impression</span>
+                      </div>
+                      <div className="text-slate-300 text-xs leading-relaxed prose prose-invert prose-sm max-w-none">
+                        <ReactMarkdown>{sections.impression}</ReactMarkdown>
+                      </div>
+                    </div>
+
+                    {/* Recommendation Card */}
+                    <div className="bg-slate-900/20 border border-slate-800 rounded-lg p-4 shadow-sm">
+                      <div className="flex items-center gap-2 text-amber-500 font-semibold mb-2.5 text-sm pb-1.5 border-b border-slate-800">
+                        <AlertTriangle size={16} />
+                        <span>Recommendation</span>
+                      </div>
+                      <div className="text-slate-300 text-xs leading-relaxed prose prose-invert prose-sm max-w-none">
+                        <ReactMarkdown>{sections.recommendation}</ReactMarkdown>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 

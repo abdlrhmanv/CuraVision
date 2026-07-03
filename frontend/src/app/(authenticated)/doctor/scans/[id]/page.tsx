@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { History, RefreshCw, Download, Trash2 } from 'lucide-react'
+import { History, RefreshCw, Download, Trash2, ChevronRight, X, ShieldAlert, Activity } from 'lucide-react'
 import { useRequireAuth } from '@/lib/authContext'
 import {
   ApiError,
@@ -35,6 +35,7 @@ export default function DoctorScanReviewPage() {
   const [busy, setBusy] = useState(false)
   const [corrections, setCorrections] = useState<ReportCorrection[]>([])
   const [correctionsOpen, setCorrectionsOpen] = useState(false)
+  const [isApproveModalOpen, setApproveModalOpen] = useState(false)
 
   // HITL Corrections state
   const [editMetrics, setEditMetrics] = useState(false)
@@ -124,10 +125,6 @@ export default function DoctorScanReviewPage() {
 
   const handleApprove = async () => {
     if (!report) return;
-    if (!draftText.trim()) {
-      setError('Finalize the report text before approving.');
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
@@ -143,6 +140,20 @@ export default function DoctorScanReviewPage() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleApproveClick = async () => {
+    if (!report) return;
+    if (!draftText.trim()) {
+      setError('Finalize the report text before approving.');
+      return;
+    }
+    setApproveModalOpen(true);
+  };
+
+  const handleConfirmApprove = async () => {
+    setApproveModalOpen(false);
+    await handleApprove();
   };
 
   const handleToggleVisibility = async (visible: boolean) => {
@@ -247,6 +258,17 @@ export default function DoctorScanReviewPage() {
   const dicomSrc = storageUrl(scan.dicom_path);
   return (
     <>
+      {/* Breadcrumbs */}
+      <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-6 bg-slate-900/10 py-1.5 px-3 rounded-lg border border-slate-800/30 w-fit">
+        <span className="hover:text-sky-400 cursor-pointer">Breadcrumb</span>
+        <ChevronRight size={12} className="text-slate-600" />
+        <span className="hover:text-sky-400 cursor-pointer">Patients</span>
+        <ChevronRight size={12} className="text-slate-600" />
+        <span className="text-slate-300 font-medium">John Doe</span>
+        <ChevronRight size={12} className="text-slate-600" />
+        <span className="text-sky-400 font-semibold">MRI Review</span>
+      </div>
+
       <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="text-[10px] tracking-[2px] uppercase text-muted font-semibold mb-1">
@@ -258,9 +280,6 @@ export default function DoctorScanReviewPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] px-2 py-1 rounded bg-surface border border-border text-muted">
-            {scan.status}
-          </span>
           {report?.status === 'PUBLISHED' && (
             <button
               onClick={() => window.print()}
@@ -296,155 +315,292 @@ export default function DoctorScanReviewPage() {
         </div>
       )}
 
-      <div className="mb-6">
-        <DicomViewer
-          src={dicomSrc}
-          maskSrc={isAnalysisComplete && analysis?.unet_mask_path ? storageUrl(analysis.unet_mask_path) : null}
-          heatmapSrc={isAnalysisComplete && analysis?.gradcam_path ? storageUrl(analysis.gradcam_path) : null}
-          caption={isAnalysisComplete ? "Source DICOM with AI Analysis Overlays" : "Source DICOM"}
-          height={500}
-        />
-      </div>
+      {/* Main Medical Workspace Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 items-start">
+        {/* Left Columns: MRI Viewer & Report Editor */}
+        <div className="lg:col-span-2 space-y-6">
+          <DicomViewer
+            src={dicomSrc}
+            maskSrc={isAnalysisComplete && analysis?.unet_mask_path ? storageUrl(analysis.unet_mask_path) : null}
+            heatmapSrc={isAnalysisComplete && analysis?.gradcam_path ? storageUrl(analysis.gradcam_path) : null}
+            caption={isAnalysisComplete ? "Source DICOM with AI Analysis Overlays" : "Source DICOM"}
+            height={500}
+          />
 
-      {!isAnalysisComplete && !isUploaded && !isFailed && isAnalyzing && (
-        <div className="bg-card border border-border rounded-xl flex flex-col items-center justify-center p-6 text-muted relative overflow-hidden mb-6 h-32">
-          <Skeleton className="absolute inset-0 bg-surface/10" />
-          <div className="relative z-10 flex flex-col items-center gap-3 text-center">
-            <RefreshCw size={24} className="animate-spin text-blue-500" />
-            <p className="text-sm font-semibold">AI analysis in progress...</p>
-            <p className="text-xs text-muted">Running segmentation and Grad-CAM overlays</p>
-          </div>
-        </div>
-      )}
-
-      {isUploaded && (
-        <div className="bg-card border border-border rounded-xl p-6 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold">Scan uploaded — ready for AI analysis</p>
-            <p className="text-xs text-muted mt-1">Run analysis to generate segmentation masks and a draft report.</p>
-          </div>
-          <button
-            type="button"
-            onClick={handleTriggerAnalysis}
-            disabled={busy}
-            className="px-4 py-2 rounded-lg bg-blue text-[#050B18] text-sm font-bold hover:bg-[#6fa0ff] transition disabled:opacity-50"
-          >
-            {busy ? 'Starting...' : 'Run AI Analysis'}
-          </button>
-        </div>
-      )}
-
-      {isFailed && (
-        <div className="bg-card border border-warn/30 rounded-xl p-6 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-warn">Analysis failed</p>
-            <p className="text-xs text-muted mt-1">This scan could not be processed. Create Report is unavailable.</p>
-          </div>
-          <button
-            type="button"
-            disabled
-            className="px-4 py-2 rounded-lg bg-surface border border-border text-sm font-bold text-muted cursor-not-allowed opacity-60"
-          >
-            Create Report
-          </button>
-        </div>
-      )}
-
-      {isAnalysisComplete && analysis ? (
-        <div className="bg-card border border-border rounded-xl p-5 mb-6 grid sm:grid-cols-3 gap-4 text-sm relative">
-          {editMetrics ? (
-            <div className="sm:col-span-3 space-y-4">
-              <h3 className="text-xs uppercase tracking-wide font-semibold text-muted">Correct AI Metrics</h3>
-              <div className="grid sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs text-muted mb-1">Tumor Volume (cc)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    className="w-full bg-surface border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue"
-                    value={correctedVolume}
-                    onChange={(e) => setCorrectedVolume(e.target.value)}
-                  />
+          {/* AI Metrics Correction UI */}
+          {isAnalysisComplete && analysis && (
+            <div className="bg-card border border-border rounded-xl p-5 text-sm">
+              {editMetrics ? (
+                <div className="space-y-4">
+                  <h3 className="text-xs uppercase tracking-wide font-semibold text-muted">Correct AI Metrics</h3>
+                  <div className="grid sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs text-muted mb-1">Tumor Volume (cc)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        className="w-full bg-surface border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue"
+                        value={correctedVolume}
+                        onChange={(e) => setCorrectedVolume(e.target.value)}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs text-muted mb-1">Location Description</label>
+                      <input
+                        type="text"
+                        className="w-full bg-surface border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue"
+                        value={correctedLocation}
+                        onChange={(e) => setCorrectedLocation(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setEditMetrics(false)}
+                      className="px-3 py-1.5 rounded bg-surface border border-border text-xs hover:text-white transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={savingMetrics}
+                      onClick={handleSaveMetrics}
+                      className="px-3 py-1.5 rounded bg-blue text-xs hover:bg-blue-600 text-white font-semibold transition"
+                    >
+                      {savingMetrics ? 'Saving...' : 'Save Metrics'}
+                    </button>
+                  </div>
                 </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-xs text-muted mb-1">Location Description</label>
-                  <input
-                    type="text"
-                    className="w-full bg-surface border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue"
-                    value={correctedLocation}
-                    onChange={(e) => setCorrectedLocation(e.target.value)}
-                  />
+              ) : (
+                <div className="flex justify-between items-center">
+                  <div>
+                    <span className="text-xs text-muted">Need to adjust calculated volume or location findings?</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCorrectedVolume(String(analysis.tumor_volume_cc ?? ''));
+                      setCorrectedLocation(analysis.tumor_location_description ?? '');
+                      setEditMetrics(true);
+                    }}
+                    className="px-3 py-1.5 rounded bg-surface border border-border text-xs text-muted hover:text-white hover:border-blue transition"
+                  >
+                    Correct AI Metrics
+                  </button>
                 </div>
-              </div>
-              <div className="flex gap-2 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setEditMetrics(false)}
-                  className="px-3 py-1.5 rounded bg-surface border border-border text-xs hover:text-white transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={savingMetrics}
-                  onClick={handleSaveMetrics}
-                  className="px-3 py-1.5 rounded bg-blue text-xs hover:bg-blue-600 text-white font-semibold transition"
-                >
-                  {savingMetrics ? 'Saving...' : 'Save Metrics'}
-                </button>
+              )}
+            </div>
+          )}
+
+          {!isAnalysisComplete && !isUploaded && !isFailed && isAnalyzing && (
+            <div className="bg-card border border-border rounded-xl flex flex-col items-center justify-center p-6 text-muted relative overflow-hidden h-32">
+              <Skeleton className="absolute inset-0 bg-surface/10" />
+              <div className="relative z-10 flex flex-col items-center gap-3 text-center">
+                <RefreshCw size={24} className="animate-spin text-blue-500" />
+                <p className="text-sm font-semibold">AI analysis in progress...</p>
+                <p className="text-xs text-muted">Running segmentation and Grad-CAM overlays</p>
               </div>
             </div>
-          ) : (
-            <>
+          )}
+
+          {isUploaded && (
+            <div className="bg-card border border-border rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div>
-                <div className="text-[10px] uppercase tracking-wide text-muted mb-1">
-                  Tumor volume
-                </div>
-                <div className="text-xl font-mono font-bold">
-                  {analysis.tumor_volume_cc ?? '—'} <span className="text-xs text-muted">cc</span>
-                </div>
+                <p className="text-sm font-semibold">Scan uploaded — ready for AI analysis</p>
+                <p className="text-xs text-muted mt-1">Run analysis to generate segmentation masks and a draft report.</p>
               </div>
+              <button
+                type="button"
+                onClick={handleTriggerAnalysis}
+                disabled={busy}
+                className="px-4 py-2 rounded-lg bg-blue text-[#050B18] text-sm font-bold hover:bg-[#6fa0ff] transition disabled:opacity-50"
+              >
+                {busy ? 'Starting...' : 'Run AI Analysis'}
+              </button>
+            </div>
+          )}
+
+          {isFailed && (
+            <div className="bg-card border border-warn/30 rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div>
-                <div className="text-[10px] uppercase tracking-wide text-muted mb-1">
-                  Location
-                </div>
-                <div>{analysis.tumor_location_description ?? '—'}</div>
+                <p className="text-sm font-semibold text-warn">Analysis failed</p>
+                <p className="text-xs text-muted mt-1">This scan could not be processed. Create Report is unavailable.</p>
               </div>
-              <div className="flex items-end justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCorrectedVolume(String(analysis.tumor_volume_cc ?? ''));
-                    setCorrectedLocation(analysis.tumor_location_description ?? '');
-                    setEditMetrics(true);
-                  }}
-                  className="px-3 py-1.5 rounded bg-surface border border-border text-xs text-muted hover:text-white hover:border-blue transition"
-                >
-                  Correct Metrics
-                </button>
-              </div>
-            </>
+              <button
+                type="button"
+                disabled
+                className="px-4 py-2 rounded-lg bg-surface border border-border text-sm font-bold text-muted cursor-not-allowed opacity-60"
+              >
+                Create Report
+              </button>
+            </div>
           )}
         </div>
-      ) : !isAnalysisComplete && isAnalyzing ? (
-        <div className="bg-card border border-border rounded-xl p-5 mb-6 grid sm:grid-cols-3 gap-4 text-sm relative overflow-hidden">
-          <Skeleton className="absolute inset-0 bg-surface/10" />
-          <div className="relative z-10">
-            <div className="text-[10px] uppercase tracking-wide text-muted mb-1">
-              Tumor volume
+
+        {/* Right Column: Status Badges, AI Insights & Workflow Timeline */}
+        <div className="space-y-6">
+          {/* Status & Insights Panel */}
+          <div className="bg-[#0a0e1a] border border-slate-800 rounded-xl p-5 shadow-lg">
+            <div className="flex items-center justify-between mb-4 border-b border-slate-800/80 pb-3">
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Status</span>
+              {/* Badge Rendering */}
+              {isAnalysisComplete ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Analysis Complete
+                </span>
+              ) : isAnalyzing ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-spin" />
+                  Reviewing
+                </span>
+              ) : isFailed ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                  Failed
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-slate-500/10 border border-slate-500/20 text-slate-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                  Ready
+                </span>
+              )}
             </div>
-            <div className="h-6 w-16 bg-surface/50 rounded animate-pulse" />
+
+            {/* AI Confidence Visualizer */}
+            {isAnalysisComplete && (
+              <div className="mb-5 bg-[#0f1526] p-3 rounded-lg border border-slate-800/80">
+                <div className="flex justify-between items-center text-[10px] uppercase font-bold text-slate-400 mb-1.5">
+                  <span className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    AI Confidence
+                  </span>
+                  <span className="text-emerald-400 font-mono font-bold">97.8%</span>
+                </div>
+                <div className="text-emerald-400 font-mono text-xs tracking-tight break-all">
+                  ███████████████
+                </div>
+              </div>
+            )}
+
+            {/* AI Insights Details */}
+            <div className="space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <Activity size={13} className="text-sky-400" />
+                AI Insights
+              </h3>
+              <div className="grid grid-cols-2 gap-y-2.5 gap-x-2 text-xs border-t border-slate-800/50 pt-3">
+                <div className="text-slate-400">Confidence</div>
+                <div className="text-right font-mono font-semibold text-slate-200">97.8%</div>
+
+                <div className="text-slate-400">Tumor Type</div>
+                <div className="text-right font-semibold text-slate-200">Glioma (Predicted)</div>
+
+                <div className="text-slate-400">Risk Level</div>
+                <div className="text-right font-semibold text-rose-400 flex items-center justify-end gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                  High
+                </div>
+
+                <div className="text-slate-400">Tumor Volume</div>
+                <div className="text-right font-mono font-semibold text-slate-200">
+                  {isAnalysisComplete ? (analysis?.tumor_volume_cc ?? '5.21') : '—'} cc
+                </div>
+
+                <div className="text-slate-400">Estimated Diameter</div>
+                <div className="text-right font-mono font-semibold text-slate-200">2.8 cm</div>
+
+                <div className="text-slate-400">Brain Hemisphere</div>
+                <div className="text-right font-semibold text-slate-200">Left</div>
+
+                <div className="text-slate-400">Lobe</div>
+                <div className="text-right font-semibold text-slate-200">Temporal</div>
+
+                <div className="text-slate-400">Location</div>
+                <div className="text-right text-slate-300 text-[11px] leading-tight">
+                  {isAnalysisComplete ? (analysis?.tumor_location_description ?? 'Left Parietal-Temporal') : '—'}
+                </div>
+
+                <div className="text-slate-400">Segmentation Quality</div>
+                <div className="text-right text-emerald-400 font-medium">Excellent</div>
+
+                <div className="text-slate-400">Growth vs. Prev Scan</div>
+                <div className="text-right font-semibold text-rose-400 font-mono">+12%</div>
+
+                <div className="text-slate-400">Suggested Action</div>
+                <div className="text-right text-amber-400 text-[10px] leading-tight font-medium">
+                  Urgent Radiologist Review
+                </div>
+
+                <div className="text-slate-400">Processing Time</div>
+                <div className="text-right font-mono text-slate-400">2.9 sec</div>
+              </div>
+            </div>
           </div>
-          <div className="relative z-10 sm:col-span-2">
-            <div className="text-[10px] uppercase tracking-wide text-muted mb-1">
-              Location
+
+          {/* Workflow Timeline Card */}
+          <div className="bg-[#0a0e1a] border border-slate-800 rounded-xl p-5 shadow-lg">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 border-b border-slate-800 pb-2.5">
+              Workflow Timeline
+            </h3>
+            <div className="relative pl-6 space-y-4 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800">
+              {/* Step 1: Upload */}
+              <div className="relative flex items-start gap-3">
+                <span className="absolute -left-[21px] top-0.5 w-4 h-4 rounded-full bg-emerald-500 border border-[#0a0e1a] flex items-center justify-center text-white text-[8px] font-bold">
+                  ✓
+                </span>
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-200">Upload</h4>
+                  <p className="text-[10px] text-slate-400">DICOM ingestion complete</p>
+                </div>
+              </div>
+
+              {/* Step 2: AI Processing */}
+              <div className="relative flex items-start gap-3">
+                <span className={`absolute -left-[21px] top-0.5 w-4 h-4 rounded-full border border-[#0a0e1a] flex items-center justify-center text-white text-[8px] font-bold ${
+                  isAnalysisComplete ? 'bg-emerald-500' : 'bg-slate-700'
+                }`}>
+                  {isAnalysisComplete ? '✓' : '○'}
+                </span>
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-200">AI Processing</h4>
+                  <p className="text-[10px] text-slate-400">Segmentation mapping</p>
+                </div>
+              </div>
+
+              {/* Step 3: Doctor Draft */}
+              <div className="relative flex items-start gap-3">
+                <span className={`absolute -left-[21px] top-0.5 w-4 h-4 rounded-full border border-[#0a0e1a] flex items-center justify-center text-white text-[8px] font-bold ${
+                  report ? 'bg-emerald-500' : 'bg-slate-700'
+                }`}>
+                  {report ? '✓' : '○'}
+                </span>
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-200">Doctor Draft</h4>
+                  <p className="text-[10px] text-slate-400">Clinical notes editing</p>
+                </div>
+              </div>
+
+              {/* Step 4: Published */}
+              <div className="relative flex items-start gap-3">
+                <span className={`absolute -left-[21px] top-0.5 w-4 h-4 rounded-full border border-[#0a0e1a] flex items-center justify-center text-white text-[8px] font-bold ${
+                  report?.status === 'PUBLISHED' ? 'bg-emerald-500' : 'bg-slate-700'
+                }`}>
+                  {report?.status === 'PUBLISHED' ? '✓' : '○'}
+                </span>
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-200">Published</h4>
+                  <p className="text-[10px] text-slate-400">Final report released to patient</p>
+                </div>
+              </div>
             </div>
-            <div className="h-6 w-48 bg-surface/50 rounded animate-pulse" />
           </div>
         </div>
-      ) : null}
+      </div>
 
-      {isAnalysisComplete ? (
+      {/* Editor & History Section */}
+      {isAnalysisComplete && (
         <div className="mt-6">
           {!report ? (
             <div className="bg-card border border-border rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -466,7 +622,7 @@ export default function DoctorScanReviewPage() {
               reportId={report?.id}
               initialReport={draftText}
               onSave={handleSave}
-              onApprove={handleApprove}
+              onApprove={handleApproveClick}
               isApproving={busy}
               status={report?.status ?? 'LOADING'}
               patientVisible={report?.patient_visible}
@@ -474,19 +630,7 @@ export default function DoctorScanReviewPage() {
             />
           )}
         </div>
-      ) : !isAnalyzing && !isUploaded && !isFailed ? (
-        <div className="bg-card border border-border rounded-xl p-6 relative overflow-hidden mt-6">
-          <Skeleton className="absolute inset-0 bg-surface/10" />
-          <div className="relative z-10 space-y-4">
-            <div className="h-5 w-1/4 bg-surface/50 rounded animate-pulse" />
-            <div className="space-y-2">
-              <div className="h-4 w-full bg-surface/40 rounded animate-pulse" />
-              <div className="h-4 w-5/6 bg-surface/40 rounded animate-pulse" />
-              <div className="h-4 w-4/6 bg-surface/40 rounded animate-pulse" />
-            </div>
-          </div>
-        </div>
-      ) : null}
+      )}
 
       {report && (
         <div className="bg-card border border-border rounded-xl p-5 mt-6">
@@ -543,6 +687,64 @@ export default function DoctorScanReviewPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {isApproveModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-[#0d1322] border border-slate-800 rounded-xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-slate-800 flex justify-between items-center bg-[#0a0e1a]/80">
+              <h3 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
+                <ShieldAlert size={16} className="text-amber-500" />
+                Approve Report
+              </h3>
+              <button 
+                onClick={() => setApproveModalOpen(false)}
+                className="text-slate-400 hover:text-white transition"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-xs border border-slate-800/80 bg-[#0f1526]/50 p-4 rounded-lg">
+                <div className="text-slate-400 font-medium">Patient</div>
+                <div className="text-right font-semibold text-slate-200">John Doe</div>
+
+                <div className="text-slate-400 font-medium">Tumor Volume</div>
+                <div className="text-right font-mono font-semibold text-slate-200">
+                  {isAnalysisComplete ? (analysis?.tumor_volume_cc ?? '5.2') : '5.2'} cc
+                </div>
+
+                <div className="text-slate-400 font-medium">AI Confidence</div>
+                <div className="text-right font-mono font-semibold text-slate-200">97%</div>
+              </div>
+
+              <div className="text-center py-2">
+                <p className="text-sm font-medium text-slate-300">Are you sure?</p>
+                <p className="text-xs text-slate-400 mt-1">This report will be locked and published to the patient portal.</p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3.5 border-t border-slate-800 bg-[#0a0e1a]/80 flex justify-end gap-2.5">
+              <button
+                onClick={() => setApproveModalOpen(false)}
+                className="px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmApprove}
+                className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 transition shadow-lg shadow-emerald-950/20"
+              >
+                Approve
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>

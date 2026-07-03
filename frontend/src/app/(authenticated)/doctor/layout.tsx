@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { Bell } from 'lucide-react'
 import {
   Activity,
   Brain,
@@ -13,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useRequireAuth } from '@/lib/authContext'
 import { PortalMobileNav, PortalSidebar } from '@/components/layout/PortalNav'
+import { NotificationDropdown } from '@/components/layout/NotificationDropdown'
 
 function initials(name: string): string {
   return name
@@ -57,13 +57,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="relative w-9 h-9 rounded-lg bg-card border border-border flex items-center justify-center hover:border-blue transition"
-            aria-label="Notifications"
-          >
-            <Bell size={16} className="text-muted" />
-          </button>
+          <NotificationDropdown />
           <div className="text-xs text-muted hidden sm:block">{user.full_name}</div>
           <div className="w-9 h-9 rounded-lg bg-blue/15 text-blue text-xs font-bold flex items-center justify-center">
             {initials(user.full_name)}
