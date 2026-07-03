@@ -52,7 +52,8 @@ class OnnxPipelineStrategy(InferenceStrategy):
         self.pipeline = BrainMRIPipeline(config)
         
         # MLflow setup
-        mlflow.set_tracking_uri("sqlite:///mlruns.db")
+        mlflow_db_path = os.getenv("MLFLOW_DB_PATH", "/tmp/mlruns.db")
+        mlflow.set_tracking_uri(f"sqlite:///{mlflow_db_path}")
         mlflow.set_experiment("CuraVision-Tumor-Segmentation")
 
     def run_full_analysis(self, scan_id: str, dicom_path: str, dicom_url: str | None = None, mask_put_url: str | None = None, gradcam_put_url: str | None = None) -> dict[str, Any]:
