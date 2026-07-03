@@ -11,7 +11,6 @@ import {
   Reservation,
   reservationsApi,
   scansApi,
-  API_BASE_URL,
   Scan
 } from '@/lib/apiClient'
 import Link from 'next/link'
@@ -30,12 +29,6 @@ function formatDateTime(iso: string): { date: string; time: string } {
     date: d.toLocaleDateString(undefined, { dateStyle: 'medium' }),
     time: d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
   }
-}
-
-function storageUrl(path: string | null | undefined): string | null {
-  if (!path) return null
-  if (path.startsWith('http://') || path.startsWith('https://')) return path
-  return `${API_BASE_URL}/${path.replace(/^\/+/, '')}`
 }
 
 export default function DoctorAppointmentsPage() {
@@ -87,26 +80,31 @@ export default function DoctorAppointmentsPage() {
       }, 0)
       return () => clearTimeout(timer)
     }
-    setLoadingScans(true)
-    scansApi.listForPatient(selectedAppt.patient_id)
-      .then(res => {
-        if (active) {
-          setPatientScans(res.scans || [])
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setPatientScans([])
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setLoadingScans(false)
-        }
-      })
+
+    const timer = setTimeout(() => {
+      if (!active) return
+      setLoadingScans(true)
+      scansApi.listForPatient(selectedAppt.patient_id)
+        .then(res => {
+          if (active) {
+            setPatientScans(res.scans || [])
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setPatientScans([])
+          }
+        })
+        .finally(() => {
+          if (active) {
+            setLoadingScans(false)
+          }
+        })
+    }, 0)
 
     return () => {
       active = false
+      clearTimeout(timer)
     }
   }, [selectedAppt])
 
