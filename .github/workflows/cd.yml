@@ -132,7 +132,7 @@ jobs:
             # Port 80 is free since we stopped containers above
             sudo certbot certonly --standalone -d curavision.mooo.com --non-interactive --agree-tos -m abdlrhmanv@proton.me || true
             
-            if [ -f /etc/letsencrypt/live/curavision.mooo.com/fullchain.pem ]; then
+            if sudo test -f /etc/letsencrypt/live/curavision.mooo.com/fullchain.pem; then
               echo "Let's Encrypt certificate found. Copying to Nginx..."
               sudo cp /etc/letsencrypt/live/curavision.mooo.com/fullchain.pem /opt/curavision/nginx/certs/curavision.crt
               sudo cp /etc/letsencrypt/live/curavision.mooo.com/privkey.pem /opt/curavision/nginx/certs/curavision.key
