@@ -17,6 +17,8 @@ interface DicomViewerProps {
   heatmapSrc?: string | null
 }
 
+let cornerstoneInitialized = false
+
 export default function DicomViewer({ src, caption, height = 360, maskSrc, heatmapSrc }: DicomViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLDivElement>(null)
@@ -25,7 +27,6 @@ export default function DicomViewer({ src, caption, height = 360, maskSrc, heatm
   const viewportIdRef = useRef('curavision-viewport')
   
   const [error, setError] = useState<string | null>(null)
-  const [initialised, setInitialised] = useState(false)
   
   // Controls state
   const [zoom, setZoom] = useState(1)
@@ -53,7 +54,8 @@ export default function DicomViewer({ src, caption, height = 360, maskSrc, heatm
       src.startsWith('wadouri:') ||
       src.startsWith('wadors:'))
 
-  // Initialize Cornerstone
+  // Global initialization flag to avoid multiple/re-entrant initializations
+  // which can lead to race conditions or Web Worker registration errors.
   useEffect(() => {
     let disposed = false
 
@@ -69,9 +71,9 @@ export default function DicomViewer({ src, caption, height = 360, maskSrc, heatm
 
         if (disposed) return
 
-        await init()
+        if (!cornerstoneInitialized) {
+          await init()
 
-        if (!initialised) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const dilModule = dicomImageLoader as any;
           const dil = dilModule.default || dilModule;
@@ -94,7 +96,17 @@ export default function DicomViewer({ src, caption, height = 360, maskSrc, heatm
               taskConfiguration: { decodeTask: { initializeCodecsOnStartup: false } }
             });
           }
-          setInitialised(true);
+
+          // Register the image loaders
+          try {
+            imageLoader.registerImageLoader('wadouri', dil.wadouri.loadImage);
+            imageLoader.registerImageLoader('wadors', dil.wadors.loadImage);
+          } catch (loaderErr) {
+            // Loader might already be registered
+            console.debug('Image loaders registration skipped:', loaderErr);
+          }
+
+          cornerstoneInitialized = true
         }
 
         const renderingEngineId = 'curavision-engine'
@@ -135,7 +147,7 @@ export default function DicomViewer({ src, caption, height = 360, maskSrc, heatm
         engineRef.current = null
       }
     }
-  }, [src, isDicom, initialised])
+  }, [src, isDicom])
 
   // Keyboard Shortcuts
   useEffect(() => {
