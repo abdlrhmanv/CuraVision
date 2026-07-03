@@ -61,7 +61,8 @@ def _patch_external_services(request, monkeypatch) -> Iterator[None]:
             def __init__(self):
                 self.pipeline = type("Pipeline", (), {"segmenter": _FakeSegmenter()})()
 
-        monkeypatch.setattr(analysis_service, "_load_image", fake_load_image)
+        if "real_load_image" not in request.keywords:
+            monkeypatch.setattr(analysis_service, "_load_image", fake_load_image)
         monkeypatch.setattr(
             "app.services.inference_strategy.get_inference_strategy",
             lambda: _FakeOnnxStrategy(),

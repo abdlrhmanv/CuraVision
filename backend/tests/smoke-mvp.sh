@@ -3,7 +3,7 @@
 # End-to-end smoke test for the P0 MVP flows:
 #   1. doctor login
 #   2. doctor uploads a DICOM
-#   3. poll scan until ANALYSIS_COMPLETE (AI service stub falls through to local fallback)
+#   3. poll scan until ANALYSIS_COMPLETE
 #   4. doctor fetches analysis + report
 #   5. doctor approves the report
 #   6. patient login + lists published reports + chats
@@ -37,9 +37,10 @@ PAT_TOKEN=$(echo "$PAT" | jq -r .token)
 PAT_ID=$(echo "$PAT" | jq -r .user.id)
 echo "  patient id: $PAT_ID"
 
-echo "▶ Doctor uploads a synthetic DICOM"
-TMPFILE=$(mktemp --suffix=.dcm)
-printf '%128sDICM-fake-bytes-%s' "" "$(date +%s%N)" > "$TMPFILE"
+echo "▶ Doctor uploads a scan image"
+TMPFILE=$(mktemp --suffix=.jpg)
+# Minimal valid 1x1 JPEG — fake DICOM bytes break ONNX loading in CI.
+printf '%s' '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA8A/9k=' | base64 -d > "$TMPFILE"
 UPLOAD=$(curl -sf -X POST "$BASE_URL/api/scans" $CSRF_ARGS \
   -H "Authorization: Bearer $DOC_TOKEN" \
   -F "patient_id=$PAT_ID" \

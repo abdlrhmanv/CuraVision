@@ -58,11 +58,14 @@ async function main() {
   });
   console.log("  patient id:", pat.user.id);
 
-  console.log("▶ Doctor uploads a synthetic DICOM");
-  const tmpFile = path.join(os.tmpdir(), `smoke-${Date.now()}.dcm`);
-  const buffer = Buffer.alloc(132);
-  buffer.write("DICM", 128, "ascii");
-  fs.writeFileSync(tmpFile, buffer);
+  console.log("▶ Doctor uploads a scan image");
+  const tmpFile = path.join(os.tmpdir(), `smoke-${Date.now()}.jpg`);
+  // Minimal valid 1x1 JPEG for smoke testing.
+  const jpeg = Buffer.from(
+    "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA8A/9k=",
+    "base64"
+  );
+  fs.writeFileSync(tmpFile, jpeg);
   const form = new FormData();
   form.append("patient_id", pat.user.id);
   form.append(

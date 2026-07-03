@@ -55,9 +55,16 @@ def _storage_root() -> Path:
     return _REPO_ROOT / "backend" / "storage"
 
 
-def _resolve_path(logical_path: str) -> Path:
+def _is_http_url(value: str) -> bool:
+    return value.startswith(("http://", "https://"))
+
+
+def _resolve_scan_path(logical_path: str) -> Path:
+    if _is_http_url(logical_path):
+        raise ValueError(f"Refusing to resolve HTTP URL as a local path: {logical_path}")
+
     path = Path(logical_path)
-    if path.is_absolute():
+    if path.is_absolute() and path.exists():
         return path
 
     candidates = []
@@ -77,6 +84,10 @@ def _resolve_path(logical_path: str) -> Path:
     return candidates[0] if candidates else path
 
 
+def _resolve_path(logical_path: str) -> Path:
+    return _resolve_scan_path(logical_path)
+
+
 def _artifact_path(kind: str, scan_id: str, suffix: str) -> tuple[Path, str]:
     safe_id = _safe_scan_id(scan_id)
     abs_path = _storage_root() / kind / f"{safe_id}{suffix}"
@@ -88,8 +99,7 @@ def load_dicom_as_image(dicom_path: str) -> Image.Image:
     """Load a DICOM or generic image pixel array as an RGB PIL image."""
     import pydicom
 
-    p = Path(dicom_path)
-    actual_path = p if p.is_absolute() and p.exists() else Path(_resolve_path(dicom_path))
+    actual_path = _resolve_scan_path(dicom_path)
     
     try:
         img = Image.open(actual_path)
@@ -108,8 +118,7 @@ def _dicom_metadata(dicom_path: str) -> dict[str, Any]:
     try:
         import pydicom
 
-        p = Path(dicom_path)
-        actual_path = p if p.is_absolute() and p.exists() else Path(_resolve_path(dicom_path))
+        actual_path = _resolve_scan_path(dicom_path)
         
         try:
             img = Image.open(actual_path)
@@ -156,27 +165,44 @@ def _dicom_metadata(dicom_path: str) -> dict[str, Any]:
     }
 
 
-def _load_image(scan_id: str, dicom_path: str, dicom_url: str | None = None) -> tuple[Image.Image, dict[str, Any]]:
-    path_to_read = dicom_path
-    if dicom_url:
-        import tempfile
-        import httpx
-        try:
-            tmp_dir = tempfile.gettempdir()
-            local_path = Path(tmp_dir) / f"{scan_id}.dcm"
-            with httpx.Client(timeout=30.0) as client:
-                resp = client.get(dicom_url)
-                resp.raise_for_status()
-                local_path.write_bytes(resp.content)
-            path_to_read = str(local_path)
-        except Exception:
-            pass
+def _download_scan_to_temp(scan_id: str, url: str) -> Path:
+    import tempfile
+    import httpx
 
+    suffix = ".jpg" if ".jpg" in url.lower() or ".jpeg" in url.lower() else ".dcm"
+    local_path = Path(tempfile.gettempdir()) / f"{_safe_scan_id(scan_id)}{suffix}"
+    with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+        resp = client.get(url)
+        resp.raise_for_status()
+        local_path.write_bytes(resp.content)
+    return local_path
+
+
+def _read_scan_image(path_to_read: str) -> tuple[Image.Image, dict[str, Any]]:
     metadata = _dicom_metadata(path_to_read)
-    try:
-        return load_dicom_as_image(path_to_read), metadata
-    except Exception as exc:
-        raise ValueError(f"Failed to load scan image from {path_to_read}: {exc}") from exc
+    return load_dicom_as_image(path_to_read), metadata
+
+
+def _load_image(scan_id: str, dicom_path: str, dicom_url: str | None = None) -> tuple[Image.Image, dict[str, Any]]:
+    errors: list[str] = []
+
+    if dicom_path and not _is_http_url(dicom_path):
+        try:
+            return _read_scan_image(dicom_path)
+        except Exception as exc:
+            errors.append(f"local path {dicom_path}: {exc}")
+
+    for url in (dicom_url, dicom_path if _is_http_url(dicom_path) else None):
+        if not url:
+            continue
+        try:
+            local_path = _download_scan_to_temp(scan_id, url)
+            return _read_scan_image(str(local_path))
+        except Exception as exc:
+            errors.append(f"download {url.split('?', 1)[0]}: {exc}")
+
+    detail = "; ".join(errors) if errors else "no readable source provided"
+    raise ValueError(f"Failed to load scan image for {scan_id}: {detail}")
 
 
 def _estimate_volume_cc(mask: np.ndarray, metadata: dict[str, Any], scan_id: str) -> float:
