@@ -105,6 +105,30 @@ def run_full_analysis(
         import traceback
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Analysis failed for scan {scan_id}: {str(e)}\n{traceback.format_exc()}")
-        send_failure_callback_task.delay(scan_id, str(e))
-        raise e
+        error_trace = traceback.format_exc()
+        logger.error(f"ONNX analysis failed for scan {scan_id}: {str(e)}\n{error_trace}")
+
+        try:
+            from app.services.inference_strategy import InterimDicomStrategy
+
+            fallback = InterimDicomStrategy()
+            result = fallback.run_full_analysis(
+                scan_id,
+                dicom_path,
+                dicom_url=dicom_url,
+                mask_put_url=mask_put_url,
+                gradcam_put_url=gradcam_put_url,
+            )
+            fallback_note = f"ONNX pipeline failed; completed with interim DICOM pipeline. Error: {str(e)}"
+            inference_log = result.get("segmentation", {}).get("inference_log")
+            result["segmentation"]["inference_log"] = (
+                f"{fallback_note}; {inference_log}" if inference_log else fallback_note
+            )
+            send_callback_task.delay(scan_id, result)
+            return result
+        except Exception as fallback_error:
+            logger.error(
+                f"Fallback analysis failed for scan {scan_id}: {str(fallback_error)}\n{traceback.format_exc()}"
+            )
+            send_failure_callback_task.delay(scan_id, str(fallback_error))
+            raise fallback_error

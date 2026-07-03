@@ -318,9 +318,12 @@ def compute_derived_metrics(
     processing_time_sec: float | None = None
 ) -> dict[str, Any]:
     import math
+    if confidence is not None and confidence <= 1.0:
+        confidence = round(confidence * 100, 1)
+
     if volume is None:
         return {
-            "confidence": None,
+            "confidence": confidence,
             "tumor_type": None,
             "risk_level": None,
             "estimated_diameter": None,
@@ -355,9 +358,6 @@ def compute_derived_metrics(
     # Confidence
     if confidence is None:
         confidence = _seed_float(scan_id, 95.0, 99.5)
-    else:
-        if confidence <= 1.0:
-            confidence = round(confidence * 100, 1)
 
     # Tumor type
     types = ["Glioma (Predicted)", "Meningioma (Predicted)", "Pituitary (Predicted)"]

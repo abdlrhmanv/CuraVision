@@ -425,14 +425,15 @@ export default function DoctorScanReviewPage() {
             <div className="bg-card border border-warn/30 rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold text-warn">Analysis failed</p>
-                <p className="text-xs text-muted mt-1">This scan could not be processed. Create Report is unavailable.</p>
+                <p className="text-xs text-muted mt-1">This scan could not be processed. Retry analysis or upload a different DICOM.</p>
               </div>
               <button
                 type="button"
-                disabled
-                className="px-4 py-2 rounded-lg bg-surface border border-border text-sm font-bold text-muted cursor-not-allowed opacity-60"
+                onClick={handleTriggerAnalysis}
+                disabled={busy}
+                className="px-4 py-2 rounded-lg bg-blue text-[#050B18] text-sm font-bold hover:bg-[#6fa0ff] transition disabled:opacity-50"
               >
-                Create Report
+                {busy ? 'Starting...' : 'Retry AI Analysis'}
               </button>
             </div>
           )}

@@ -234,10 +234,7 @@ async function triggerAnalysis(scanId, { requester }) {
   if (scan.status === "ANALYSIS_COMPLETE") {
     throw badRequest("Analysis is already complete.", "ANALYSIS_COMPLETE");
   }
-  if (scan.status === "FAILED") {
-    throw badRequest("Cannot analyze a failed scan.", "SCAN_FAILED");
-  }
-  if (scan.status !== "UPLOADED") {
+  if (scan.status !== "UPLOADED" && scan.status !== "FAILED") {
     throw badRequest("Scan is not ready for analysis.", "INVALID_SCAN_STATUS");
   }
 
