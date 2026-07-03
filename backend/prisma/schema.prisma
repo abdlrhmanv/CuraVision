@@ -1,11 +1,3 @@
-// CuraVision PostgreSQL schema — maps directly to SDD §4.
-//
-// Usage:
-//   cd backend
-//   npx prisma migrate dev --name init   # creates the DB + initial migration
-//   npx prisma generate                  # regenerates the typed client
-//   npm run db:seed                      # loads mock users/reports into Postgres
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,6 +5,251 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String               @id @default(uuid())
+  email                 String               @unique
+  password_hash         String
+  role                  Role
+  full_name             String
+  status                UserStatus           @default(ACTIVE)
+  created_at            DateTime             @default(now())
+  updated_at            DateTime             @updatedAt
+  email_verified        Boolean              @default(false)
+  lockout_until         DateTime?
+  login_attempts        Int                  @default(0)
+  auditEvents           AuditLog[]
+  chatSessions          ChatSession[]
+  availability          DoctorAvailability[]
+  doctorPreferences     DoctorPreferences?
+  doctorProfile         DoctorProfile?
+  notifications         Notification[]
+  patientPreferences    PatientPreferences?
+  patientProfile        PatientProfile?
+  reportsAsDoctor       Report[]             @relation("ReportDoctor")
+  reportsAsPatient      Report[]             @relation("ReportPatient")
+  reservationsAsDoctor  Reservation[]        @relation("ReservationDoctor")
+  reservationsAsPatient Reservation[]        @relation("ReservationPatient")
+  scansAsDoctor         Scan[]               @relation("ScanDoctor")
+  scansAsPatient        Scan[]               @relation("ScanPatient")
+}
+
+model PatientProfile {
+  user_id                String    @id
+  date_of_birth          DateTime?
+  gender                 Gender?
+  phone                  String?
+  country                String?
+  medical_history        String?
+  emergency_contact      Json?
+  address                String?
+  alcohol_status         String?
+  blood_type             String?
+  chronic_diseases       Json?
+  city                   String?
+  current_medications    Json?
+  family_medical_history String?
+  height_cm              Float?
+  previous_surgeries     String?
+  smoking_status         String?
+  weight_kg              Float?
+  allergies              Json?
+  user                   User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model PatientPreferences {
+  user_id                String  @id
+  preferred_language     String  @default("English")
+  notification_email     Boolean @default(true)
+  notification_sms       Boolean @default(false)
+  notification_push      Boolean @default(true)
+  share_anonymized_scans Boolean @default(true)
+  user                   User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model DoctorPreferences {
+  user_id                 String  @id
+  preferred_ai_model      String  @default("GPT-5")
+  enable_ai_suggestions   Boolean @default(true)
+  default_report_template String  @default("Brain MRI")
+  notification_email      Boolean @default(true)
+  notification_sms        Boolean @default(false)
+  notification_push       Boolean @default(true)
+  notification_critical   Boolean @default(true)
+  user                    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model DoctorProfile {
+  user_id              String    @id
+  license_number       String    @unique
+  specialty            String?
+  years_experience     Int?
+  hospital             String?
+  education            String?
+  certifications       String?
+  bio                  String?
+  phone                String?
+  board_certifications Json?
+  city                 String?
+  consultation_fee     Float?
+  country              String?
+  date_of_birth        DateTime?
+  languages_spoken     Json?
+  qualifications       Json?
+  subspecialties       Json?
+  user                 User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model Scan {
+  id          String        @id @default(uuid())
+  patient_id  String
+  doctor_id   String
+  dicom_path  String?
+  modality    String        @default("MRI")
+  status      ScanStatus    @default(UPLOADED)
+  uploaded_at DateTime      @default(now())
+  updated_at  DateTime      @updatedAt
+  report      Report?
+  doctor      User          @relation("ScanDoctor", fields: [doctor_id], references: [id])
+  patient     User          @relation("ScanPatient", fields: [patient_id], references: [id])
+  analysis    ScanAnalysis?
+
+  @@index([patient_id])
+  @@index([doctor_id])
+  @@index([status])
+}
+
+model ScanAnalysis {
+  id                         String   @id @default(uuid())
+  scan_id                    String   @unique
+  unet_mask_path             String?
+  gradcam_path               String?
+  tumor_volume_cc            Float?
+  tumor_location_description String?
+  inference_log              String?
+  created_at                 DateTime @default(now())
+  updated_at                 DateTime @updatedAt
+  scan                       Scan     @relation(fields: [scan_id], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id              String             @id @default(uuid())
+  scan_id         String             @unique
+  patient_id      String
+  doctor_id       String
+  status          ReportStatus       @default(DRAFT)
+  patient_visible Boolean            @default(false)
+  ai_draft        String
+  final_report    String?
+  created_at      DateTime           @default(now())
+  updated_at      DateTime           @updatedAt
+  chatSessions    ChatSession[]
+  doctor          User               @relation("ReportDoctor", fields: [doctor_id], references: [id])
+  patient         User               @relation("ReportPatient", fields: [patient_id], references: [id])
+  scan            Scan               @relation(fields: [scan_id], references: [id], onDelete: Cascade)
+  corrections     ReportCorrection[]
+
+  @@index([patient_id])
+  @@index([doctor_id])
+  @@index([status])
+}
+
+model ReportCorrection {
+  id         String   @id @default(uuid())
+  report_id  String
+  field      String
+  old_value  String?
+  new_value  String?
+  created_at DateTime @default(now())
+  report     Report   @relation(fields: [report_id], references: [id], onDelete: Cascade)
+
+  @@index([report_id])
+}
+
+model DoctorAvailability {
+  id          String @id @default(uuid())
+  doctor_id   String
+  day_of_week Int
+  start_time  String
+  end_time    String
+  doctor      User   @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+
+  @@index([doctor_id, day_of_week])
+}
+
+model Reservation {
+  id         String            @id @default(uuid())
+  doctor_id  String
+  patient_id String
+  start_time DateTime
+  end_time   DateTime
+  status     ReservationStatus @default(PENDING)
+  created_at DateTime          @default(now())
+  updated_at DateTime          @updatedAt
+  doctor     User              @relation("ReservationDoctor", fields: [doctor_id], references: [id])
+  patient    User              @relation("ReservationPatient", fields: [patient_id], references: [id])
+
+  @@unique([doctor_id, start_time, end_time])
+  @@index([doctor_id, start_time])
+  @@index([patient_id])
+  @@index([start_time])
+  @@index([end_time])
+}
+
+model AuditLog {
+  id          String   @default(uuid())
+  timestamp   DateTime @default(now())
+  user_id     String?
+  action      String
+  entity_type String?
+  entity_id   String?
+  metadata    Json?
+  user        User?    @relation(fields: [user_id], references: [id])
+
+  @@id([id, timestamp])
+  @@index([user_id])
+  @@index([action])
+  @@index([entity_type, entity_id])
+  @@index([timestamp])
+}
+
+model ChatSession {
+  id         String        @id @default(uuid())
+  patient_id String
+  report_id  String
+  created_at DateTime      @default(now())
+  messages   ChatMessage[]
+  patient    User          @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  report     Report        @relation(fields: [report_id], references: [id], onDelete: Cascade)
+
+  @@unique([patient_id, report_id])
+  @@index([report_id])
+}
+
+model ChatMessage {
+  id         String        @id @default(uuid())
+  session_id String
+  sender     MessageSender
+  message    String
+  created_at DateTime      @default(now())
+  session    ChatSession   @relation(fields: [session_id], references: [id], onDelete: Cascade)
+
+  @@index([session_id, created_at])
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  user_id    String
+  title      String
+  message    String
+  read       Boolean  @default(false)
+  link       String?
+  created_at DateTime @default(now())
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, read])
+  @@index([created_at])
 }
 
 enum Role {
@@ -57,265 +294,4 @@ enum ReservationStatus {
 enum MessageSender {
   PATIENT
   BOT
-}
-
-model User {
-  id             String     @id @default(uuid())
-  email          String     @unique
-  password_hash  String
-  role           Role
-  full_name      String
-  status         UserStatus @default(ACTIVE)
-  email_verified Boolean    @default(false)
-  login_attempts Int        @default(0)
-  lockout_until  DateTime?
-  created_at     DateTime   @default(now())
-  updated_at     DateTime   @updatedAt
-
-  patientProfile     PatientProfile?
-  doctorProfile      DoctorProfile?
-  patientPreferences PatientPreferences?
-  doctorPreferences  DoctorPreferences?
-
-  scansAsPatient Scan[]         @relation("ScanPatient")
-  scansAsDoctor  Scan[]         @relation("ScanDoctor")
-  reportsAsPatient Report[]     @relation("ReportPatient")
-  reportsAsDoctor  Report[]     @relation("ReportDoctor")
-  reservationsAsPatient Reservation[] @relation("ReservationPatient")
-  reservationsAsDoctor  Reservation[] @relation("ReservationDoctor")
-  availability   DoctorAvailability[]
-  auditEvents    AuditLog[]
-  chatSessions   ChatSession[]
-  notifications  Notification[]
-}
-
-model PatientProfile {
-  user_id         String   @id
-  date_of_birth   DateTime?
-  gender          Gender?
-  phone           String?
-  country                String?
-  city                   String?
-  address                String?
-  blood_type             String?
-  height_cm              Float?
-  weight_kg              Float?
-  medical_history        String?  @db.Text
-  allergies              Json?
-  chronic_diseases       Json?
-  current_medications    Json?
-  previous_surgeries     String?  @db.Text
-  family_medical_history String?  @db.Text
-  smoking_status         String?
-  alcohol_status         String?
-  emergency_contact      Json?
-
-  user            User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-}
-
-model PatientPreferences {
-  user_id                  String   @id
-  preferred_language       String   @default("English")
-  notification_email       Boolean  @default(true)
-  notification_sms         Boolean  @default(false)
-  notification_push        Boolean  @default(true)
-  share_anonymized_scans   Boolean  @default(true)
-
-  user                     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-}
-
-model DoctorPreferences {
-  user_id                  String   @id
-  preferred_ai_model       String   @default("GPT-5")
-  enable_ai_suggestions    Boolean  @default(true)
-  default_report_template  String   @default("Brain MRI")
-  notification_email       Boolean  @default(true)
-  notification_sms         Boolean  @default(false)
-  notification_push        Boolean  @default(true)
-  notification_critical    Boolean  @default(true)
-
-  user                     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-}
-
-model DoctorProfile {
-  user_id              String   @id
-  license_number       String   @unique
-  specialty            String?
-  subspecialties       Json?
-  years_experience     Int?
-  hospital             String?
-  phone                String?
-  bio                  String?  @db.Text
-  education            String?
-  qualifications       Json?
-  board_certifications Json?
-  certifications       String?  @db.Text
-  country              String?
-  city                 String?
-  languages_spoken     Json?
-  consultation_fee     Float?
-  date_of_birth        DateTime?
-
-  user                 User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-}
-
-model Scan {
-  id           String     @id @default(uuid())
-  patient_id   String
-  doctor_id    String
-  dicom_path   String?
-  modality     String     @default("MRI")
-  status       ScanStatus @default(UPLOADED)
-  uploaded_at  DateTime   @default(now())
-  updated_at   DateTime   @updatedAt
-
-  patient      User       @relation("ScanPatient", fields: [patient_id], references: [id])
-  doctor       User       @relation("ScanDoctor", fields: [doctor_id], references: [id])
-  analysis     ScanAnalysis?
-  report       Report?
-
-  @@index([patient_id])
-  @@index([doctor_id])
-  @@index([status])
-}
-
-model ScanAnalysis {
-  id                          String   @id @default(uuid())
-  scan_id                     String   @unique
-  unet_mask_path              String?
-  gradcam_path                String?
-  tumor_volume_cc             Float?
-  tumor_location_description  String?
-  inference_log               String?  @db.Text
-  created_at                  DateTime @default(now())
-  updated_at                  DateTime @updatedAt
-
-  scan                        Scan     @relation(fields: [scan_id], references: [id], onDelete: Cascade)
-}
-
-model Report {
-  id              String       @id @default(uuid())
-  scan_id         String       @unique
-  patient_id      String
-  doctor_id       String
-  status          ReportStatus @default(DRAFT)
-  patient_visible Boolean      @default(false)
-  ai_draft        String       @db.Text
-  final_report    String?      @db.Text
-  created_at      DateTime     @default(now())
-  updated_at      DateTime     @updatedAt
-
-  scan            Scan         @relation(fields: [scan_id], references: [id], onDelete: Cascade)
-  patient         User         @relation("ReportPatient", fields: [patient_id], references: [id])
-  doctor          User         @relation("ReportDoctor", fields: [doctor_id], references: [id])
-  corrections     ReportCorrection[]
-  chatSessions    ChatSession[]
-
-  @@index([patient_id])
-  @@index([doctor_id])
-  @@index([status])
-}
-
-model ReportCorrection {
-  id         String   @id @default(uuid())
-  report_id  String
-  field      String
-  old_value  String?  @db.Text
-  new_value  String?  @db.Text
-  created_at DateTime @default(now())
-
-  report     Report   @relation(fields: [report_id], references: [id], onDelete: Cascade)
-
-  @@index([report_id])
-}
-
-model DoctorAvailability {
-  id          String @id @default(uuid())
-  doctor_id   String
-  day_of_week Int    // 0=Sun .. 6=Sat
-  start_time  String // "HH:mm"
-  end_time    String // "HH:mm"
-
-  doctor      User   @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
-
-  @@index([doctor_id, day_of_week])
-}
-
-model Reservation {
-  id         String            @id @default(uuid())
-  doctor_id  String
-  patient_id String
-  start_time DateTime
-  end_time   DateTime
-  status     ReservationStatus @default(PENDING)
-  created_at DateTime          @default(now())
-  updated_at DateTime          @updatedAt
-
-  doctor     User              @relation("ReservationDoctor", fields: [doctor_id], references: [id])
-  patient    User              @relation("ReservationPatient", fields: [patient_id], references: [id])
-
-  @@unique([doctor_id, start_time, end_time])
-  @@index([doctor_id, start_time])
-  @@index([patient_id])
-  @@index([start_time])
-  @@index([end_time])
-}
-
-model AuditLog {
-  id          String   @default(uuid())
-  timestamp   DateTime @default(now())
-  user_id     String?
-  action      String
-  entity_type String?
-  entity_id   String?
-  metadata    Json?
-
-  user        User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
-
-  @@id([id, timestamp])
-  @@index([user_id])
-  @@index([action])
-  @@index([entity_type, entity_id])
-  @@index([timestamp])
-}
-
-model ChatSession {
-  id         String   @id @default(uuid())
-  patient_id String
-  report_id  String
-  created_at DateTime @default(now())
-
-  patient    User     @relation(fields: [patient_id], references: [id], onDelete: Cascade)
-  report     Report   @relation(fields: [report_id], references: [id], onDelete: Cascade)
-  messages   ChatMessage[]
-
-  @@unique([patient_id, report_id])
-  @@index([report_id])
-}
-
-model ChatMessage {
-  id         String        @id @default(uuid())
-  session_id String
-  sender     MessageSender
-  message    String        @db.Text
-  created_at DateTime      @default(now())
-
-  session    ChatSession   @relation(fields: [session_id], references: [id], onDelete: Cascade)
-
-  @@index([session_id, created_at])
-}
-
-model Notification {
-  id         String   @id @default(uuid())
-  user_id    String
-  title      String
-  message    String   @db.Text
-  read       Boolean  @default(false)
-  link       String?
-  created_at DateTime @default(now())
-
-  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@index([user_id, read])
-  @@index([created_at])
 }

@@ -56,9 +56,10 @@ export default function DicomViewer({ src, caption, height = 360, maskSrc, heatm
 
     ;(async () => {
       try {
-        const [{ init, RenderingEngine, Enums, imageLoader }, dicomImageLoader] = await Promise.all([
+        const [{ init, RenderingEngine, Enums, imageLoader }, dicomImageLoader, dicomParser] = await Promise.all([
           import('@cornerstonejs/core'),
           import('@cornerstonejs/dicom-image-loader'),
+          import('dicom-parser')
         ])
 
         if (disposed) return
@@ -67,9 +68,28 @@ export default function DicomViewer({ src, caption, height = 360, maskSrc, heatm
 
         if (!initialised) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const dil = dicomImageLoader as any
-          if (dil?.init) dil.init({ maxWebWorkers: 1 })
-          setInitialised(true)
+          const dilModule = dicomImageLoader as any;
+          const dil = dilModule.default || dilModule;
+          
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const parserModule = dicomParser as any;
+          const parser = parserModule.default || parserModule;
+          
+          if (dil.external) {
+            dil.external.cornerstone = await import('@cornerstonejs/core');
+            dil.external.dicomParser = parser;
+          }
+
+          if (typeof dil.init === 'function') {
+            await dil.init({ maxWebWorkers: 1 });
+          } else if (dil.webWorkerManager) {
+            dil.webWorkerManager.initialize({
+              maxWebWorkers: 1,
+              startWebWorkersOnDemand: true,
+              taskConfiguration: { decodeTask: { initializeCodecsOnStartup: false } }
+            });
+          }
+          setInitialised(true);
         }
 
         const renderingEngineId = 'curavision-engine'

@@ -71,6 +71,34 @@ async function main() {
     });
   }
 
+  
+  console.log("Seeding doctor profiles...");
+  for (const u of USERS.filter(u => u.role === "DOCTOR")) {
+    await prisma.doctorProfile.upsert({
+      where: { user_id: u.id },
+      update: {},
+      create: {
+        user_id: u.id,
+        specialty: "Neurology",
+        subspecialties: ["Brain Tumors", "Stroke"],
+        license_number: "LIC-" + u.id.substring(0, 8),
+        years_experience: 12,
+        hospital: "Ain Shams University Hospital",
+        bio: "Consultant Neurologist specializing in neuro-oncology and stroke management.",
+        phone: "+201000000000",
+      },
+    });
+
+    await prisma.doctorPreferences.upsert({
+      where: { user_id: u.id },
+      update: {},
+      create: {
+        user_id: u.id,
+        preferred_ai_model: "llama-3.3-70b-versatile",
+      },
+    });
+  }
+
   console.log("Seeding demo scans + reports...");
   for (const r of REPORTS) {
     await prisma.scan.upsert({
