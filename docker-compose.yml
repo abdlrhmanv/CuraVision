@@ -90,7 +90,8 @@ services:
   # ---------- Application services ----------
   ai-service:
     build:
-      context: ./ai-service
+      context: .
+      dockerfile: ./ai-service/Dockerfile
     image: curavision/ai-service:dev
     restart: unless-stopped
     env_file:
@@ -117,7 +118,8 @@ services:
 
   ai-worker:
     build:
-      context: ./ai-service
+      context: .
+      dockerfile: ./ai-service/Dockerfile
     image: curavision/ai-service:dev
     restart: unless-stopped
     command: ["celery", "-A", "app.worker.celery_app.celery", "worker", "--loglevel=info"]

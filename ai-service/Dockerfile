@@ -15,7 +15,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends curl build-essential \
  && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt ./
+COPY ai-service/requirements.txt ./
 RUN pip install -r requirements.txt
 
 # Non-root user — pin UID/GID to 1001 to match the backend container so
@@ -29,7 +29,8 @@ RUN groupadd --system --gid 1001 app \
 RUN mkdir -p /app/storage/dicoms /app/storage/masks /app/storage/heatmaps \
  && chown -R app:app /app/storage
 
-COPY --chown=app:app . .
+COPY --chown=app:app ai-service/ .
+COPY --chown=app:app ml/ /ml/
 
 USER app
 EXPOSE 8001

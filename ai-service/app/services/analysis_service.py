@@ -390,7 +390,10 @@ def run_segmentation(scan_id: str, dicom_path: str, dicom_url: str | None = None
     image, metadata, loaded_dicom = _load_image(scan_id, dicom_path, dicom_url)
     
     from app.services.inference_strategy import get_inference_strategy, OnnxPipelineStrategy
-    strategy = get_inference_strategy()
+    try:
+        strategy = get_inference_strategy()
+    except Exception:
+        strategy = None
     
     if isinstance(strategy, OnnxPipelineStrategy):
         seg_raw = strategy.pipeline.segmenter.predict(image)
@@ -424,7 +427,10 @@ def run_gradcam(scan_id: str, dicom_path: str, dicom_url: str | None = None, put
     image, _metadata, _loaded_dicom = _load_image(scan_id, dicom_path, dicom_url)
     
     from app.services.inference_strategy import get_inference_strategy, OnnxPipelineStrategy
-    strategy = get_inference_strategy()
+    try:
+        strategy = get_inference_strategy()
+    except Exception:
+        strategy = None
     
     if isinstance(strategy, OnnxPipelineStrategy):
         seg_raw = strategy.pipeline.segmenter.predict(image)
