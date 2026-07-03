@@ -8,6 +8,7 @@ scipy
 h5py
 onnxruntime
 onnx
+onnxscript
 fastapi
 uvicorn
 matplotlib

@@ -42,6 +42,12 @@ services:
     image: ghcr.io/abdlrhmanv/curavision/ai-service:latest
     build: !reset null
     restart: always
+    environment:
+      CLS_ONNX_PATH: /models/classification.onnx
+      SEG_ONNX_PATH: /models/segmentation.onnx
+    volumes:
+      - curavision_backend_storage:/app/storage
+      - ./models:/models:ro
     deploy:
       resources:
         limits:
@@ -52,6 +58,12 @@ services:
     image: ghcr.io/abdlrhmanv/curavision/ai-service:latest
     build: !reset null
     restart: always
+    environment:
+      CLS_ONNX_PATH: /models/classification.onnx
+      SEG_ONNX_PATH: /models/segmentation.onnx
+    volumes:
+      - curavision_backend_storage:/app/storage
+      - ./models:/models:ro
     deploy:
       resources:
         limits:

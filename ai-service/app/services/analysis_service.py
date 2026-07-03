@@ -1,9 +1,7 @@
 """MRI analysis service.
 
-The production CV models are not present in this repository yet. Until the
-ONNX/PyTorch weights land, this module runs an interim DICOM-aware pipeline:
-load the scan pixels, generate derived visual artifacts, estimate simple
-image-derived metrics, and use the configured LLM for the report draft.
+Loads DICOM scans, runs ONNX classification/segmentation, persists derived
+artifacts, computes image-derived metrics, and formats the LLM report draft.
 """
 from __future__ import annotations
 
@@ -158,23 +156,7 @@ def _dicom_metadata(dicom_path: str) -> dict[str, Any]:
     }
 
 
-def _synthetic_image(scan_id: str, size: int = 224) -> Image.Image:
-    rng = np.random.default_rng(_seed_index(scan_id, 2**32 - 1))
-    y, x = np.ogrid[:size, :size]
-    cx = size * (0.35 + 0.3 * rng.random())
-    cy = size * (0.35 + 0.3 * rng.random())
-    brain = ((x - size / 2) ** 2 / (size * 0.36) ** 2) + (
-        (y - size / 2) ** 2 / (size * 0.44) ** 2
-    ) <= 1
-    lesion = ((x - cx) ** 2 + (y - cy) ** 2) <= (size * 0.08) ** 2
-    arr = np.zeros((size, size), dtype=np.float32)
-    arr[brain] = 95 + rng.normal(0, 8, brain.sum())
-    arr[lesion] = 190 + rng.normal(0, 10, lesion.sum())
-    arr = np.clip(arr, 0, 255).astype(np.uint8)
-    return Image.fromarray(arr).convert("RGB")
-
-
-def _load_image(scan_id: str, dicom_path: str, dicom_url: str | None = None) -> tuple[Image.Image, dict[str, Any], bool]:
+def _load_image(scan_id: str, dicom_path: str, dicom_url: str | None = None) -> tuple[Image.Image, dict[str, Any]]:
     path_to_read = dicom_path
     if dicom_url:
         import tempfile
@@ -187,33 +169,14 @@ def _load_image(scan_id: str, dicom_path: str, dicom_url: str | None = None) -> 
                 resp.raise_for_status()
                 local_path.write_bytes(resp.content)
             path_to_read = str(local_path)
-        except Exception as e:
+        except Exception:
             pass
 
     metadata = _dicom_metadata(path_to_read)
     try:
-        return load_dicom_as_image(path_to_read), metadata, True
+        return load_dicom_as_image(path_to_read), metadata
     except Exception as exc:
-        metadata["pixel_warning"] = str(exc)
-        return _synthetic_image(scan_id), metadata, False
-
-
-def _grayscale_array(image: Image.Image) -> np.ndarray:
-    return np.asarray(image.convert("L"), dtype=np.float32)
-
-
-def _lesion_mask(image: Image.Image) -> np.ndarray:
-    arr = _grayscale_array(image)
-    nonzero = arr[arr > 0]
-    if nonzero.size == 0:
-        return np.zeros(arr.shape, dtype=bool)
-
-    threshold = max(float(np.percentile(nonzero, 92)), float(nonzero.mean() + nonzero.std()))
-    mask = arr >= threshold
-    if mask.sum() < 12:
-        threshold = float(np.percentile(nonzero, 88))
-        mask = arr >= threshold
-    return mask
+        raise ValueError(f"Failed to load scan image from {path_to_read}: {exc}") from exc
 
 
 def _estimate_volume_cc(mask: np.ndarray, metadata: dict[str, Any], scan_id: str) -> float:
@@ -306,32 +269,6 @@ def _save_heatmap(image: Image.Image, mask: np.ndarray, scan_id: str, put_url: s
     return logical_path
 
 
-def _metadata_summary(metadata: dict[str, Any]) -> str:
-    fields = [
-        ("Modality", metadata.get("modality")),
-        ("Rows", metadata.get("rows")),
-        ("Columns", metadata.get("columns")),
-        ("Body part", metadata.get("body_part")),
-        ("Study", metadata.get("study_description")),
-        ("Series", metadata.get("series_description")),
-    ]
-    return "; ".join(f"{label}: {value}" for label, value in fields if value) or "Metadata unavailable"
-
-
-def _fallback_report(scan_id: str, volume: float, location: str, metadata: dict[str, Any]) -> str:
-    return (
-        "FINDINGS:\n"
-        f"MRI analysis estimates an abnormal signal focus measuring approximately {volume:.1f} cc "
-        f"in the {location}. The derived heatmap highlights the same region as the dominant "
-        "area of activation. "
-        f"Available scan metadata: {_metadata_summary(metadata)}.\n\n"
-        "IMPRESSION:\n"
-        "Image-derived findings are suspicious for a focal intracranial lesion. This draft is "
-        "for radiologist review and must be correlated with the complete MRI series and clinical history.\n\n"
-        "(Draft generated automatically by CuraVision AI - requires radiologist review.)"
-    )
-
-
 def compute_derived_metrics(
     scan_id: str,
     volume: float | None,
@@ -415,29 +352,17 @@ def compute_derived_metrics(
 def run_segmentation(scan_id: str, dicom_path: str, dicom_url: str | None = None, put_url: str | None = None) -> dict[str, Any]:
     import time
     start_time = time.time()
-    
-    image, metadata, loaded_dicom = _load_image(scan_id, dicom_path, dicom_url)
-    
-    from app.services.inference_strategy import get_inference_strategy, OnnxPipelineStrategy
-    try:
-        strategy = get_inference_strategy()
-    except Exception:
-        strategy = None
-    
-    if isinstance(strategy, OnnxPipelineStrategy):
-        seg_raw = strategy.pipeline.segmenter.predict(image)
-        mask = seg_raw["mask"]
-        if mask.sum() < 50:
-            mask = np.zeros_like(mask)
-            seg_raw["mask_found"] = False
-        source = "onnx-segmenter"
-        inference_log = f"onnx-segmenter-analysis source={source}; mask_found={seg_raw['mask_found']}"
-    else:
-        mask = _lesion_mask(image)
-        if mask.sum() < 50:
-            mask = np.zeros_like(mask)
-        source = "dicom" if loaded_dicom else "synthetic-fallback"
-        inference_log = f"interim-dicom-analysis v0.2 source={source}; {_metadata_summary(metadata)}"
+
+    image, metadata = _load_image(scan_id, dicom_path, dicom_url)
+
+    from app.services.inference_strategy import get_inference_strategy
+    strategy = get_inference_strategy()
+    seg_raw = strategy.pipeline.segmenter.predict(image)
+    mask = seg_raw["mask"]
+    if mask.sum() < 50:
+        mask = np.zeros_like(mask)
+        seg_raw["mask_found"] = False
+    inference_log = f"onnx-segmenter-analysis mask_found={seg_raw['mask_found']}"
 
     volume = _estimate_volume_cc(mask, metadata, scan_id)
     location = _describe_location(mask, scan_id)
@@ -458,19 +383,12 @@ def run_segmentation(scan_id: str, dicom_path: str, dicom_url: str | None = None
 
 
 def run_gradcam(scan_id: str, dicom_path: str, dicom_url: str | None = None, put_url: str | None = None) -> dict[str, Any]:
-    image, _metadata, _loaded_dicom = _load_image(scan_id, dicom_path, dicom_url)
-    
-    from app.services.inference_strategy import get_inference_strategy, OnnxPipelineStrategy
-    try:
-        strategy = get_inference_strategy()
-    except Exception:
-        strategy = None
-    
-    if isinstance(strategy, OnnxPipelineStrategy):
-        seg_raw = strategy.pipeline.segmenter.predict(image)
-        mask = seg_raw["mask"]
-    else:
-        mask = _lesion_mask(image)
+    image, _metadata = _load_image(scan_id, dicom_path, dicom_url)
+
+    from app.services.inference_strategy import get_inference_strategy
+    strategy = get_inference_strategy()
+    seg_raw = strategy.pipeline.segmenter.predict(image)
+    mask = seg_raw["mask"]
         
     location = _describe_location(mask, scan_id)
     return {

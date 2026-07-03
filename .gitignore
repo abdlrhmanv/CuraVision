@@ -78,3 +78,4 @@ backups/
 
 # downloaded production ML model weights
 ai-service/app/ml_models/
+models/

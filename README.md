@@ -339,13 +339,22 @@ In production, do not use fallback defaults. You must set the following environm
 - `CORS_ORIGIN`: Comma-separated list of allowed origins.
 - `CORS_ORIGINS` (AI Service): Comma-separated list of allowed origins (the backend host).
 
+GitHub Actions secrets for CD (Settings → Secrets and variables → Actions):
+- `MODEL_WEIGHTS_URL`: URL to a `.tar.gz` / `.zip` archive with `classification.onnx` and `segmentation.onnx`.
+- `GROQ_API_KEY`, `SMTP_*`, `PROD_SSH_*`: as already configured.
+
+ONNX paths (`CLS_ONNX_PATH`, `SEG_ONNX_PATH`) are written into the deploy `.env` automatically; they are config, not secrets.
+
 ### 3. ML Model Weights
-To-be-trained weights or production model files (ONNX/PyTorch) can be integrated automatically using the download script:
+Production deploys download ONNX weights onto the server at `/opt/curavision/models/` and mount them read-only into `ai-service` / `ai-worker` at `/models`. Set the GitHub Actions secret `MODEL_WEIGHTS_URL` to a `.tar.gz` or `.zip` archive containing `classification.onnx` and `segmentation.onnx`.
+
+For manual/local download:
 ```bash
 export MODEL_WEIGHTS_URL="https://your-storage-bucket.com/models/weights.tar.gz"
+export MODEL_WEIGHTS_DIR="/opt/curavision/models"   # production
 ./scripts/download_weights.sh
 ```
-This downloads and extracts the model weights into `ai-service/app/ml_models/`.
+Without `MODEL_WEIGHTS_DIR`, files land in `ai-service/app/ml_models/`.
 
 ### 4. Database Backups
 Automated database backups can be scheduled using the backup script:

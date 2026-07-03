@@ -156,7 +156,7 @@ jobs:
           host: ${{ secrets.PROD_SSH_HOST }}
           username: ${{ secrets.PROD_SSH_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
-          source: "docker-compose.yml,docker-compose.prod.yml,nginx/"
+          source: "docker-compose.yml,docker-compose.prod.yml,nginx/,scripts/download_weights.sh"
           target: "/opt/curavision"
 
       - name: Deploy via SSH
@@ -186,13 +186,28 @@ jobs:
             SMTP_PORT=${{ secrets.SMTP_PORT }}
             SMTP_SECURE=${{ secrets.SMTP_SECURE }}
             SMTP_FROM=${{ secrets.SMTP_FROM }}
+            CLS_ONNX_PATH=/models/classification.onnx
+            SEG_ONNX_PATH=/models/segmentation.onnx
             EOF
             
             # Also copy .env to ai-service directory
-            mkdir -p ai-service
+            mkdir -p ai-service models
             cp .env ai-service/.env
             
-            # 5. Login, Pull, and Deploy
+            # 5. Download ONNX weights to host models/ (mounted read-only into ai-service)
+            chmod +x scripts/download_weights.sh
+            if [ -n "${{ secrets.MODEL_WEIGHTS_URL }}" ]; then
+              export MODEL_WEIGHTS_URL='${{ secrets.MODEL_WEIGHTS_URL }}'
+              export MODEL_WEIGHTS_DIR=/opt/curavision/models
+              bash scripts/download_weights.sh
+            elif [ ! -f models/classification.onnx ] || [ ! -f models/segmentation.onnx ]; then
+              echo "ERROR: MODEL_WEIGHTS_URL secret is not set and models/ is missing ONNX files."
+              exit 1
+            else
+              echo "Reusing existing ONNX models in models/"
+            fi
+            
+            # 6. Login, Pull, and Deploy
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans

@@ -6,7 +6,6 @@ import mlflow
 from typing import Any
 from pathlib import Path
 
-# Local fallback imports
 from app.services import analysis_service
 
 logger = logging.getLogger(__name__)
@@ -15,24 +14,6 @@ class InferenceStrategy(abc.ABC):
     @abc.abstractmethod
     def run_full_analysis(self, scan_id: str, dicom_path: str, dicom_url: str | None = None, mask_put_url: str | None = None, gradcam_put_url: str | None = None) -> dict[str, Any]:
         pass
-
-class InterimDicomStrategy(InferenceStrategy):
-    """
-    Fallback strategy that uses synthetic/interim analysis
-    when ONNX models are not available.
-    """
-    def run_full_analysis(self, scan_id: str, dicom_path: str, dicom_url: str | None = None, mask_put_url: str | None = None, gradcam_put_url: str | None = None) -> dict[str, Any]:
-        seg = analysis_service.run_segmentation(scan_id, dicom_path, dicom_url, mask_put_url)
-        cam = analysis_service.run_gradcam(scan_id, dicom_path, dicom_url, gradcam_put_url)
-        rep = analysis_service.run_report(
-            scan_id,
-            tumor_volume_cc=seg["tumor_volume_cc"],
-            tumor_location_description=seg["tumor_location_description"],
-            dicom_path=dicom_path,
-            confidence=seg.get("confidence"),
-            processing_time_sec=seg.get("processing_time_sec"),
-        )
-        return {"scan_id": scan_id, "segmentation": seg, "gradcam": cam, "report": rep}
 
 class OnnxPipelineStrategy(InferenceStrategy):
     """
@@ -66,7 +47,7 @@ class OnnxPipelineStrategy(InferenceStrategy):
         ClassificationResult = schemas_mod.ClassificationResult
         
         # Load image (we reuse analysis_service's loader which returns PIL Image)
-        image, metadata, _ = analysis_service._load_image(scan_id, dicom_path, dicom_url)
+        image, metadata = analysis_service._load_image(scan_id, dicom_path, dicom_url)
         
         # Run classification model
         cls_raw = self.pipeline.classifier.predict(image)
@@ -176,66 +157,68 @@ def get_inference_strategy() -> InferenceStrategy:
         return _cached_strategy
 
     strategy_name = os.getenv("INFERENCE_STRATEGY", "onnx").lower()
-    
-    if strategy_name == "onnx":
-        logger.info("Initializing ONNX Inference Strategy")
-        try:
-            repo_root = Path(__file__).resolve().parents[3]
-            
-            def find_model(env_var: str, default_name: str) -> str:
-                val = os.getenv(env_var)
-                if val:
-                    return val
-                
-                # Dev path: ml/artifacts/onnx/
-                dev_dir = repo_root / "ml" / "artifacts" / "onnx"
-                p = dev_dir / f"{default_name}.onnx"
-                if p.exists():
-                    return str(p)
-                
-                # Docker mount path: /ml/artifacts/onnx/
-                docker_dir = Path("/ml/artifacts/onnx")
-                p_docker = docker_dir / f"{default_name}.onnx"
-                if p_docker.exists():
-                    return str(p_docker)
-                
-                # Prod path: ai-service/app/ml_models/
-                prod_dir = Path(__file__).resolve().parents[2] / "ml_models"
-                p = prod_dir / f"{default_name}.onnx"
-                if p.exists():
-                    return str(p)
-                
-                # Fallback default
-                return f"models/{default_name}.onnx"
+    if strategy_name != "onnx":
+        raise ValueError(
+            f"Unsupported INFERENCE_STRATEGY={strategy_name!r}; only 'onnx' is supported."
+        )
 
-            cls_path = find_model("CLS_ONNX_PATH", "classification")
-            seg_path = find_model("SEG_ONNX_PATH", "segmentation")
-            
-            logger.info(f"Using classification model: {cls_path}")
-            logger.info(f"Using segmentation model: {seg_path}")
-            logger.info("Model loaded")
+    logger.info("Initializing ONNX Inference Strategy")
+    try:
+        repo_root = Path(__file__).resolve().parents[3]
 
-            config = {
-                "class_names": ["glioma", "meningioma", "no_tumor", "pituitary"],
-                "classification": {
-                    "onnx_path": cls_path,
-                    "image_size": 224,
-                    "no_tumor_index": 2,
-                    "no_tumor_stop_threshold": 0.85,
-                    "tumor_class_threshold": 0.50,
-                    "segmentation_trigger_threshold": 0.35
-                },
-                "segmentation": {
-                    "onnx_path": seg_path,
-                    "image_size": 256,
-                    "positive_threshold": 0.5
-                }
+        def find_model(env_var: str, default_name: str) -> str:
+            val = os.getenv(env_var)
+            if val:
+                return val
+
+            # Dev path: ml/artifacts/onnx/
+            dev_dir = repo_root / "ml" / "artifacts" / "onnx"
+            p = dev_dir / f"{default_name}.onnx"
+            if p.exists():
+                return str(p)
+
+            # Docker mount path: /ml/artifacts/onnx/
+            docker_dir = Path("/ml/artifacts/onnx")
+            p_docker = docker_dir / f"{default_name}.onnx"
+            if p_docker.exists():
+                return str(p_docker)
+
+            # Prod path: ai-service/app/ml_models/
+            prod_dir = Path(__file__).resolve().parents[2] / "ml_models"
+            p = prod_dir / f"{default_name}.onnx"
+            if p.exists():
+                return str(p)
+
+            raise FileNotFoundError(
+                f"ONNX model '{default_name}.onnx' not found. "
+                f"Set {env_var} or place the file under ml/artifacts/onnx/."
+            )
+
+        cls_path = find_model("CLS_ONNX_PATH", "classification")
+        seg_path = find_model("SEG_ONNX_PATH", "segmentation")
+
+        logger.info(f"Using classification model: {cls_path}")
+        logger.info(f"Using segmentation model: {seg_path}")
+        logger.info("Model loaded")
+
+        config = {
+            "class_names": ["glioma", "meningioma", "no_tumor", "pituitary"],
+            "classification": {
+                "onnx_path": cls_path,
+                "image_size": 224,
+                "no_tumor_index": 2,
+                "no_tumor_stop_threshold": 0.85,
+                "tumor_class_threshold": 0.50,
+                "segmentation_trigger_threshold": 0.35
+            },
+            "segmentation": {
+                "onnx_path": seg_path,
+                "image_size": 256,
+                "positive_threshold": 0.5
             }
-            _cached_strategy = OnnxPipelineStrategy(config)
-            return _cached_strategy
-        except Exception as e:
-            logger.error(f"Failed to initialize ONNX strategy: {e}", exc_info=True)
-            raise e
-            
-    _cached_strategy = InterimDicomStrategy()
-    return _cached_strategy
+        }
+        _cached_strategy = OnnxPipelineStrategy(config)
+        return _cached_strategy
+    except Exception as e:
+        logger.error(f"Failed to initialize ONNX strategy: {e}", exc_info=True)
+        raise
