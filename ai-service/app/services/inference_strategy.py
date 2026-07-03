@@ -29,6 +29,8 @@ class InterimDicomStrategy(InferenceStrategy):
             tumor_volume_cc=seg["tumor_volume_cc"],
             tumor_location_description=seg["tumor_location_description"],
             dicom_path=dicom_path,
+            confidence=seg.get("confidence"),
+            processing_time_sec=seg.get("processing_time_sec"),
         )
         return {"scan_id": scan_id, "segmentation": seg, "gradcam": cam, "report": rep}
 
@@ -110,13 +112,6 @@ class OnnxPipelineStrategy(InferenceStrategy):
         else:
             decision_reason = "Segmentation was skipped because tumor likelihood was below the trigger threshold."
             
-        rep = analysis_service.run_report(
-            scan_id,
-            tumor_volume_cc=volume,
-            tumor_location_description=location,
-            dicom_path=dicom_path,
-        )
-        
         # Log to MLflow
         with mlflow.start_run(run_name=f"scan_{scan_id}"):
             mlflow.log_param("scan_id", scan_id)
@@ -146,6 +141,15 @@ class OnnxPipelineStrategy(InferenceStrategy):
         }
         segmentation_data.update(metrics)
 
+        rep = analysis_service.run_report(
+            scan_id,
+            tumor_volume_cc=volume,
+            tumor_location_description=location,
+            dicom_path=dicom_path,
+            confidence=metrics.get("confidence"),
+            processing_time_sec=metrics.get("processing_time_sec"),
+        )
+        
         return {
             "scan_id": scan_id,
             "segmentation": segmentation_data,

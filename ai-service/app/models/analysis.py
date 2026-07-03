@@ -41,6 +41,8 @@ class ReportRequest(BaseModel):
     scan_id: str
     tumor_volume_cc: float | None = None
     tumor_location_description: str | None = None
+    confidence: float | None = None
+    processing_time_sec: float | None = None
 
 
 class ReportResponse(BaseModel):

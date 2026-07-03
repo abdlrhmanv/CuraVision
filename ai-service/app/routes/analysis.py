@@ -41,6 +41,8 @@ async def report(request: ReportRequest) -> ReportResponse:
             request.scan_id,
             tumor_volume_cc=request.tumor_volume_cc,
             tumor_location_description=request.tumor_location_description,
+            confidence=request.confidence,
+            processing_time_sec=request.processing_time_sec,
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
