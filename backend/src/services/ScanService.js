@@ -171,19 +171,18 @@ async function uploadScan({ file, patientId, doctorId }) {
   if (!file) throw badRequest("DICOM file is required.", "FILE_REQUIRED");
 
   if (!file.buffer || file.buffer.length === 0) {
-    throw badRequest("Invalid DICOM file format. Only DICOM (.dcm) files are allowed.", "INVALID_DICOM");
+    throw badRequest("Invalid file format. Only DICOM (.dcm) and JPEG (.jpg) files are allowed.", "INVALID_FILE_FORMAT");
   }
 
-  // Validate DICOM Magic Number signature
-  if (
-    !file.buffer ||
-    file.buffer.length < 132 ||
-    file.buffer[128] !== 68 || // 'D'
-    file.buffer[129] !== 73 || // 'I'
-    file.buffer[130] !== 67 || // 'C'
-    file.buffer[131] !== 77    // 'M'
-  ) {
-    throw badRequest("Invalid DICOM file metadata", "INVALID_DICOM");
+  const isDicom = file.buffer && file.buffer.length >= 132 &&
+                  file.buffer[128] === 68 && file.buffer[129] === 73 &&
+                  file.buffer[130] === 67 && file.buffer[131] === 77;
+                  
+  const isJpeg = file.buffer && file.buffer.length >= 2 &&
+                 file.buffer[0] === 0xFF && file.buffer[1] === 0xD8;
+
+  if (!isDicom && !isJpeg) {
+    throw badRequest("Invalid file format. Only DICOM (.dcm) or JPEG (.jpg) files are allowed.", "INVALID_FILE_FORMAT");
   }
 
   const patient = await UserService.findUserById(patientId);

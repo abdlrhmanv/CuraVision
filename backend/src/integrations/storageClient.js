@@ -34,7 +34,7 @@ function ensureDir(dirPath) {
 }
 
 /**
- * Save a DICOM buffer to <storage>/scans/<scanId>.dcm.
+ * Save a file buffer to <storage>/scans/<scanId>.<ext>.
  * Returns the absolute path and a logical (URL-ish) path used in DB.
  *
  * @param {string} scanId
@@ -42,8 +42,12 @@ function ensureDir(dirPath) {
  * @param {Buffer} buffer
  */
 async function saveDicom(scanId, filename, buffer) {
-  // QA plan expects: scans/<uuid>.dcm
-  const normalizedName = `${scanId}.dcm`;
+  const isJpeg = buffer && buffer.length >= 2 && buffer[0] === 0xFF && buffer[1] === 0xD8;
+  const ext = isJpeg ? ".jpg" : ".dcm";
+  const contentType = isJpeg ? "image/jpeg" : "application/dicom";
+  
+  // QA plan expects: scans/<uuid>.dcm or .jpg
+  const normalizedName = `${scanId}${ext}`;
   const logicalPath = `storage/scans/${normalizedName}`;
   
   // Always save locally so the local worker can access it
@@ -56,7 +60,7 @@ async function saveDicom(scanId, filename, buffer) {
       Bucket: S3_BUCKET,
       Key: `scans/${normalizedName}`,
       Body: buffer,
-      ContentType: "application/dicom",
+      ContentType: contentType,
     }));
   }
 

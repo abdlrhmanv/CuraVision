@@ -123,15 +123,15 @@ export default function DoctorUploadPage() {
           >
             <Upload size={28} className="mx-auto mb-2 text-muted" aria-hidden="true" />
             <div className="text-sm font-semibold">
-              {file ? file.name : 'Click to choose a DICOM file'}
+              {file ? file.name : 'Click to choose a DICOM or JPEG file'}
             </div>
             <div className="text-xs text-muted mt-1">
-              .dcm, max 100 MB
+              .dcm or .jpg, max 100 MB
             </div>
             <input
               id="dicomUpload"
               type="file"
-              accept=".dcm,application/dicom"
+              accept=".dcm,application/dicom,.jpg,.jpeg,image/jpeg"
               onChange={(e) => {
                 const files = e.target.files
                 if (files && files.length > 1) {
@@ -142,7 +142,7 @@ export default function DoctorUploadPage() {
                 setFile(files?.[0] ?? null)
               }}
               className="hidden"
-              aria-label="Upload DICOM file"
+              aria-label="Upload DICOM or JPEG file"
             />
           </label>
         </div>

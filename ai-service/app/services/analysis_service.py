@@ -87,14 +87,20 @@ def _artifact_path(kind: str, scan_id: str, suffix: str) -> tuple[Path, str]:
 
 
 def load_dicom_as_image(dicom_path: str) -> Image.Image:
-    """Load a DICOM pixel array as an RGB PIL image."""
+    """Load a DICOM or generic image pixel array as an RGB PIL image."""
     import pydicom
 
     p = Path(dicom_path)
-    if p.is_absolute() and p.exists():
-        ds = pydicom.dcmread(p)
-    else:
-        ds = pydicom.dcmread(_resolve_path(dicom_path))
+    actual_path = p if p.is_absolute() and p.exists() else Path(_resolve_path(dicom_path))
+    
+    try:
+        img = Image.open(actual_path)
+        img.load()
+        return img.convert("RGB")
+    except Exception:
+        pass
+        
+    ds = pydicom.dcmread(actual_path)
     arr = ds.pixel_array.astype(np.float32)
     arr = (arr - arr.min()) / (arr.max() - arr.min() + 1e-8) * 255
     return Image.fromarray(arr.astype(np.uint8)).convert("RGB")
@@ -105,10 +111,26 @@ def _dicom_metadata(dicom_path: str) -> dict[str, Any]:
         import pydicom
 
         p = Path(dicom_path)
-        if p.is_absolute() and p.exists():
-            ds = pydicom.dcmread(p, stop_before_pixels=True)
-        else:
-            ds = pydicom.dcmread(_resolve_path(dicom_path), stop_before_pixels=True)
+        actual_path = p if p.is_absolute() and p.exists() else Path(_resolve_path(dicom_path))
+        
+        try:
+            img = Image.open(actual_path)
+            img.verify() # fast check
+            return {
+                "source_path": dicom_path,
+                "modality": "Image",
+                "rows": img.height,
+                "columns": img.width,
+                "body_part": "Unknown",
+                "study_description": f"{img.format} Image",
+                "series_description": f"{img.format} Image",
+                "slice_thickness_mm": "0",
+                "pixel_spacing_mm": "0",
+            }
+        except Exception:
+            pass
+            
+        ds = pydicom.dcmread(actual_path, stop_before_pixels=True)
     except Exception as exc:
         return {
             "source_path": dicom_path,
