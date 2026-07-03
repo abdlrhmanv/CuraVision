@@ -45,6 +45,8 @@ services:
     environment:
       CLS_ONNX_PATH: /models/classification.onnx
       SEG_ONNX_PATH: /models/segmentation.onnx
+      ML_ROOT: /ml
+      PYTHONPATH: /ml
     volumes:
       - curavision_backend_storage:/app/storage
       - ./models:/models:ro
@@ -61,6 +63,8 @@ services:
     environment:
       CLS_ONNX_PATH: /models/classification.onnx
       SEG_ONNX_PATH: /models/segmentation.onnx
+      ML_ROOT: /ml
+      PYTHONPATH: /ml
     volumes:
       - curavision_backend_storage:/app/storage
       - ./models:/models:ro

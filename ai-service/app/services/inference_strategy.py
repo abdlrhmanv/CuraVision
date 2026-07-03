@@ -10,6 +10,34 @@ from app.services import analysis_service
 
 logger = logging.getLogger(__name__)
 
+
+def _ensure_ml_on_path() -> Path:
+    """Make the ml/ package importable as `src.*` in dev and Docker."""
+    import sys
+
+    candidates: list[Path] = []
+    if os.getenv("ML_ROOT"):
+        candidates.append(Path(os.environ["ML_ROOT"]))
+    candidates.extend([
+        Path("/ml"),
+        Path(__file__).resolve().parents[3] / "ml",
+    ])
+
+    for root in candidates:
+        pipeline_file = root / "src" / "inference" / "pipeline.py"
+        if pipeline_file.is_file():
+            root_str = str(root.resolve())
+            if root_str not in sys.path:
+                sys.path.insert(0, root_str)
+            logger.info("Using ML pipeline code from %s", root_str)
+            return root.resolve()
+
+    searched = ", ".join(str(path) for path in candidates)
+    raise FileNotFoundError(
+        f"ML pipeline package not found (expected src/inference/pipeline.py). Searched: {searched}"
+    )
+
+
 class InferenceStrategy(abc.ABC):
     @abc.abstractmethod
     def run_full_analysis(self, scan_id: str, dicom_path: str, dicom_url: str | None = None, mask_put_url: str | None = None, gradcam_put_url: str | None = None) -> dict[str, Any]:
@@ -20,14 +48,9 @@ class OnnxPipelineStrategy(InferenceStrategy):
     Production strategy that delegates to the ONNX ML pipeline.
     """
     def __init__(self, config: dict):
-        # Dynamically import ml module to avoid breaking if not present
-        import sys
         import importlib
-        repo_root = Path(__file__).resolve().parents[3]
-        ml_path = repo_root / "ml"
-        if str(ml_path) not in sys.path:
-            sys.path.append(str(ml_path))
-            
+
+        _ensure_ml_on_path()
         pipeline_mod = importlib.import_module("src.inference.pipeline")
         BrainMRIPipeline = pipeline_mod.BrainMRIPipeline
         self.pipeline = BrainMRIPipeline(config)

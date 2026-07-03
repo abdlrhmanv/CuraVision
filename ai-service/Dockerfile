@@ -5,7 +5,8 @@ FROM python:3.13-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONPATH=/ml
 
 WORKDIR /app
 
@@ -31,6 +32,7 @@ RUN mkdir -p /app/storage/dicoms /app/storage/masks /app/storage/heatmaps \
 
 COPY --chown=app:app ai-service/ .
 COPY --chown=app:app ml/ /ml/
+RUN test -f /ml/src/inference/pipeline.py
 
 USER app
 EXPOSE 8001
