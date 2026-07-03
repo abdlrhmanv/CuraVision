@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   Calendar, Check, X, Search, RefreshCw, Grid, List, Clock, User, 
-  Activity, FileText, Video, Eye, ShieldCheck, AlertCircle, Sparkles
+  Activity, Video, Eye, ShieldCheck, AlertCircle, Sparkles
 } from 'lucide-react'
 import { useRequireAuth } from '@/lib/authContext'
 import {
@@ -16,6 +16,14 @@ import {
 } from '@/lib/apiClient'
 import Link from 'next/link'
 
+interface ExtendedReservation extends Reservation {
+  patient?: {
+    id: string
+    full_name: string
+    email: string
+  }
+}
+
 function formatDateTime(iso: string): { date: string; time: string } {
   const d = new Date(iso)
   return {
@@ -24,9 +32,15 @@ function formatDateTime(iso: string): { date: string; time: string } {
   }
 }
 
+function storageUrl(path: string | null | undefined): string | null {
+  if (!path) return null
+  if (path.startsWith('http://') || path.startsWith('https://')) return path
+  return `${API_BASE_URL}/${path.replace(/^\/+/, '')}`
+}
+
 export default function DoctorAppointmentsPage() {
   const { user, loading } = useRequireAuth('DOCTOR')
-  const [reservations, setReservations] = useState<Reservation[]>([])
+  const [reservations, setReservations] = useState<ExtendedReservation[]>([])
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -38,7 +52,7 @@ export default function DoctorAppointmentsPage() {
   const [dateFilter, setDateFilter] = useState('')
   
   // Drawer state
-  const [selectedAppt, setSelectedAppt] = useState<Reservation | null>(null)
+  const [selectedAppt, setSelectedAppt] = useState<ExtendedReservation | null>(null)
   const [patientScans, setPatientScans] = useState<Scan[]>([])
   const [loadingScans, setLoadingScans] = useState(false)
 
@@ -46,7 +60,7 @@ export default function DoctorAppointmentsPage() {
     try {
       const res = await reservationsApi.list()
       setReservations(
-        res.reservations.slice().sort(
+        (res.reservations as ExtendedReservation[]).slice().sort(
           (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
         )
       )
@@ -65,21 +79,35 @@ export default function DoctorAppointmentsPage() {
 
   // Fetch scans when appointment is selected for drawer view
   useEffect(() => {
+    let active = true
     if (!selectedAppt) {
-      setPatientScans([])
-      return
+      // Use setTimeout to avoid synchronous setState inside render/effect body
+      const timer = setTimeout(() => {
+        setPatientScans([])
+      }, 0)
+      return () => clearTimeout(timer)
     }
     setLoadingScans(true)
     scansApi.listForPatient(selectedAppt.patient_id)
       .then(res => {
-        setPatientScans(res.scans || [])
+        if (active) {
+          setPatientScans(res.scans || [])
+        }
       })
       .catch(() => {
-        setPatientScans([])
+        if (active) {
+          setPatientScans([])
+        }
       })
       .finally(() => {
-        setLoadingScans(false)
+        if (active) {
+          setLoadingScans(false)
+        }
       })
+
+    return () => {
+      active = false
+    }
   }, [selectedAppt])
 
   const update = async (id: string, status: Reservation['status']) => {
@@ -132,7 +160,6 @@ export default function DoctorAppointmentsPage() {
 
   // Filters application
   const filtered = reservations.filter(r => {
-    const details = getApptDetails(r)
     const patientName = r.patient?.full_name || r.patient_id
     const matchesSearch = patientName.toLowerCase().includes(searchTerm.toLowerCase())
     
