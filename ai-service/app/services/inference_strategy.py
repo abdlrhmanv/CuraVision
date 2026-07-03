@@ -167,31 +167,27 @@ def get_inference_strategy() -> InferenceStrategy:
         repo_root = Path(__file__).resolve().parents[3]
 
         def find_model(env_var: str, default_name: str) -> str:
-            val = os.getenv(env_var)
-            if val:
-                return val
+            candidates: list[Path] = []
+            env_val = os.getenv(env_var)
+            if env_val:
+                candidates.append(Path(env_val))
+            candidates.extend([
+                Path("/models") / f"{default_name}.onnx",
+                Path("/ml/artifacts/onnx") / f"{default_name}.onnx",
+                repo_root / "ml" / "artifacts" / "onnx" / f"{default_name}.onnx",
+                Path(__file__).resolve().parents[2] / "ml_models" / f"{default_name}.onnx",
+            ])
 
-            # Dev path: ml/artifacts/onnx/
-            dev_dir = repo_root / "ml" / "artifacts" / "onnx"
-            p = dev_dir / f"{default_name}.onnx"
-            if p.exists():
-                return str(p)
+            for candidate in candidates:
+                if candidate.exists():
+                    data_file = Path(f"{candidate}.data")
+                    if data_file.exists():
+                        logger.info(f"Using external ONNX weights: {data_file}")
+                    return str(candidate.resolve())
 
-            # Docker mount path: /ml/artifacts/onnx/
-            docker_dir = Path("/ml/artifacts/onnx")
-            p_docker = docker_dir / f"{default_name}.onnx"
-            if p_docker.exists():
-                return str(p_docker)
-
-            # Prod path: ai-service/app/ml_models/
-            prod_dir = Path(__file__).resolve().parents[2] / "ml_models"
-            p = prod_dir / f"{default_name}.onnx"
-            if p.exists():
-                return str(p)
-
+            searched = ", ".join(str(path) for path in candidates)
             raise FileNotFoundError(
-                f"ONNX model '{default_name}.onnx' not found. "
-                f"Set {env_var} or place the file under ml/artifacts/onnx/."
+                f"ONNX model '{default_name}.onnx' not found. Searched: {searched}"
             )
 
         cls_path = find_model("CLS_ONNX_PATH", "classification")

@@ -43,7 +43,18 @@ for model_file in classification.onnx segmentation.onnx; do
       exit 1
     fi
   fi
+  data_file="${model_file}.data"
+  if [ ! -f "$TARGET_DIR/$data_file" ]; then
+    found_data=$(find "$TARGET_DIR" -name "$data_file" -type f | head -1)
+    if [ -n "$found_data" ]; then
+      cp "$found_data" "$TARGET_DIR/$data_file"
+    else
+      echo "ERROR: $data_file not found under $TARGET_DIR (required for ONNX external weights)"
+      exit 1
+    fi
+  fi
 done
 
 echo "✓ ONNX models ready in $TARGET_DIR"
-ls -lh "$TARGET_DIR"/classification.onnx "$TARGET_DIR"/segmentation.onnx
+ls -lh "$TARGET_DIR"/classification.onnx "$TARGET_DIR"/classification.onnx.data \
+        "$TARGET_DIR"/segmentation.onnx "$TARGET_DIR"/segmentation.onnx.data

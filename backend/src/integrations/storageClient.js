@@ -161,7 +161,7 @@ function derivedPaths(scanId) {
   };
 }
 
-async function getPresignedGetUrl(logicalPath, expiresInSeconds = 3600) {
+async function getPresignedGetUrl(logicalPath, expiresInSeconds = 3600, options = {}) {
   if (!s3Client) return null;
   const key = logicalPath.replace(/^storage\//, "");
   const command = new GetObjectCommand({
@@ -169,15 +169,23 @@ async function getPresignedGetUrl(logicalPath, expiresInSeconds = 3600) {
     Key: key,
   });
   const url = await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+  // AI workers run on the Docker network and must reach MinIO directly.
+  if (options.internal) {
+    return url;
+  }
   if (process.env.BACKEND_URL && url.includes(process.env.S3_ENDPOINT)) {
-    // process.env.BACKEND_URL should be something like https://51.107.71.24
-    // We append /minio to it so Nginx can proxy it to Minio
+    // Public/browser URL via the reverse proxy.
     return url.replace(process.env.S3_ENDPOINT, `${process.env.BACKEND_URL}/minio`);
   }
   return url;
 }
 
-async function getPresignedPutUrl(logicalPath, contentType = "image/png", expiresInSeconds = 3600) {
+async function getPresignedPutUrl(
+  logicalPath,
+  contentType = "image/png",
+  expiresInSeconds = 3600,
+  options = {}
+) {
   if (!s3Client) return null;
   const key = logicalPath.replace(/^storage\//, "");
   const command = new PutObjectCommand({
@@ -186,6 +194,9 @@ async function getPresignedPutUrl(logicalPath, contentType = "image/png", expire
     ContentType: contentType,
   });
   const url = await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+  if (options.internal) {
+    return url;
+  }
   if (process.env.BACKEND_URL && url.includes(process.env.S3_ENDPOINT)) {
     return url.replace(process.env.S3_ENDPOINT, `${process.env.BACKEND_URL}/minio`);
   }

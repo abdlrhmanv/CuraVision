@@ -206,6 +206,13 @@ jobs:
             else
               echo "Reusing existing ONNX models in models/"
             fi
+
+            for model_file in classification.onnx classification.onnx.data segmentation.onnx segmentation.onnx.data; do
+              if [ ! -f "models/$model_file" ]; then
+                echo "ERROR: models/$model_file is missing on the server."
+                exit 1
+              fi
+            done
             
             # 6. Login, Pull, and Deploy
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin

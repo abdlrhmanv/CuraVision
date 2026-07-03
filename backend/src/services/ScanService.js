@@ -293,9 +293,9 @@ async function scheduleAnalysis(scanId) {
 
   const { mask_path, gradcam_path } = derivedPaths(scanId);
 
-  const dicomUrl = await getPresignedGetUrl(scan.dicom_path).catch(() => null);
-  const maskPutUrl = await getPresignedPutUrl(mask_path, "image/png").catch(() => null);
-  const gradcamPutUrl = await getPresignedPutUrl(gradcam_path, "image/png").catch(() => null);
+  const dicomUrl = await getPresignedGetUrl(scan.dicom_path, 3600, { internal: true }).catch(() => null);
+  const maskPutUrl = await getPresignedPutUrl(mask_path, "image/png", 3600, { internal: true }).catch(() => null);
+  const gradcamPutUrl = await getPresignedPutUrl(gradcam_path, "image/png", 3600, { internal: true }).catch(() => null);
 
   let result;
   try {
