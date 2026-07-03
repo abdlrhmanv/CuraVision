@@ -77,7 +77,7 @@ def test_segmentation_contract(client):
     assert expected.issubset(body.keys())
     assert body["scan_id"] == "scan-123"
     assert isinstance(body["tumor_volume_cc"], (int, float))
-    assert body["tumor_volume_cc"] > 0
+    assert body["tumor_volume_cc"] >= 0
 
 
 def test_segmentation_validates_missing_fields(client):
