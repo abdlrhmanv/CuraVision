@@ -152,7 +152,8 @@ jobs:
       - name: Build ai-service image
         uses: docker/build-push-action@v6
         with:
-          context: ./ai-service
+          context: .
+          file: ./ai-service/Dockerfile
           push: false
           tags: curavision/ai-service:ci
 
