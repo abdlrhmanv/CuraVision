@@ -388,7 +388,20 @@ def run_segmentation(scan_id: str, dicom_path: str, dicom_url: str | None = None
     start_time = time.time()
     
     image, metadata, loaded_dicom = _load_image(scan_id, dicom_path, dicom_url)
-    mask = _lesion_mask(image)
+    
+    from app.services.inference_strategy import get_inference_strategy, OnnxPipelineStrategy
+    strategy = get_inference_strategy()
+    
+    if isinstance(strategy, OnnxPipelineStrategy):
+        seg_raw = strategy.pipeline.segmenter.predict(image)
+        mask = seg_raw["mask"]
+        source = "onnx-segmenter"
+        inference_log = f"onnx-segmenter-analysis source={source}; mask_found={seg_raw['mask_found']}"
+    else:
+        mask = _lesion_mask(image)
+        source = "dicom" if loaded_dicom else "synthetic-fallback"
+        inference_log = f"interim-dicom-analysis v0.2 source={source}; {_metadata_summary(metadata)}"
+
     volume = _estimate_volume_cc(mask, metadata, scan_id)
     location = _describe_location(mask, scan_id)
     mask_path = _save_mask(mask, scan_id, put_url)
@@ -396,16 +409,12 @@ def run_segmentation(scan_id: str, dicom_path: str, dicom_url: str | None = None
     elapsed = round(time.time() - start_time, 2)
     metrics = compute_derived_metrics(scan_id, volume, location, processing_time_sec=elapsed)
 
-    source = "dicom" if loaded_dicom else "synthetic-fallback"
     res = {
         "scan_id": scan_id,
         "mask_path": mask_path,
         "tumor_volume_cc": volume,
         "tumor_location_description": location,
-        "inference_log": (
-            f"interim-dicom-analysis v0.2 source={source}; "
-            f"{_metadata_summary(metadata)}"
-        ),
+        "inference_log": inference_log,
     }
     res.update(metrics)
     return res
@@ -413,7 +422,16 @@ def run_segmentation(scan_id: str, dicom_path: str, dicom_url: str | None = None
 
 def run_gradcam(scan_id: str, dicom_path: str, dicom_url: str | None = None, put_url: str | None = None) -> dict[str, Any]:
     image, _metadata, _loaded_dicom = _load_image(scan_id, dicom_path, dicom_url)
-    mask = _lesion_mask(image)
+    
+    from app.services.inference_strategy import get_inference_strategy, OnnxPipelineStrategy
+    strategy = get_inference_strategy()
+    
+    if isinstance(strategy, OnnxPipelineStrategy):
+        seg_raw = strategy.pipeline.segmenter.predict(image)
+        mask = seg_raw["mask"]
+    else:
+        mask = _lesion_mask(image)
+        
     location = _describe_location(mask, scan_id)
     return {
         "scan_id": scan_id,

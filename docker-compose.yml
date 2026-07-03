@@ -113,6 +113,7 @@ services:
         condition: service_healthy
     volumes:
       - curavision_backend_storage:/app/storage
+      - ./ml:/ml
 
   ai-worker:
     build:
@@ -137,6 +138,7 @@ services:
         condition: service_healthy
     volumes:
       - curavision_backend_storage:/app/storage
+      - ./ml:/ml
 
   db-migrate:
     build:

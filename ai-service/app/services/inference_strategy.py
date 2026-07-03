@@ -161,11 +161,18 @@ class OnnxPipelineStrategy(InferenceStrategy):
             "report": rep
         }
 
+_cached_strategy: InferenceStrategy | None = None
+
+
 def get_inference_strategy() -> InferenceStrategy:
     """
     Factory to resolve the active strategy based on env vars.
     """
-    strategy_name = os.getenv("INFERENCE_STRATEGY", "interim").lower()
+    global _cached_strategy
+    if _cached_strategy is not None:
+        return _cached_strategy
+
+    strategy_name = os.getenv("INFERENCE_STRATEGY", "onnx").lower()
     
     if strategy_name == "onnx":
         logger.info("Initializing ONNX Inference Strategy")
@@ -179,17 +186,15 @@ def get_inference_strategy() -> InferenceStrategy:
                 
                 # Dev path: ml/artifacts/onnx/
                 dev_dir = repo_root / "ml" / "artifacts" / "onnx"
-                for ext in [".onnx.data", ".onnx"]:
-                    p = dev_dir / f"{default_name}{ext}"
-                    if p.exists():
-                        return str(p)
+                p = dev_dir / f"{default_name}.onnx"
+                if p.exists():
+                    return str(p)
                 
                 # Prod path: ai-service/app/ml_models/
                 prod_dir = Path(__file__).resolve().parents[2] / "ml_models"
-                for ext in [".onnx.data", ".onnx"]:
-                    p = prod_dir / f"{default_name}{ext}"
-                    if p.exists():
-                        return str(p)
+                p = prod_dir / f"{default_name}.onnx"
+                if p.exists():
+                    return str(p)
                 
                 # Fallback default
                 return f"models/{default_name}.onnx"
@@ -202,24 +207,26 @@ def get_inference_strategy() -> InferenceStrategy:
             logger.info("Model loaded")
 
             config = {
-                "class_names": ["glioma", "meningioma", "pituitary", "no_tumor"],
+                "class_names": ["glioma", "meningioma", "no_tumor", "pituitary"],
                 "classification": {
                     "onnx_path": cls_path,
-                    "image_size": [224, 224],
-                    "no_tumor_index": 3,
+                    "image_size": 224,
+                    "no_tumor_index": 2,
                     "no_tumor_stop_threshold": 0.85,
                     "tumor_class_threshold": 0.50,
                     "segmentation_trigger_threshold": 0.35
                 },
                 "segmentation": {
                     "onnx_path": seg_path,
-                    "image_size": [256, 256],
+                    "image_size": 256,
                     "positive_threshold": 0.5
                 }
             }
-            return OnnxPipelineStrategy(config)
+            _cached_strategy = OnnxPipelineStrategy(config)
+            return _cached_strategy
         except Exception as e:
-            logger.warning(f"Failed to initialize ONNX strategy, falling back to interim: {e}", exc_info=True)
-            return InterimDicomStrategy()
+            logger.error(f"Failed to initialize ONNX strategy: {e}", exc_info=True)
+            raise e
             
-    return InterimDicomStrategy()
+    _cached_strategy = InterimDicomStrategy()
+    return _cached_strategy
