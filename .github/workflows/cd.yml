@@ -92,7 +92,7 @@ jobs:
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
           build-args: |
-            NEXT_PUBLIC_API_BASE_URL=https://${{ secrets.PROD_SSH_HOST }}
+            NEXT_PUBLIC_API_BASE_URL=https://curavision.mooo.com
 
   deploy:
     name: Deploy to Production
@@ -126,16 +126,28 @@ jobs:
             sudo mkdir -p /opt/curavision/nginx/certs
             sudo chown -R $USER:$USER /opt/curavision
             
-            # 3. Generate self-signed SSL cert if it doesn't exist
-            if [ ! -f /opt/curavision/nginx/certs/curavision.crt ]; then
-              echo "Generating self-signed SSL certificate..."
-              openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-                -keyout /opt/curavision/nginx/certs/curavision.key \
-                -out /opt/curavision/nginx/certs/curavision.crt \
-                -subj "/C=US/ST=State/L=City/O=CuraVision/CN=localhost"
+            # 3. Setup SSL Certificate (Let's Encrypt)
+            echo "Requesting Let's Encrypt certificate for curavision.mooo.com..."
+            sudo apt-get update && sudo apt-get install -y certbot
+            # Port 80 is free since we stopped containers above
+            sudo certbot certonly --standalone -d curavision.mooo.com --non-interactive --agree-tos -m abdlrhmanv@proton.me || true
+            
+            if [ -f /etc/letsencrypt/live/curavision.mooo.com/fullchain.pem ]; then
+              echo "Let's Encrypt certificate found. Copying to Nginx..."
+              sudo cp /etc/letsencrypt/live/curavision.mooo.com/fullchain.pem /opt/curavision/nginx/certs/curavision.crt
+              sudo cp /etc/letsencrypt/live/curavision.mooo.com/privkey.pem /opt/curavision/nginx/certs/curavision.key
+            else
+              echo "Generating fallback self-signed SSL certificate..."
+              if [ ! -f /opt/curavision/nginx/certs/curavision.crt ]; then
+                openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                  -keyout /opt/curavision/nginx/certs/curavision.key \
+                  -out /opt/curavision/nginx/certs/curavision.crt \
+                  -subj "/C=US/ST=State/L=City/O=CuraVision/CN=curavision.mooo.com"
+              fi
             fi
+            
             # Ensure certificates are readable by Nginx container
-            chmod 644 /opt/curavision/nginx/certs/curavision.crt /opt/curavision/nginx/certs/curavision.key
+            sudo chmod 644 /opt/curavision/nginx/certs/curavision.crt /opt/curavision/nginx/certs/curavision.key
 
       - name: Copy Compose files and Nginx config to VM
         uses: appleboy/scp-action@master
@@ -165,8 +177,8 @@ jobs:
             POSTGRES_DB=curavision
             MINIO_ROOT_USER=curavision
             MINIO_ROOT_PASSWORD=curavision_prod_pass
-            CORS_ORIGIN=https://${{ secrets.PROD_SSH_HOST }}
-            BACKEND_URL=https://${{ secrets.PROD_SSH_HOST }}
+            CORS_ORIGIN=https://curavision.mooo.com
+            BACKEND_URL=https://curavision.mooo.com
             SMTP_HOST=${{ secrets.SMTP_HOST }}
             SMTP_USER=${{ secrets.SMTP_USER }}
             SMTP_PASS=${{ secrets.SMTP_PASS }}
