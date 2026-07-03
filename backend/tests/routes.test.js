@@ -298,7 +298,7 @@ test("POST /api/scans with invalid file format -> 400", async () => {
     .expect(400);
 
   fs.unlinkSync(tmp);
-  assert.equal(res.body.code, "INVALID_DICOM");
+  assert.strictEqual(res.body.code, "INVALID_FILE_FORMAT");
 });
 
 test("Doctor availability rules CRUD flow", async () => {
