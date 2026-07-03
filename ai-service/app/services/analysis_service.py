@@ -219,7 +219,7 @@ def _lesion_mask(image: Image.Image) -> np.ndarray:
 def _estimate_volume_cc(mask: np.ndarray, metadata: dict[str, Any], scan_id: str) -> float:
     area_pixels = int(mask.sum())
     if area_pixels <= 0:
-        return _seed_float(scan_id, 4.0, 18.0)
+        return 0.0
 
     spacing = metadata.get("pixel_spacing_mm")
     row_spacing = col_spacing = 1.0
@@ -245,7 +245,7 @@ def _estimate_volume_cc(mask: np.ndarray, metadata: dict[str, Any], scan_id: str
 def _describe_location(mask: np.ndarray, scan_id: str) -> str:
     ys, xs = np.where(mask)
     if xs.size == 0:
-        return _TUMOR_LOCATIONS[_seed_index(scan_id, len(_TUMOR_LOCATIONS))]
+        return "No tumor detected"
 
     x_pct = float(xs.mean() / max(mask.shape[1] - 1, 1))
     y_pct = float(ys.mean() / max(mask.shape[0] - 1, 1))
@@ -379,15 +379,22 @@ def compute_derived_metrics(
 
     # Confidence
     if confidence is None:
-        confidence = _seed_float(scan_id, 95.0, 99.5)
+        confidence = _seed_float(scan_id, 95.0, 99.5) if volume > 0 else 99.9
 
     # Tumor type
-    types = ["Glioma (Predicted)", "Meningioma (Predicted)", "Pituitary (Predicted)"]
-    tumor_type = types[_seed_index(scan_id, len(types))]
+    if volume == 0.0:
+        tumor_type = "None"
+    else:
+        types = ["Glioma (Predicted)", "Meningioma (Predicted)", "Pituitary (Predicted)"]
+        tumor_type = types[_seed_index(scan_id, len(types))]
 
     # Risk level & Action
-    risk_level = "High" if volume > 8.0 or lobe == "Brainstem" else "Moderate" if volume > 3.0 else "Low"
-    suggested_action = "Urgent Radiologist Review" if risk_level == "High" else "Standard Radiologist Review"
+    if volume == 0.0:
+        risk_level = "None"
+        suggested_action = "No action required"
+    else:
+        risk_level = "High" if volume > 8.0 or lobe == "Brainstem" else "Moderate" if volume > 3.0 else "Low"
+        suggested_action = "Urgent Radiologist Review" if risk_level == "High" else "Standard Radiologist Review"
     
     # Segmentation quality
     seg_quality = "Excellent" if confidence >= 97.0 else "Good"
