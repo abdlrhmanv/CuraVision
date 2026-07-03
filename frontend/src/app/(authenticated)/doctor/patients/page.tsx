@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import {
-  Check, MessageSquare, ScanLine, AlertCircle, Clock3, ShieldCheck, X,
+  Check, MessageSquare, AlertCircle, Clock3, ShieldCheck, X,
   Eye, EyeOff, Bot, User, ChevronLeft, ChevronRight, Brain, Search, ClipboardList,
   RefreshCw
 } from 'lucide-react'
@@ -87,7 +87,11 @@ export default function DoctorPatientsPage() {
   }, [])
 
   useEffect(() => {
-    fetchPatients()
+    // Avoid synchronous state updates by scheduling the call in the next tick
+    const timer = setTimeout(() => {
+      fetchPatients()
+    }, 0)
+    return () => clearTimeout(timer)
   }, [fetchPatients])
 
   const selected = patients.find(p => p.id === selectedId)
@@ -102,18 +106,21 @@ export default function DoctorPatientsPage() {
   const suggestion = isHighPriority ? 'Verify report vs symptoms. High tumor volume detected.' : 'Routine scan review and sign-off.'
 
   useEffect(() => {
-    if (!selectedId) {
-      setScans([])
-      setAnalysis(null)
-      setReport(null)
-      setChatHistory([])
-      return
-    }
+    let active = true
 
     const fetchPatientDetails = async () => {
+      if (!selectedId) {
+        setScans([])
+        setAnalysis(null)
+        setReport(null)
+        setChatHistory([])
+        return
+      }
+
       setLoadingDetails(true)
       try {
         const scansRes = await scansApi.listForPatient(selectedId)
+        if (!active) return
         const patientScans = scansRes.scans || []
         setScans(patientScans)
         
@@ -122,27 +129,37 @@ export default function DoctorPatientsPage() {
           const activeScan = sorted[0]
           
           // Get analysis
+          let analysisRes: ScanAnalysis | null = null
           try {
-            const analysisRes = await scansApi.analysis(activeScan.id)
-            setAnalysis(analysisRes)
-          } catch (e) {
-            setAnalysis(null)
+            analysisRes = await scansApi.analysis(activeScan.id)
+          } catch {
+            analysisRes = null
           }
+          if (!active) return
+          setAnalysis(analysisRes)
           
           // Get report
+          let reportRes: Report | null = null
           try {
-            const reportRes = await scansApi.reportForScan(activeScan.id)
-            setReport(reportRes)
-            
+            reportRes = await scansApi.reportForScan(activeScan.id)
+          } catch {
+            reportRes = null
+          }
+          if (!active) return
+          setReport(reportRes)
+          
+          if (reportRes) {
             // Get chat history
+            let chatResMessages: ApiChatMessage[] = []
             try {
               const chatRes = await chatApi.history(reportRes.id)
-              setChatHistory(chatRes.messages || [])
-            } catch (e) {
-              setChatHistory([])
+              chatResMessages = chatRes.messages || []
+            } catch {
+              chatResMessages = []
             }
-          } catch (e) {
-            setReport(null)
+            if (!active) return
+            setChatHistory(chatResMessages)
+          } else {
             setChatHistory([])
           }
         } else {
@@ -153,11 +170,20 @@ export default function DoctorPatientsPage() {
       } catch (err) {
         console.error('Failed to fetch patient details', err)
       } finally {
-        setLoadingDetails(false)
+        if (active) {
+          setLoadingDetails(false)
+        }
       }
     }
 
-    fetchPatientDetails()
+    const timer = setTimeout(() => {
+      fetchPatientDetails()
+    }, 0)
+
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
   }, [selectedId])
 
   const getReview = (id: string): Decision => {
@@ -456,7 +482,7 @@ export default function DoctorPatientsPage() {
                           ) : (
                             <div className="space-y-4">
                               {chatHistory.map((m, i) => {
-                                const isBot = m.sender === 'AI'
+                                const isBot = m.sender === 'BOT'
                                 const messageText = m.message
                                 return (
                                   <div key={i} className={`flex items-end gap-2.5 ${isBot ? '' : 'flex-row-reverse'}`}>
@@ -465,7 +491,7 @@ export default function DoctorPatientsPage() {
                                     </div>
                                     <div className={`max-w-[78%] rounded-2xl px-4 py-3 ${isBot ? 'bg-blue/10 text-blue border border-blue/20 rounded-bl-sm' : 'bg-card border border-border text-white rounded-br-sm'}`}>
                                       <div className="text-base leading-relaxed">{messageText}</div>
-                                      <div className="mt-1 text-[10px] opacity-60">{new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                      <div className="mt-1 text-[10px] opacity-60">{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                                     </div>
                                   </div>
                                 )
