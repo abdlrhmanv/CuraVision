@@ -107,6 +107,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
       BACKEND_CALLBACK_URL: http://backend:3001
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
       ML_ROOT: /ml
       PYTHONPATH: /ml
     depends_on:
@@ -135,6 +136,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
       BACKEND_CALLBACK_URL: http://backend:3001
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
       ML_ROOT: /ml
       PYTHONPATH: /ml
     depends_on:
@@ -170,6 +172,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-curavision}:${POSTGRES_PASSWORD:-curavision}@postgres:5432/${POSTGRES_DB:-curavision}?schema=public&connection_limit=20
       REDIS_URL: redis://redis:6379/1
       AI_SERVICE_URL: http://ai-service:8001
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       RATE_LIMIT_WINDOW_MS: "60000"
       RATE_LIMIT_MAX: "300"

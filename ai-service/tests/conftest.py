@@ -25,6 +25,7 @@ if str(ROOT) not in sys.path:
 os.environ.setdefault("GROQ_API_KEY", "test-key")
 os.environ.setdefault("LLM_PROVIDER", "groq")
 os.environ.setdefault("CHROMA_HOST", "")  # force embedded ephemeral client
+os.environ.setdefault("INTERNAL_SERVICE_TOKEN", "test-internal-token")
 
 
 @pytest.fixture(autouse=True)
@@ -83,5 +84,11 @@ def client():
 
     from app.main import app
 
-    with TestClient(app) as c:
+    token = os.environ.get("INTERNAL_SERVICE_TOKEN", "test-internal-token")
+    with TestClient(app, headers={"X-Service-Token": token}) as c:
         yield c
+
+
+@pytest.fixture
+def service_auth_headers():
+    return {"X-Service-Token": os.environ.get("INTERNAL_SERVICE_TOKEN", "test-internal-token")}

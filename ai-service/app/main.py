@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.middleware.service_auth import verify_service_token
 from app.routes import chatbot, analysis
 from app.services import rag_service
 
@@ -35,8 +36,18 @@ app.add_middleware(
 )
 
 
-app.include_router(chatbot.router, prefix="/ai", tags=["Chatbot"])
-app.include_router(analysis.router, prefix="/ai", tags=["Analysis"])
+app.include_router(
+    chatbot.router,
+    prefix="/ai",
+    tags=["Chatbot"],
+    dependencies=[Depends(verify_service_token)],
+)
+app.include_router(
+    analysis.router,
+    prefix="/ai",
+    tags=["Analysis"],
+    dependencies=[Depends(verify_service_token)],
+)
 
 
 @app.get("/health")

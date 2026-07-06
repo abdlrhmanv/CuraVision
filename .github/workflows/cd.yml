@@ -3,219 +3,237 @@ name: CD
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (default: short git SHA)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
 
 concurrency:
-  group: cd-${{ github.ref }}
-  cancel-in-progress: true
+  group: cd-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
 
 jobs:
-  publish:
-    name: Build & Publish Images
+  resolve-tag:
+    name: Resolve Image Tag
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
+    outputs:
+      image_tag: ${{ steps.tag.outputs.image_tag }}
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - name: Determine deploy tag
+        id: tag
+        run: |
+          if [[ -n "${{ inputs.image_tag }}" ]]; then
+            echo "image_tag=${{ inputs.image_tag }}" >> "${GITHUB_OUTPUT}"
+          elif [[ "${{ github.ref_type }}" == "tag" ]]; then
+            echo "image_tag=${GITHUB_REF#refs/tags/}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "image_tag=sha-${GITHUB_SHA::7}" >> "${GITHUB_OUTPUT}"
+          fi
 
-      - name: Log in to GitHub Container Registry (GHCR)
-        uses: docker/login-action@v3
+  build-backend:
+    name: Build Backend
+    runs-on: ubuntu-latest
+    needs: resolve-tag
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # ---------- Backend ----------
-      - name: Docker metadata for Backend
-        id: meta-backend
+      - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/backend
+          images: ${{ env.IMAGE_PREFIX }}/backend
           tags: |
+            type=ref,event=tag
             type=semver,pattern={{version}}
-            type=sha,format=short
+            type=sha,prefix=sha-,format=short
             type=raw,value=latest
 
-      - name: Build and Push Backend
-        uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v6
         with:
           context: ./backend
           push: true
-          tags: ${{ steps.meta-backend.outputs.tags }}
-          labels: ${{ steps.meta-backend.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+          provenance: false
 
-      # ---------- AI Service ----------
-      - name: Docker metadata for AI Service
-        id: meta-ai
+  build-ai-service:
+    name: Build AI Service
+    runs-on: ubuntu-latest
+    needs: resolve-tag
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/ai-service
+          images: ${{ env.IMAGE_PREFIX }}/ai-service
           tags: |
+            type=ref,event=tag
             type=semver,pattern={{version}}
-            type=sha,format=short
+            type=sha,prefix=sha-,format=short
             type=raw,value=latest
 
-      - name: Build and Push AI Service
-        uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v6
         with:
           context: .
           file: ./ai-service/Dockerfile
           push: true
-          tags: ${{ steps.meta-ai.outputs.tags }}
-          labels: ${{ steps.meta-ai.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=ai-service
+          cache-to: type=gha,mode=max,scope=ai-service
+          provenance: false
 
-      # ---------- Frontend ----------
-      - name: Docker metadata for Frontend
-        id: meta-frontend
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    needs: resolve-tag
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/frontend
+          images: ${{ env.IMAGE_PREFIX }}/frontend
           tags: |
+            type=ref,event=tag
             type=semver,pattern={{version}}
-            type=sha,format=short
+            type=sha,prefix=sha-,format=short
             type=raw,value=latest
 
-      - name: Build and Push Frontend
-        uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v6
         with:
           context: ./frontend
           push: true
-          tags: ${{ steps.meta-frontend.outputs.tags }}
-          labels: ${{ steps.meta-frontend.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             NEXT_PUBLIC_API_BASE_URL=https://curavision.mooo.com
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+          provenance: false
 
   deploy:
     name: Deploy to Production
-    needs: publish
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    needs: [resolve-tag, build-backend, build-ai-service, build-frontend]
+    environment:
+      name: production
+      url: https://curavision.mooo.com
+    timeout-minutes: 30
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Pre-Deploy Setup & Cleanup
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Prepare server directory
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.PROD_SSH_HOST }}
           username: ${{ secrets.PROD_SSH_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
+          script_stop: true
           script: |
-            # 1. Clean up old "cura vision" repo if it exists
-            echo "Stopping old containers..."
-            docker rm -f $(docker ps -aq) || true
-            docker network prune -f || true
-            
-            for dir in "$HOME/cura-vision" "$HOME/CuraVision" "$HOME/curavision"; do
-              if [ -d "$dir" ]; then
-                echo "Removing old repo at $dir"
-                rm -rf "$dir"
-              fi
-            done
-            
-            # 2. Setup production directory
+            set -euo pipefail
             sudo mkdir -p /opt/curavision/nginx/certs
-            sudo chown -R $USER:$USER /opt/curavision
-            
-            # 3. Setup SSL Certificate (Let's Encrypt)
-            echo "Requesting Let's Encrypt certificate for curavision.mooo.com..."
-            sudo apt-get update && sudo apt-get install -y certbot
-            # Port 80 is free since we stopped containers above
-            sudo certbot certonly --standalone -d curavision.mooo.com --non-interactive --agree-tos -m abdlrhmanv@proton.me || true
-            
-            if sudo test -f /etc/letsencrypt/live/curavision.mooo.com/fullchain.pem; then
-              echo "Let's Encrypt certificate found. Copying to Nginx..."
-              sudo cp /etc/letsencrypt/live/curavision.mooo.com/fullchain.pem /opt/curavision/nginx/certs/curavision.crt
-              sudo cp /etc/letsencrypt/live/curavision.mooo.com/privkey.pem /opt/curavision/nginx/certs/curavision.key
-            else
-              echo "Generating fallback self-signed SSL certificate..."
-              if [ ! -f /opt/curavision/nginx/certs/curavision.crt ]; then
-                openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-                  -keyout /opt/curavision/nginx/certs/curavision.key \
-                  -out /opt/curavision/nginx/certs/curavision.crt \
-                  -subj "/C=US/ST=State/L=City/O=CuraVision/CN=curavision.mooo.com"
-              fi
-            fi
-            
-            # Ensure certificates are readable by Nginx container
-            sudo chmod 644 /opt/curavision/nginx/certs/curavision.crt /opt/curavision/nginx/certs/curavision.key
+            sudo chown -R "$USER:$USER" /opt/curavision
 
-      - name: Copy Compose files and Nginx config to VM
-        uses: appleboy/scp-action@master
+      - name: Copy deployment assets
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.PROD_SSH_HOST }}
           username: ${{ secrets.PROD_SSH_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
-          source: "docker-compose.yml,docker-compose.prod.yml,nginx/,scripts/download_weights.sh"
+          source: "docker-compose.yml,docker-compose.prod.yml,nginx/,scripts/download_weights.sh,scripts/deploy_prod.sh,scripts/setup_prod_certs.sh"
           target: "/opt/curavision"
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Setup TLS
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.PROD_SSH_HOST }}
           username: ${{ secrets.PROD_SSH_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
+          script_stop: true
           script: |
-            cd /opt/curavision
-            
-            # 4. Generate .env file
-            JWT_SEC=$(openssl rand -hex 32)
-            cat <<EOF > .env
-            JWT_SECRET=${JWT_SEC}
-            GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
-            POSTGRES_USER=curavision
-            POSTGRES_PASSWORD=curavision_prod_pass
-            POSTGRES_DB=curavision
-            MINIO_ROOT_USER=curavision
-            MINIO_ROOT_PASSWORD=curavision_prod_pass
-            CORS_ORIGIN=https://curavision.mooo.com
-            BACKEND_URL=https://curavision.mooo.com
-            SMTP_HOST=${{ secrets.SMTP_HOST }}
-            SMTP_USER=${{ secrets.SMTP_USER }}
-            SMTP_PASS=${{ secrets.SMTP_PASS }}
-            SMTP_PORT=${{ secrets.SMTP_PORT }}
-            SMTP_SECURE=${{ secrets.SMTP_SECURE }}
-            SMTP_FROM=${{ secrets.SMTP_FROM }}
-            CLS_ONNX_PATH=/models/classification.onnx
-            SEG_ONNX_PATH=/models/segmentation.onnx
-            EOF
-            
-            # Also copy .env to ai-service directory
-            mkdir -p ai-service models
-            cp .env ai-service/.env
-            
-            # 5. Download ONNX weights to host models/ (mounted read-only into ai-service)
-            chmod +x scripts/download_weights.sh
-            if [ -n "${{ secrets.MODEL_WEIGHTS_URL }}" ]; then
-              export MODEL_WEIGHTS_URL='${{ secrets.MODEL_WEIGHTS_URL }}'
-              export MODEL_WEIGHTS_DIR=/opt/curavision/models
-              bash scripts/download_weights.sh
-            elif [ ! -f models/classification.onnx ] || [ ! -f models/segmentation.onnx ]; then
-              echo "ERROR: MODEL_WEIGHTS_URL secret is not set and models/ is missing ONNX files."
-              exit 1
-            else
-              echo "Reusing existing ONNX models in models/"
-            fi
+            set -euo pipefail
+            chmod +x /opt/curavision/scripts/setup_prod_certs.sh
+            DEPLOY_DIR=/opt/curavision bash /opt/curavision/scripts/setup_prod_certs.sh
 
-            for model_file in classification.onnx classification.onnx.data segmentation.onnx segmentation.onnx.data; do
-              if [ ! -f "models/$model_file" ]; then
-                echo "ERROR: models/$model_file is missing on the server."
-                exit 1
-              fi
-            done
-            
-            # 6. Login, Pull, and Deploy
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
-            docker system prune -af
+      - name: Deploy stack
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          CURAVISION_IMAGE_TAG: ${{ needs.resolve-tag.outputs.image_tag }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          INTERNAL_SERVICE_TOKEN: ${{ secrets.INTERNAL_SERVICE_TOKEN }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_SECURE: ${{ secrets.SMTP_SECURE }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          MODEL_WEIGHTS_URL: ${{ secrets.MODEL_WEIGHTS_URL }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          envs: CURAVISION_IMAGE_TAG,GROQ_API_KEY,INTERNAL_SERVICE_TOKEN,SMTP_HOST,SMTP_USER,SMTP_PASS,SMTP_PORT,SMTP_SECURE,SMTP_FROM,MODEL_WEIGHTS_URL,GHCR_USER,GHCR_TOKEN
+          script_stop: true
+          script: |
+            set -euo pipefail
+            chmod +x /opt/curavision/scripts/deploy_prod.sh
+            DEPLOY_DIR=/opt/curavision bash /opt/curavision/scripts/deploy_prod.sh
+
+      - name: Post-deploy verification
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd /opt/curavision
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+            curl -fsS https://curavision.mooo.com/health | grep -q '"status":"ok"'
+            echo "Production deploy verified"

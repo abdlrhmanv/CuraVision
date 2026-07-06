@@ -22,6 +22,7 @@ FROM node:22-alpine AS runtime
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 WORKDIR /app
 
 RUN apk add --no-cache dumb-init curl && addgroup -S app && adduser -S app -G app

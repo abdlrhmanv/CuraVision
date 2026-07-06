@@ -17,6 +17,7 @@ const { auditLogger } = require("./middleware/auditLogger");
 const csrfMiddleware = require("./middleware/csrf");
 const { globalLimiter, authLimiter, chatLimiter } = require("./middleware/rateLimit");
 const { getStorageRoot, isS3Enabled, getObjectStream } = require("./integrations/storageClient");
+const storageAuth = require("./middleware/storageAuth");
 
 const authRoutes = require("./routes/auth.routes");
 const chatRoutes = require("./routes/chat.routes");
@@ -96,10 +97,11 @@ app.use(express.json({ limit: "2mb" }));
 app.use(auditLogger);
 app.use(csrfMiddleware);
 
-// Serve uploaded DICOMs + derived assets.
+// Serve uploaded DICOMs + derived assets (authenticated — see storageAuth).
 // If S3/MinIO is enabled, retrieve them from the bucket. Fallback to local files.
 app.use(
   "/storage",
+  storageAuth,
   async (req, res, next) => {
     if (isS3Enabled()) {
       try {
@@ -113,7 +115,7 @@ app.use(
           } else if (req.path.endsWith(".dcm")) {
             res.setHeader("Content-Type", "application/dicom");
           }
-          res.setHeader("Cache-Control", "public, max-age=3600");
+          res.setHeader("Cache-Control", "private, max-age=3600");
           return stream.pipe(res);
         }
       } catch (err) {

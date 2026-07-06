@@ -36,5 +36,8 @@ class Settings(BaseSettings):
     # Service ------------------------------------------------------------
     port: int = 8001
 
+    # Shared secret for backend ↔ AI service-to-service calls.
+    internal_service_token: str = ""
+
 
 settings = Settings()

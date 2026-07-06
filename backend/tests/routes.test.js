@@ -6,6 +6,8 @@
  * stable across test cases.
  */
 process.env.JWT_SECRET = process.env.JWT_SECRET || "test-secret";
+process.env.INTERNAL_SERVICE_TOKEN =
+  process.env.INTERNAL_SERVICE_TOKEN || "test-internal-token";
 process.env.NODE_ENV = "test";
 process.env.CORS_ORIGIN = "*";
 // Knock the rate limiter way up so parallel tests don't hit 429s.
@@ -103,6 +105,23 @@ test("POST /api/scans without file → 400", async () => {
   assert.ok(res.body.code);
 });
 
+test("POST /api/internal/scans/:id/analysis-complete without token → 401", async () => {
+  const res = await request(app)
+    .post("/api/internal/scans/fake-scan-id/analysis-complete")
+    .send({ segmentation: {}, gradcam: {}, report: {} })
+    .expect(401);
+
+  assert.equal(res.body.code, "UNAUTHORIZED");
+});
+
+test("GET /storage/scans without auth → 401", async () => {
+  const res = await request(app)
+    .get("/storage/scans/00000000-0000-4000-8000-000000000001.dcm")
+    .expect(401);
+
+  assert.equal(res.body.code, "UNAUTHORIZED");
+});
+
 test("POST /api/internal/scans/:id/analysis-complete persists worker callback", async () => {
   const scan = await prisma.scan.create({
     data: {
@@ -136,6 +155,7 @@ test("POST /api/internal/scans/:id/analysis-complete persists worker callback", 
 
   const res = await request(app)
     .post(`/api/internal/scans/${scan.id}/analysis-complete`)
+    .set("X-Internal-Token", process.env.INTERNAL_SERVICE_TOKEN)
     .send(payload)
     .expect(200);
 

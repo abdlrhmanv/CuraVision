@@ -54,7 +54,7 @@ async function book({ requester, doctor_id, start_time, end_time }) {
           end_time: end,
           status: "PENDING",
         },
-        include: { doctor: true, patient: true },
+        include: ReservationRepository.RESERVATION_USER_INCLUDE,
       });
     },
     { isolationLevel: "Serializable" }

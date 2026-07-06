@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "node --test --test-reporter=spec tests/routes.test.js tests/services.test.js",
+    "test": "node --test --test-reporter=spec tests/*.test.js",
     "test:services": "node --test tests/services.test.js",
     "test:smoke": "node tests/smoke-mvp.js",
     "test:load": "artillery run load_tests/artillery.yml",

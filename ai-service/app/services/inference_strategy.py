@@ -2,6 +2,7 @@ import abc
 import os
 import logging
 import time
+import threading
 import mlflow
 from typing import Any
 from pathlib import Path
@@ -9,6 +10,19 @@ from pathlib import Path
 from app.services import analysis_service
 
 logger = logging.getLogger(__name__)
+_mlflow_init_lock = threading.Lock()
+
+
+def _configure_mlflow_tracking() -> None:
+    """Initialize MLflow once; safe under Celery prefork concurrency."""
+    mlflow_db_path = os.getenv("MLFLOW_DB_PATH", "/tmp/mlruns.db")
+    mlflow.set_tracking_uri(f"sqlite:///{mlflow_db_path}")
+    experiment_name = "CuraVision-Tumor-Segmentation"
+    with _mlflow_init_lock:
+        experiment = mlflow.get_experiment_by_name(experiment_name)
+        if experiment is None:
+            mlflow.create_experiment(experiment_name)
+        mlflow.set_experiment(experiment_name)
 
 
 def _ensure_ml_on_path() -> Path:
@@ -43,6 +57,24 @@ class InferenceStrategy(abc.ABC):
     def run_full_analysis(self, scan_id: str, dicom_path: str, dicom_url: str | None = None, mask_put_url: str | None = None, gradcam_put_url: str | None = None) -> dict[str, Any]:
         pass
 
+
+class InterimDicomStrategy(InferenceStrategy):
+    """Local/interim pipeline using image-derived heuristics when ONNX is unavailable."""
+
+    def run_full_analysis(self, scan_id: str, dicom_path: str, dicom_url: str | None = None, mask_put_url: str | None = None, gradcam_put_url: str | None = None) -> dict[str, Any]:
+        seg = analysis_service.run_segmentation(scan_id, dicom_path, dicom_url, mask_put_url)
+        cam = analysis_service.run_gradcam(scan_id, dicom_path, dicom_url, gradcam_put_url)
+        rep = analysis_service.run_report(
+            scan_id,
+            tumor_volume_cc=seg["tumor_volume_cc"],
+            tumor_location_description=seg["tumor_location_description"],
+            dicom_path=dicom_path,
+            confidence=seg.get("confidence"),
+            processing_time_sec=seg.get("processing_time_sec"),
+        )
+        return {"scan_id": scan_id, "segmentation": seg, "gradcam": cam, "report": rep}
+
+
 class OnnxPipelineStrategy(InferenceStrategy):
     """
     Production strategy that delegates to the ONNX ML pipeline.
@@ -54,11 +86,7 @@ class OnnxPipelineStrategy(InferenceStrategy):
         pipeline_mod = importlib.import_module("src.inference.pipeline")
         BrainMRIPipeline = pipeline_mod.BrainMRIPipeline
         self.pipeline = BrainMRIPipeline(config)
-        
-        # MLflow setup
-        mlflow_db_path = os.getenv("MLFLOW_DB_PATH", "/tmp/mlruns.db")
-        mlflow.set_tracking_uri(f"sqlite:///{mlflow_db_path}")
-        mlflow.set_experiment("CuraVision-Tumor-Segmentation")
+        _configure_mlflow_tracking()
 
     def run_full_analysis(self, scan_id: str, dicom_path: str, dicom_url: str | None = None, mask_put_url: str | None = None, gradcam_put_url: str | None = None) -> dict[str, Any]:
         import time
@@ -132,11 +160,11 @@ class OnnxPipelineStrategy(InferenceStrategy):
         
         elapsed = round(time.time() - start_time, 2)
         metrics = analysis_service.compute_derived_metrics(
-            scan_id=scan_id,
-            volume=volume,
+            volume=0.0 if volume is None else volume,
             location=location,
             confidence=class_result.confidence,
-            processing_time_sec=elapsed
+            predicted_class=class_result.predicted_class,
+            processing_time_sec=elapsed,
         )
         
         segmentation_data = {
@@ -179,11 +207,12 @@ def get_inference_strategy() -> InferenceStrategy:
     if _cached_strategy is not None:
         return _cached_strategy
 
-    strategy_name = os.getenv("INFERENCE_STRATEGY", "onnx").lower()
-    if strategy_name != "onnx":
-        raise ValueError(
-            f"Unsupported INFERENCE_STRATEGY={strategy_name!r}; only 'onnx' is supported."
-        )
+    strategy_name = os.getenv("INFERENCE_STRATEGY", "interim").lower()
+
+    if strategy_name in ("interim", "local"):
+        logger.info("Using interim DICOM inference strategy")
+        _cached_strategy = InterimDicomStrategy()
+        return _cached_strategy
 
     logger.info("Initializing ONNX Inference Strategy")
     try:
@@ -240,4 +269,6 @@ def get_inference_strategy() -> InferenceStrategy:
         return _cached_strategy
     except Exception as e:
         logger.error(f"Failed to initialize ONNX strategy: {e}", exc_info=True)
-        raise
+        logger.warning("Falling back to interim DICOM inference strategy")
+        _cached_strategy = InterimDicomStrategy()
+        return _cached_strategy

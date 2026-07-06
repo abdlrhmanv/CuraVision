@@ -81,7 +81,9 @@ router.get(
   authorizeRole("DOCTOR"),
   async (req, res, next) => {
     try {
-      const scans = await ScanService.listByPatient(req.params.patientId);
+      const scans = await ScanService.listByPatient(req.params.patientId, {
+        doctorId: req.user.sub,
+      });
       res.json({ patient_id: req.params.patientId, scans });
     } catch (err) {
       next(err);

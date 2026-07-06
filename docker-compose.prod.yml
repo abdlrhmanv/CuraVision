@@ -39,7 +39,7 @@ services:
 
   # ---------- Application overrides ----------
   ai-service:
-    image: ghcr.io/abdlrhmanv/curavision/ai-service:latest
+    image: ghcr.io/abdlrhmanv/curavision/ai-service:${CURAVISION_IMAGE_TAG:-latest}
     build: !reset null
     restart: always
     environment:
@@ -47,7 +47,8 @@ services:
       SEG_ONNX_PATH: /models/segmentation.onnx
       ML_ROOT: /ml
       PYTHONPATH: /ml
-    volumes:
+    # !reset replaces the dev bind-mount (./ml:/ml) so the image-baked /ml is used.
+    volumes: !reset
       - curavision_backend_storage:/app/storage
       - ./models:/models:ro
     deploy:
@@ -57,7 +58,7 @@ services:
           memory: 4G
 
   ai-worker:
-    image: ghcr.io/abdlrhmanv/curavision/ai-service:latest
+    image: ghcr.io/abdlrhmanv/curavision/ai-service:${CURAVISION_IMAGE_TAG:-latest}
     build: !reset null
     restart: always
     environment:
@@ -65,9 +66,15 @@ services:
       SEG_ONNX_PATH: /models/segmentation.onnx
       ML_ROOT: /ml
       PYTHONPATH: /ml
-    volumes:
+    volumes: !reset
       - curavision_backend_storage:/app/storage
       - ./models:/models:ro
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.worker.celery_app.celery inspect ping -d celery@$$HOSTNAME -t 5 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
     deploy:
       resources:
         limits:
@@ -75,7 +82,7 @@ services:
           memory: 4G
 
   backend:
-    image: ghcr.io/abdlrhmanv/curavision/backend:latest
+    image: ghcr.io/abdlrhmanv/curavision/backend:${CURAVISION_IMAGE_TAG:-latest}
     build: !reset null
     restart: always
     deploy:
@@ -85,13 +92,15 @@ services:
           memory: 1G
 
   db-migrate:
-    image: ghcr.io/abdlrhmanv/curavision/backend:latest
+    image: ghcr.io/abdlrhmanv/curavision/backend:${CURAVISION_IMAGE_TAG:-latest}
     build: !reset null
 
   frontend:
-    image: ghcr.io/abdlrhmanv/curavision/frontend:latest
+    image: ghcr.io/abdlrhmanv/curavision/frontend:${CURAVISION_IMAGE_TAG:-latest}
     build: !reset null
     restart: always
+    environment:
+      HOSTNAME: "0.0.0.0"
     deploy:
       resources:
         limits:

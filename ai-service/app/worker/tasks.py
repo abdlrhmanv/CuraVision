@@ -15,6 +15,14 @@ from app.worker.celery_app import celery
 
 
 BACKEND_CALLBACK_URL = os.getenv("BACKEND_CALLBACK_URL", "http://localhost:3001")
+INTERNAL_SERVICE_TOKEN = os.getenv("INTERNAL_SERVICE_TOKEN", "")
+
+
+def _internal_callback_headers() -> dict[str, str]:
+    headers: dict[str, str] = {"Content-Type": "application/json"}
+    if INTERNAL_SERVICE_TOKEN:
+        headers["X-Internal-Token"] = INTERNAL_SERVICE_TOKEN
+    return headers
 
 
 @celery.task(name="curavision.segmentation")
@@ -54,6 +62,7 @@ def send_callback_task(self, scan_id: str, result: dict[str, Any]) -> None:
     resp = httpx.post(
         f"{BACKEND_CALLBACK_URL}/api/internal/scans/{scan_id}/analysis-complete",
         json=result,
+        headers=_internal_callback_headers(),
         timeout=10.0,
     )
     resp.raise_for_status()
@@ -71,6 +80,7 @@ def send_failure_callback_task(self, scan_id: str, error_msg: str) -> None:
     resp = httpx.post(
         f"{BACKEND_CALLBACK_URL}/api/internal/scans/{scan_id}/analysis-failed",
         json={"error": error_msg},
+        headers=_internal_callback_headers(),
         timeout=10.0,
     )
     resp.raise_for_status()

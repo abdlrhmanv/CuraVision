@@ -5,7 +5,6 @@ artifacts, computes image-derived metrics, and formats the LLM report draft.
 """
 from __future__ import annotations
 
-import hashlib
 import os
 from pathlib import Path
 from typing import Any
@@ -16,31 +15,34 @@ from PIL import Image
 from app.services import llm_service
 
 
-_TUMOR_LOCATIONS = [
-    "left frontal lobe",
-    "right temporal lobe",
-    "left parietal lobe",
-    "right occipital lobe",
-    "pontine region of the brainstem",
-]
-
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _AI_ROOT = Path(__file__).resolve().parents[2]
+
+HUMAN_REVIEW_CONFIDENCE = "Not available — human review required"
+UNCLASSIFIED_TUMOR_TYPE = "Unclassified — requires radiologist review"
 
 
 def _safe_scan_id(scan_id: str) -> str:
     return "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in scan_id)
 
 
-def _seed_index(scan_id: str, bucket: int) -> int:
-    digest = hashlib.sha1(scan_id.encode("utf-8")).hexdigest()
-    return int(digest, 16) % bucket
+def _format_tumor_type(volume: float | None, predicted_class: str | None) -> str | None:
+    if volume is None or volume == 0.0:
+        return "None"
+    if not predicted_class or predicted_class.lower().replace(" ", "_") in ("no_tumor", "none"):
+        return UNCLASSIFIED_TUMOR_TYPE
+    label = predicted_class.replace("_", " ").strip().title()
+    return f"{label} (Model Prediction)"
 
 
-def _seed_float(scan_id: str, lo: float, hi: float) -> float:
-    digest = hashlib.sha1(scan_id.encode("utf-8")).hexdigest()
-    pct = (int(digest[:8], 16) % 10_000) / 10_000
-    return round(lo + (hi - lo) * pct, 2)
+def _indicates_no_tumor(volume: float | None, location: str | None) -> bool:
+    if volume is not None and volume == 0.0:
+        return True
+    loc = (location or "").lower()
+    return any(
+        phrase in loc
+        for phrase in ("no tumor", "no anomaly", "no focal", "not detected")
+    )
 
 
 def _storage_root() -> Path:
@@ -296,36 +298,40 @@ def _save_heatmap(image: Image.Image, mask: np.ndarray, scan_id: str, put_url: s
 
 
 def compute_derived_metrics(
-    scan_id: str,
     volume: float | None,
     location: str | None,
     confidence: float | None = None,
-    processing_time_sec: float | None = None
+    predicted_class: str | None = None,
+    processing_time_sec: float | None = None,
 ) -> dict[str, Any]:
     import math
+
     if confidence is not None and confidence <= 1.0:
         confidence = round(confidence * 100, 1)
 
     if volume is None:
         return {
             "confidence": confidence,
-            "tumor_type": None,
+            "tumor_type": _format_tumor_type(None, predicted_class),
             "risk_level": None,
             "estimated_diameter": None,
             "brain_hemisphere": None,
             "lobe": None,
             "segmentation_quality": None,
-            "suggested_action": None,
+            "suggested_action": "Radiologist review recommended",
             "processing_time_sec": processing_time_sec,
         }
 
-    # Estimated diameter
-    diameter = round(2 * math.pow((3 * volume) / (4 * math.pi), 1/3), 1)
+    diameter = round(2 * math.pow((3 * volume) / (4 * math.pi), 1 / 3), 1)
 
-    # Location parsing
     loc_lower = (location or "").lower()
-    hemisphere = "Left" if "left" in loc_lower else "Right" if "right" in loc_lower else "Bilateral" if ("midline" in loc_lower or "stem" in loc_lower) else "Unspecified"
-    
+    hemisphere = (
+        "Left" if "left" in loc_lower
+        else "Right" if "right" in loc_lower
+        else "Bilateral" if ("midline" in loc_lower or "stem" in loc_lower)
+        else "Unspecified"
+    )
+
     lobe = "Brain"
     if "frontal" in loc_lower:
         lobe = "Frontal"
@@ -340,35 +346,33 @@ def compute_derived_metrics(
     elif "brainstem" in loc_lower:
         lobe = "Brainstem"
 
-    # Confidence
-    if confidence is None:
-        confidence = _seed_float(scan_id, 95.0, 99.5) if volume > 0 else 99.9
+    tumor_type = _format_tumor_type(volume, predicted_class)
 
-    # Tumor type
-    if volume == 0.0:
-        tumor_type = "None"
-    else:
-        types = ["Glioma (Predicted)", "Meningioma (Predicted)", "Pituitary (Predicted)"]
-        tumor_type = types[_seed_index(scan_id, len(types))]
-
-    # Risk level & Action
     if volume == 0.0:
         risk_level = "None"
         suggested_action = "No action required"
     else:
-        risk_level = "High" if volume > 8.0 or lobe == "Brainstem" else "Moderate" if volume > 3.0 else "Low"
-        suggested_action = "Urgent Radiologist Review" if risk_level == "High" else "Standard Radiologist Review"
-    
-    # Segmentation quality
-    seg_quality = "Excellent" if confidence >= 97.0 else "Good"
+        risk_level = (
+            "High" if volume > 8.0 or lobe == "Brainstem"
+            else "Moderate" if volume > 3.0
+            else "Low"
+        )
+        suggested_action = (
+            "Urgent Radiologist Review" if risk_level == "High"
+            else "Standard Radiologist Review"
+        )
+
+    seg_quality = None
+    if confidence is not None:
+        seg_quality = "Excellent" if confidence >= 97.0 else "Good"
 
     return {
         "confidence": confidence,
         "tumor_type": tumor_type,
         "risk_level": risk_level,
-        "estimated_diameter": diameter,
-        "brain_hemisphere": hemisphere,
-        "lobe": lobe,
+        "estimated_diameter": diameter if volume > 0 else None,
+        "brain_hemisphere": hemisphere if volume > 0 else None,
+        "lobe": lobe if volume > 0 else None,
         "segmentation_quality": seg_quality,
         "suggested_action": suggested_action,
         "processing_time_sec": processing_time_sec,
@@ -395,7 +399,11 @@ def run_segmentation(scan_id: str, dicom_path: str, dicom_url: str | None = None
     mask_path = _save_mask(mask, scan_id, put_url)
 
     elapsed = round(time.time() - start_time, 2)
-    metrics = compute_derived_metrics(scan_id, volume, location, processing_time_sec=elapsed)
+    metrics = compute_derived_metrics(
+        volume,
+        location,
+        processing_time_sec=elapsed,
+    )
 
     res = {
         "scan_id": scan_id,
@@ -425,44 +433,71 @@ def run_gradcam(scan_id: str, dicom_path: str, dicom_url: str | None = None, put
 
 
 def format_draft_report_template(
-    scan_id: str,
     volume: float | None,
     location: str | None,
     confidence: float | None = None,
-    processing_time_sec: float | None = None
+    processing_time_sec: float | None = None,
 ) -> str:
     vol_val = f"{volume:.1f} cc" if volume is not None else "— cc"
     loc_val = location or "unspecified region"
-    
-    if confidence is None:
-        confidence = _seed_float(scan_id, 95.0, 99.5)
-    elif confidence <= 1.0:
-        # Scale to 0-100 if it was model probability
+
+    if confidence is not None and confidence <= 1.0:
         confidence = confidence * 100
-        
-    conf_val = f"{confidence:.1f}%"
-    time_val = f"{processing_time_sec:.1f} seconds" if processing_time_sec is not None else "2.8 seconds"
+
+    conf_val = (
+        f"{confidence:.1f}%"
+        if confidence is not None
+        else HUMAN_REVIEW_CONFIDENCE
+    )
+    time_val = (
+        f"{processing_time_sec:.1f} seconds"
+        if processing_time_sec is not None
+        else "—"
+    )
+
+    if _indicates_no_tumor(volume, location):
+        findings = (
+            "No focal abnormality was segmented in the analyzed dataset.\n\n"
+            f"Estimated lesion volume: {vol_val}."
+        )
+        impression = (
+            "1. No segmented intracranial lesion identified on AI-assisted review.\n"
+            "2. Correlation with the complete MRI examination, clinical history, and "
+            "radiologist interpretation is recommended before establishing a final diagnosis."
+        )
+    else:
+        findings = (
+            f"An abnormal region of interest is identified within the {loc_val}.\n\n"
+            f"Estimated lesion volume: {vol_val}.\n\n"
+            "The AI segmentation highlights a focal area corresponding to the suspected "
+            "lesion. No additional image-derived abnormalities were identified within the "
+            "limits of the analyzed dataset."
+        )
+        impression = (
+            f"1. Focal intracranial lesion involving the {loc_val}.\n"
+            f"2. Estimated lesion volume of approximately {vol_val}.\n"
+            "3. Correlation with the complete MRI examination, clinical history, and "
+            "radiologist interpretation is recommended before establishing a final diagnosis."
+        )
 
     return (
         "MRI BRAIN REPORT (DRAFT)\n\n"
         "Clinical Information\n"
         "Evaluation of an intracranial lesion.\n\n"
         "Technique\n"
-        "Brain MRI reviewed using AI-assisted image analysis. This draft is generated from the available uploaded study and is intended to support radiologist review.\n\n"
+        "Brain MRI reviewed using AI-assisted image analysis. This draft is generated "
+        "from the available uploaded study and is intended to support radiologist review.\n\n"
         "Comparison\n"
         "No prior imaging available for comparison.\n\n"
         "Findings\n"
-        f"An abnormal region of interest is identified within the {loc_val}.\n\n"
-        f"Estimated lesion volume: {vol_val}.\n\n"
-        "The AI segmentation highlights a focal area corresponding to the suspected lesion. No additional image-derived abnormalities were identified within the limits of the analyzed dataset.\n\n"
+        f"{findings}\n\n"
         "Impression\n"
-        f"1. Focal intracranial lesion involving the {loc_val}.\n"
-        f"2. Estimated lesion volume of approximately {vol_val}.\n"
-        "3. Correlation with the complete MRI examination, clinical history, and radiologist interpretation is recommended before establishing a final diagnosis.\n\n"
+        f"{impression}\n\n"
         "AI Analysis Summary\n"
         f"AI Confidence: {conf_val}\n"
         f"Processing Time: {time_val}\n\n"
-        "This report is an AI-generated draft intended for radiologist review only and must not be considered a final medical interpretation."
+        "This report is an AI-generated draft intended for radiologist review only and "
+        "must not be considered a final medical interpretation."
     )
 
 
@@ -474,13 +509,9 @@ def run_report(
     confidence: float | None = None,
     processing_time_sec: float | None = None,
 ) -> dict[str, Any]:
-    volume = tumor_volume_cc if tumor_volume_cc is not None else _seed_float(scan_id, 4.0, 18.0)
-    location = tumor_location_description or _TUMOR_LOCATIONS[_seed_index(scan_id, len(_TUMOR_LOCATIONS))]
-    
     draft = format_draft_report_template(
-        scan_id=scan_id,
-        volume=volume,
-        location=location,
+        volume=tumor_volume_cc,
+        location=tumor_location_description,
         confidence=confidence,
         processing_time_sec=processing_time_sec,
     )

@@ -67,15 +67,23 @@ async def chatbot(request: ChatbotRequest) -> ChatbotResponse:
     request_id = str(uuid.uuid4())
 
     try:
-        # Log incoming request
-        logger.info(f"[{request_id}] Incoming question: {request.patient_question}")
+        logger.info(
+            "[%s] Chat request received (question_len=%d, history_len=%d)",
+            request_id,
+            len(request.patient_question or ""),
+            len(request.chat_history),
+        )
 
         # Check for prompt injection
         has_injection = detect_prompt_injection(request.patient_question) or any(
             detect_prompt_injection(msg.content) for msg in request.chat_history
         )
         if has_injection:
-            logger.warning(f"[{request_id}] Prompt injection attempt blocked: '{request.patient_question}'")
+            logger.warning(
+                "[%s] Prompt injection blocked (question_len=%d)",
+                request_id,
+                len(request.patient_question or ""),
+            )
             return ChatbotResponse(
                 answer="I can only help explain the findings in your current report. For any other requests, please contact your medical team.",
                 sources=["Security Guardrail: Prompt Injection Filter"]
@@ -83,11 +91,10 @@ async def chatbot(request: ChatbotRequest) -> ChatbotResponse:
 
         # Step 1 — Build retrieval query
         query = build_query(request)
-        logger.info(f"[{request_id}] Retrieval query: {query}")
 
         # Step 2 — Retrieve context (RAG)
         hits = rag_service.retrieve(query, n_results=3)
-        logger.info(f"[{request_id}] Retrieved terms: {[h['term'] for h in hits]}")
+        logger.info("[%s] Retrieved %d glossary term(s)", request_id, len(hits))
 
         # Step 3 — Prepare chat history for LLM
         history = [
@@ -103,7 +110,7 @@ async def chatbot(request: ChatbotRequest) -> ChatbotResponse:
             chat_history=history,
         )
 
-        logger.info(f"[{request_id}] Answer generated (len={len(answer)})")
+        logger.info("[%s] Answer generated (len=%d)", request_id, len(answer))
 
         # Step 5 — Evaluate response quality
         evaluation = eval_service.evaluate_response(
@@ -112,7 +119,13 @@ async def chatbot(request: ChatbotRequest) -> ChatbotResponse:
             context=hits,
         )
 
-        logger.info(f"[{request_id}] Evaluation: {evaluation}")
+        logger.info(
+            "[%s] Evaluation: grounded=%s relevance=%s context_count=%d",
+            request_id,
+            evaluation.get("grounded"),
+            evaluation.get("relevance"),
+            evaluation.get("context_count", 0),
+        )
 
         # Step 6 — Build sources list
         sources = [

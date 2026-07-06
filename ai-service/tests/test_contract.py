@@ -18,6 +18,23 @@ def test_health(client):
     assert body["service"] == "CuraVision AI Microservice"
 
 
+def test_ai_routes_reject_missing_service_token():
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as unauthenticated:
+        res = unauthenticated.post(
+            "/ai/chatbot",
+            json={
+                "report_text": "x",
+                "patient_question": "hi",
+                "chat_history": [],
+            },
+        )
+    assert res.status_code == 401
+
+
 # ---------- /ai/chatbot ----------
 
 

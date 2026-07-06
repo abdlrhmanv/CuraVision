@@ -2,6 +2,23 @@ const prisma = require("../config/prisma");
 
 const DEFAULT_SLOT_MINUTES = 30;
 
+/** Safe user fields for reservation API responses — never expose password_hash. */
+const PUBLIC_USER_SELECT = {
+  id: true,
+  email: true,
+  full_name: true,
+  role: true,
+  status: true,
+  email_verified: true,
+  created_at: true,
+  updated_at: true,
+};
+
+const RESERVATION_USER_INCLUDE = {
+  doctor: { select: PUBLIC_USER_SELECT },
+  patient: { select: PUBLIC_USER_SELECT },
+};
+
 function rangesOverlap(startA, endA, startB, endB) {
   return startA < endB && startB < endA;
 }
@@ -16,12 +33,9 @@ class ReservationRepository {
   async computeAvailableSlots(doctorId, fromISO, toISO, slotMinutes = DEFAULT_SLOT_MINUTES) {
     const from = new Date(fromISO);
     const to = new Date(toISO);
-    
-    // Fetch doctor windows
+
     const windows = await this.listAvailability(doctorId);
 
-    // Fetch existing active reservations for this doctor overlapping the date range
-    // Since from/to might be broad, we can fetch all or just those within from/to.
     const busy = await prisma.reservation.findMany({
       where: {
         doctor_id: doctorId,
@@ -104,14 +118,14 @@ class ReservationRepository {
         end_time: new Date(end_time),
         status: "PENDING",
       },
-      include: { doctor: true, patient: true },
+      include: RESERVATION_USER_INCLUDE,
     });
   }
 
   async getReservationById(id) {
     return prisma.reservation.findUnique({
       where: { id },
-      include: { doctor: true, patient: true },
+      include: RESERVATION_USER_INCLUDE,
     });
   }
 
@@ -119,7 +133,7 @@ class ReservationRepository {
     return prisma.reservation.update({
       where: { id },
       data: { status },
-      include: { doctor: true, patient: true },
+      include: RESERVATION_USER_INCLUDE,
     });
   }
 
@@ -127,14 +141,14 @@ class ReservationRepository {
     if (role === "DOCTOR") {
       return prisma.reservation.findMany({
         where: { doctor_id: userId },
-        include: { patient: true },
+        include: { patient: { select: PUBLIC_USER_SELECT } },
         orderBy: { start_time: "desc" },
       });
     }
     if (role === "PATIENT") {
       return prisma.reservation.findMany({
         where: { patient_id: userId },
-        include: { doctor: true },
+        include: { doctor: { select: PUBLIC_USER_SELECT } },
         orderBy: { start_time: "desc" },
       });
     }
@@ -142,4 +156,8 @@ class ReservationRepository {
   }
 }
 
-module.exports = new ReservationRepository();
+const reservationRepository = new ReservationRepository();
+reservationRepository.PUBLIC_USER_SELECT = PUBLIC_USER_SELECT;
+reservationRepository.RESERVATION_USER_INCLUDE = RESERVATION_USER_INCLUDE;
+
+module.exports = reservationRepository;

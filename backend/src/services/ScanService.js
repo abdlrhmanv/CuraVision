@@ -8,13 +8,7 @@ const NotificationService = require("./NotificationService");
 const logger = require("../utils/logger");
 const { notFound, badRequest, forbidden, conflict } = require("../utils/AppError");
 
-const SAMPLE_TUMOR_LOCATIONS = [
-  "Left frontal lobe, parasagittal region",
-  "Right temporal lobe, mesial aspect",
-  "Left parietal lobe, posterior convexity",
-  "Right occipital lobe, periventricular white matter",
-  "Brainstem, pontine region",
-];
+const HUMAN_REVIEW_CONFIDENCE = "Not available — human review required";
 
 async function serializeScan(scan) {
   const { isS3Enabled } = require("../integrations/storageClient");
@@ -167,6 +161,25 @@ async function upsertAnalysis(scanId, payload) {
   return await serializeAnalysis(analysis);
 }
 
+async function doctorHasPatientRelationship(doctorId, patientId) {
+  const [sharedScan, sharedReservation] = await Promise.all([
+    prisma.scan.findFirst({
+      where: { doctor_id: doctorId, patient_id: patientId },
+      select: { id: true },
+    }),
+    prisma.reservation.findFirst({
+      where: {
+        doctor_id: doctorId,
+        patient_id: patientId,
+        status: { not: "CANCELLED" },
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  return Boolean(sharedScan || sharedReservation);
+}
+
 async function uploadScan({ file, patientId, doctorId }) {
   if (!file) throw badRequest("DICOM file is required.", "FILE_REQUIRED");
 
@@ -188,6 +201,14 @@ async function uploadScan({ file, patientId, doctorId }) {
   const patient = await UserService.findUserById(patientId);
   if (!patient || patient.role !== "PATIENT") {
     throw notFound("Patient not found.", "PATIENT_NOT_FOUND");
+  }
+
+  const doctor = await UserService.findUserById(doctorId);
+  if (!doctor || doctor.role !== "DOCTOR") {
+    throw badRequest("Invalid or inactive doctor.", "INVALID_DOCTOR");
+  }
+  if (doctor.status !== "ACTIVE") {
+    throw badRequest("Selected doctor is not available.", "DOCTOR_NOT_ACTIVE");
   }
 
   const created = await prisma.scan.create({
@@ -312,14 +333,28 @@ async function scheduleAnalysis(scanId) {
     }
     result = data;
   } catch (err) {
-    logger.warn(
-      {
-        error: err.message,
-        detail: err.response?.data?.detail ?? err.response?.data ?? "(no response body)",
-      },
-      `[ScanService] AI service unreachable, falling back to local stub for scan ${scanId}`
+    const detail =
+      err.response?.data?.detail ?? err.response?.data ?? err.message ?? "AI service unreachable";
+    const errorMessage =
+      typeof detail === "string" ? detail : JSON.stringify(detail);
+
+    logger.error(
+      { error: err.message, detail },
+      `[ScanService] AI service failed for scan ${scanId}`
     );
-    result = localStubAnalysis(scanId);
+
+    await failAnalysis(scanId, errorMessage);
+
+    if (scan.doctor_id) {
+      await NotificationService.createNotification(
+        scan.doctor_id,
+        "Analysis Failed",
+        `AI analysis failed for scan ID ${scanId}. Please retry.`,
+        `/doctor/scans/${scanId}`
+      );
+    }
+
+    return;
   }
 
   const { segmentation, gradcam, report } = result;
@@ -469,76 +504,53 @@ async function failAnalysis(scanId, errorMsg) {
   };
 }
 
-function localStubAnalysis(scanId) {
-  const { mask_path, gradcam_path } = derivedPaths(scanId);
-  const volume = Number((8 + Math.random() * 8).toFixed(2));
-  const location =
-    SAMPLE_TUMOR_LOCATIONS[
-      Math.floor(Math.random() * SAMPLE_TUMOR_LOCATIONS.length)
-    ];
-
-  const diameter = parseFloat((2 * Math.pow((3 * volume) / (4 * Math.PI), 1 / 3)).toFixed(1));
-  const locLower = (location || "").toLowerCase();
-  const hemisphere = locLower.includes("left") ? "Left" : locLower.includes("right") ? "Right" : "Bilateral";
-  
-  let lobe = "Brain";
-  if (locLower.includes("frontal")) lobe = "Frontal";
-  else if (locLower.includes("temporal")) lobe = "Temporal";
-  else if (locLower.includes("parietal-temporal")) lobe = "Parietal-Temporal";
-  else if (locLower.includes("parietal")) lobe = "Parietal";
-  else if (locLower.includes("occipital")) lobe = "Occipital";
-  else if (locLower.includes("brainstem")) lobe = "Brainstem";
-
-  const confidence = parseFloat((95.0 + Math.random() * 4.5).toFixed(1));
-  
-  const types = ["Glioma (Predicted)", "Meningioma (Predicted)", "Pituitary (Predicted)"];
-  const tumor_type = types[Math.floor(Math.random() * types.length)];
-  
-  const risk_level = volume > 8.0 || lobe === "Brainstem" ? "High" : volume > 3.0 ? "Moderate" : "Low";
-  const suggested_action = risk_level === "High" ? "Urgent Radiologist Review" : "Standard Radiologist Review";
-  const segmentation_quality = confidence >= 97.0 ? "Excellent" : "Good";
-  const processing_time_sec = parseFloat((1.5 + Math.random() * 2.0).toFixed(1));
-
-  return {
-    scan_id: scanId,
-    segmentation: {
-      scan_id: scanId,
-      mask_path,
-      tumor_volume_cc: volume,
-      tumor_location_description: location,
-      inference_log: "local-stub v0.1",
-      confidence,
-      tumor_type,
-      risk_level,
-      estimated_diameter: diameter,
-      brain_hemisphere: hemisphere,
-      lobe,
-      segmentation_quality,
-      suggested_action,
-      processing_time_sec,
-    },
-    gradcam: {
-      scan_id: scanId,
-      gradcam_path,
-      activation_peak_region: location,
-    },
-    report: {
-      scan_id: scanId,
-      ai_draft: buildDraftReport({
-        volume,
-        location,
-        confidence,
-        processingTime: processing_time_sec,
-      }),
-    },
-  };
+function indicatesNoTumor(volume, location) {
+  if (volume !== null && volume !== undefined && Number(volume) === 0) {
+    return true;
+  }
+  const loc = (location || "").toLowerCase();
+  return ["no tumor", "no anomaly", "no focal", "not detected"].some((phrase) =>
+    loc.includes(phrase)
+  );
 }
 
 function buildDraftReport({ volume, location, confidence, processingTime }) {
-  const volVal = volume !== null ? `${volume} cc` : "— cc";
+  const volVal =
+    volume !== null && volume !== undefined ? `${volume} cc` : "— cc";
   const locVal = location || "unspecified region";
-  const confVal = confidence !== null ? `${confidence}%` : "97.8%";
-  const timeVal = processingTime !== null ? `${processingTime} seconds` : "2.8 seconds";
+  const confVal =
+    confidence !== null && confidence !== undefined
+      ? `${confidence}%`
+      : HUMAN_REVIEW_CONFIDENCE;
+  const timeVal =
+    processingTime !== null && processingTime !== undefined
+      ? `${processingTime} seconds`
+      : "—";
+
+  const findings = indicatesNoTumor(volume, location)
+    ? [
+        "No focal abnormality was segmented in the analyzed dataset.",
+        "",
+        `Estimated lesion volume: ${volVal}.`,
+      ]
+    : [
+        `An abnormal region of interest is identified within the ${locVal}.`,
+        "",
+        `Estimated lesion volume: ${volVal}.`,
+        "",
+        "The AI segmentation highlights a focal area corresponding to the suspected lesion. No additional image-derived abnormalities were identified within the limits of the analyzed dataset.",
+      ];
+
+  const impression = indicatesNoTumor(volume, location)
+    ? [
+        "1. No segmented intracranial lesion identified on AI-assisted review.",
+        "2. Correlation with the complete MRI examination, clinical history, and radiologist interpretation is recommended before establishing a final diagnosis.",
+      ]
+    : [
+        `1. Focal intracranial lesion involving the ${locVal}.`,
+        `2. Estimated lesion volume of approximately ${volVal}.`,
+        "3. Correlation with the complete MRI examination, clinical history, and radiologist interpretation is recommended before establishing a final diagnosis.",
+      ];
 
   return [
     "MRI BRAIN REPORT (DRAFT)",
@@ -553,22 +565,16 @@ function buildDraftReport({ volume, location, confidence, processingTime }) {
     "No prior imaging available for comparison.",
     "",
     "Findings",
-    `An abnormal region of interest is identified within the ${locVal}.`,
-    "",
-    `Estimated lesion volume: ${volVal}.`,
-    "",
-    "The AI segmentation highlights a focal area corresponding to the suspected lesion. No additional image-derived abnormalities were identified within the limits of the analyzed dataset.",
+    ...findings,
     "",
     "Impression",
-    `1. Focal intracranial lesion involving the ${locVal}.`,
-    `2. Estimated lesion volume of approximately ${volVal}.`,
-    "3. Correlation with the complete MRI examination, clinical history, and radiologist interpretation is recommended before establishing a final diagnosis.",
+    ...impression,
     "",
     "AI Analysis Summary",
     `AI Confidence: ${confVal}`,
     `Processing Time: ${timeVal}`,
     "",
-    "This report is an AI-generated draft intended for radiologist review only and must not be considered a final medical interpretation."
+    "This report is an AI-generated draft intended for radiologist review only and must not be considered a final medical interpretation.",
   ].join("\n");
 }
 
@@ -596,9 +602,26 @@ async function getScanAnalysis(scanId, { requester }) {
   return { scan_id: scan.id, ...serialized };
 }
 
-async function listByPatient(patientId) {
+async function listByPatient(patientId, { doctorId } = {}) {
+  if (doctorId) {
+    const patient = await UserService.findUserById(patientId);
+    if (!patient || patient.role !== "PATIENT") {
+      throw notFound("Patient not found.", "PATIENT_NOT_FOUND");
+    }
+
+    const hasRelationship = await doctorHasPatientRelationship(doctorId, patientId);
+    if (!hasRelationship) {
+      throw forbidden("You do not have access to this patient's scans.");
+    }
+  }
+
+  const where = { patient_id: patientId };
+  if (doctorId) {
+    where.doctor_id = doctorId;
+  }
+
   const scans = await prisma.scan.findMany({
-    where: { patient_id: patientId },
+    where,
     orderBy: { uploaded_at: "desc" },
   });
   return Promise.all(scans.map(serializeScan));
@@ -713,4 +736,5 @@ module.exports = {
   listByDoctor,
   deleteScan,
   getScanRecord,
+  doctorHasPatientRelationship,
 };

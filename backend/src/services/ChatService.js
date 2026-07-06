@@ -45,7 +45,10 @@ async function sendMessage(reportId, patientId, message) {
   // 4. Call the FastAPI AI microservice or use cache
   let aiResponse;
   
-  const cacheKey = `chat_cache:${crypto.createHash('sha256').update(message.trim().toLowerCase()).digest('hex')}`;
+  const cacheKey = `chat_cache:${reportId}:${patientId}:${crypto
+    .createHash("sha256")
+    .update(message.trim().toLowerCase())
+    .digest("hex")}`;
   
   try {
     const cached = await redis.get(cacheKey);

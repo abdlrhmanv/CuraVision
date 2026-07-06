@@ -1,7 +1,10 @@
 const express = require("express");
+const internalAuth = require("../middleware/internalAuth");
 const ScanService = require("../services/ScanService");
 
 const router = express.Router();
+
+router.use(internalAuth);
 
 /**
  * POST /api/internal/scans/:scanId/analysis-complete

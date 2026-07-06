@@ -6,29 +6,31 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+  PYTHON_VERSION: "3.13"
+  JWT_SECRET: ci-secret
+  INTERNAL_SERVICE_TOKEN: ci-internal-token
+  NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
 
 jobs:
   backend:
-    name: Backend (Express 5)
+    name: Backend
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: backend
     services:
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
       postgres:
-        image: postgres:15
+        image: postgres:16-alpine
         env:
           POSTGRES_USER: curavision
           POSTGRES_PASSWORD: curavision
@@ -40,51 +42,67 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
-      - name: Install
+      - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Lint (node --check on every source file)
+      - name: Lint
         run: npm run lint
 
-      - name: Migrate and Seed Database
+      - name: Prepare database
         env:
           DATABASE_URL: postgresql://curavision:curavision@localhost:5432/curavision
         run: |
           npx prisma db push --accept-data-loss
           npx prisma db seed
 
-      - name: Route tests
+      - name: Test
         env:
-          JWT_SECRET: ci-secret
-          CORS_ORIGIN: "*"
           DATABASE_URL: postgresql://curavision:curavision@localhost:5432/curavision
+          JWT_SECRET: ${{ env.JWT_SECRET }}
+          INTERNAL_SERVICE_TOKEN: ${{ env.INTERNAL_SERVICE_TOKEN }}
+          CORS_ORIGIN: "*"
+          REDIS_URL: redis://localhost:6379/1
         run: npm test
 
   ai-service:
-    name: AI service (FastAPI)
+    name: AI Service
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: ai-service
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
           cache-dependency-path: ai-service/requirements-dev.txt
 
-      - name: Install (runtime + dev deps)
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
@@ -92,29 +110,33 @@ jobs:
       - name: Syntax check
         run: python -m compileall -q app
 
-      - name: Contract tests
+      - name: Test
         env:
           GROQ_API_KEY: test-key
           LLM_PROVIDER: groq
           CHROMA_HOST: ""
+          INTERNAL_SERVICE_TOKEN: ${{ env.INTERNAL_SERVICE_TOKEN }}
         run: pytest -q tests/
 
   frontend:
-    name: Frontend (Next 16)
+    name: Frontend
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install
+      - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
       - name: Lint
@@ -126,21 +148,23 @@ jobs:
       - name: Build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
-          NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
+          NEXT_PUBLIC_API_BASE_URL: ${{ env.NEXT_PUBLIC_API_BASE_URL }}
         run: npm run build
 
       - name: Smoke test
         run: npm run test:smoke
 
   docker-build:
-    name: Docker images build
+    name: Docker Build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [backend, ai-service, frontend]
-    # Only verify images build on PRs / main; no publish.
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build backend image
         uses: docker/build-push-action@v6
@@ -148,6 +172,8 @@ jobs:
           context: ./backend
           push: false
           tags: curavision/backend:ci
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
 
       - name: Build ai-service image
         uses: docker/build-push-action@v6
@@ -156,6 +182,8 @@ jobs:
           file: ./ai-service/Dockerfile
           push: false
           tags: curavision/ai-service:ci
+          cache-from: type=gha,scope=ai-service
+          cache-to: type=gha,mode=max,scope=ai-service
 
       - name: Build frontend image
         uses: docker/build-push-action@v6
@@ -164,38 +192,86 @@ jobs:
           push: false
           tags: curavision/frontend:ci
           build-args: |
-            NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+            NEXT_PUBLIC_API_BASE_URL=${{ env.NEXT_PUBLIC_API_BASE_URL }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
 
-  integration-tests:
-    name: End-to-End Integration
+  integration:
+    name: Integration
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [docker-build]
     env:
-      JWT_SECRET: ci-secret
+      JWT_SECRET: ${{ env.JWT_SECRET }}
+      INTERNAL_SERVICE_TOKEN: ${{ env.INTERNAL_SERVICE_TOKEN }}
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-      CORS_ORIGIN: "http://localhost:3000"
+      CORS_ORIGIN: http://localhost:3000
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Start services with docker-compose
+      - name: Create CI environment files
         run: |
-          touch ai-service/.env
-          touch backend/.env
+          {
+            echo "JWT_SECRET=ci-secret"
+            echo "INTERNAL_SERVICE_TOKEN=ci-internal-token"
+            echo "POSTGRES_USER=curavision"
+            echo "POSTGRES_PASSWORD=curavision"
+            echo "POSTGRES_DB=curavision"
+            echo "MINIO_ROOT_USER=curavision"
+            echo "MINIO_ROOT_PASSWORD=curavision"
+            echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}"
+            echo "CORS_ORIGIN=http://localhost:3000"
+            echo "BACKEND_URL=http://localhost:3001"
+            echo "NEXT_PUBLIC_API_BASE_URL=http://localhost:3001"
+          } > .env
+          cp .env ai-service/.env
+          cp .env backend/.env
           touch frontend/.env.local
 
-          # Start backend first to initialize the shared volume and avoid race conditions
-          docker compose up -d backend
-          docker compose up -d
-
-          # Wait for backend to be healthy (ok = all up)
-          echo "Waiting for backend to be ready..."
-          if ! timeout 60 bash -c 'until curl -sf http://localhost:3001/health | grep -qE "\"status\":\"ok\""; do sleep 2; done'
-          then
-            echo "Backend failed to start. Logs:"
-            docker compose logs backend
-            exit 1
-          fi
-
-      - name: Run smoke tests
+      - name: Start stack
         run: |
-          cd backend
-          BASE_URL=http://localhost:3001 bash tests/smoke-mvp.sh
+          docker compose up -d postgres redis minio chromadb
+          docker compose up -d db-migrate
+          docker compose up -d backend ai-service
+          docker compose up -d frontend
+
+          echo "Waiting for backend health..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3001/health | grep -qE '"status":"ok"'; then
+              echo "Backend is healthy"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Backend failed to start"
+          docker compose logs backend ai-service
+          exit 1
+
+      - name: Smoke test
+        run: bash backend/tests/smoke-mvp.sh
+        env:
+          BASE_URL: http://localhost:3001
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v --remove-orphans
+
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [backend, ai-service, frontend, docker-build, integration]
+    if: always()
+    steps:
+      - name: Verify all jobs passed
+        run: |
+          results="${{ needs.backend.result }},${{ needs.ai-service.result }},${{ needs.frontend.result }},${{ needs.docker-build.result }},${{ needs.integration.result }}"
+          echo "Job results: ${results}"
+          for result in ${{ needs.backend.result }} ${{ needs.ai-service.result }} ${{ needs.frontend.result }} ${{ needs.docker-build.result }} ${{ needs.integration.result }}; do
+            if [[ "${result}" != "success" ]]; then
+              echo "One or more CI jobs failed"
+              exit 1
+            fi
+          done
+          echo "All CI jobs passed"

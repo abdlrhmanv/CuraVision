@@ -247,6 +247,24 @@ test("RBAC - Test Cases Suite", async (t) => {
     assert.equal(res.body.code, "FORBIDDEN");
   });
 
+  await t.test("TC-RBAC-016: Doctor cannot list unrelated patient scans (IDOR)", async () => {
+    const res = await request(app)
+      .get(`/api/patients/${patientBId}/scans`)
+      .set("Authorization", `Bearer ${doctorAToken}`)
+      .expect(403);
+    assert.equal(res.body.code, "FORBIDDEN");
+  });
+
+  await t.test("TC-RBAC-017: Doctor can list scans for an assigned patient", async () => {
+    const res = await request(app)
+      .get(`/api/patients/${patientBId}/scans`)
+      .set("Authorization", `Bearer ${doctorBToken}`)
+      .expect(200);
+    assert.equal(res.body.patient_id, patientBId);
+    assert.ok(Array.isArray(res.body.scans));
+    assert.ok(res.body.scans.some((scan) => scan.id === scanBId));
+  });
+
   // Cleanup testing records
   await prisma.report.deleteMany({ where: { id: reportBId } });
   await prisma.scan.deleteMany({ where: { id: scanBId } });
