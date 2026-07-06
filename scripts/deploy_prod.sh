@@ -52,6 +52,7 @@ SMTP_PASS=${SMTP_PASS:-}
 SMTP_PORT=${SMTP_PORT:-465}
 SMTP_SECURE=${SMTP_SECURE:-true}
 SMTP_FROM=${SMTP_FROM:-}
+INFERENCE_STRATEGY=onnx
 CLS_ONNX_PATH=/models/classification.onnx
 SEG_ONNX_PATH=/models/segmentation.onnx
 EOF

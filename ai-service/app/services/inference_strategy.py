@@ -269,6 +269,7 @@ def get_inference_strategy() -> InferenceStrategy:
         return _cached_strategy
     except Exception as e:
         logger.error(f"Failed to initialize ONNX strategy: {e}", exc_info=True)
-        logger.warning("Falling back to interim DICOM inference strategy")
-        _cached_strategy = InterimDicomStrategy()
-        return _cached_strategy
+        raise RuntimeError(
+            "INFERENCE_STRATEGY=onnx but ONNX models could not be loaded. "
+            "Verify CLS_ONNX_PATH, SEG_ONNX_PATH, and mounted model files."
+        ) from e

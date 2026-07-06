@@ -43,6 +43,7 @@ services:
     build: !reset null
     restart: always
     environment:
+      INFERENCE_STRATEGY: onnx
       CLS_ONNX_PATH: /models/classification.onnx
       SEG_ONNX_PATH: /models/segmentation.onnx
       ML_ROOT: /ml
@@ -62,6 +63,7 @@ services:
     build: !reset null
     restart: always
     environment:
+      INFERENCE_STRATEGY: onnx
       CLS_ONNX_PATH: /models/classification.onnx
       SEG_ONNX_PATH: /models/segmentation.onnx
       ML_ROOT: /ml
