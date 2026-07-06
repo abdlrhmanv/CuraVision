@@ -228,10 +228,10 @@ jobs:
 
       - name: Start stack
         run: |
-          docker compose up -d postgres redis minio chromadb
+          docker compose up -d --build postgres redis minio chromadb
           docker compose up -d minio-bootstrap db-migrate
-          docker compose up -d ai-service ai-worker
-          docker compose up -d backend frontend
+          docker compose up -d --build ai-service ai-worker
+          docker compose up -d --build backend frontend
 
           echo "Waiting for backend health..."
           for i in $(seq 1 30); do

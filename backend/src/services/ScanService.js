@@ -324,16 +324,18 @@ async function createReportForScan(scanId, { requester }) {
 async function scheduleAnalysis(scanId) {
   await updateScanStatus(scanId, "ANALYSIS_RUNNING");
 
-  const scan = await getScanRecord(scanId);
-  if (!scan) return;
+  // Use the raw DB path — getScanRecord() presigns dicom_path for API responses.
+  const scanRow = await prisma.scan.findUnique({ where: { id: scanId } });
+  if (!scanRow) return;
 
+  const logicalDicomPath = scanRow.dicom_path;
   const { mask_path, gradcam_path } = derivedPaths(scanId);
 
   // Prefer the shared Docker volume path; presigned URLs break when BACKEND_URL
   // is localhost or a public proxy host unreachable from the AI worker.
   let dicomUrl = null;
-  if (!localStorageFileExists(scan.dicom_path)) {
-    dicomUrl = await getPresignedGetUrl(scan.dicom_path, 3600, { internal: true }).catch(
+  if (!localStorageFileExists(logicalDicomPath)) {
+    dicomUrl = await getPresignedGetUrl(logicalDicomPath, 3600, { internal: true }).catch(
       () => null
     );
   }
@@ -344,7 +346,7 @@ async function scheduleAnalysis(scanId) {
   try {
     const { data } = await fastapiClient.post("/ai/analyze", {
       scan_id: scanId,
-      dicom_path: scan.dicom_path ?? "",
+      dicom_path: logicalDicomPath ?? "",
       dicom_url: dicomUrl ?? undefined,
       mask_put_url: maskPutUrl ?? undefined,
       gradcam_put_url: gradcamPutUrl ?? undefined,
@@ -367,9 +369,9 @@ async function scheduleAnalysis(scanId) {
 
     await failAnalysis(scanId, errorMessage);
 
-    if (scan.doctor_id) {
+    if (scanRow.doctor_id) {
       await NotificationService.createNotification(
-        scan.doctor_id,
+        scanRow.doctor_id,
         "Analysis Failed",
         `AI analysis failed for scan ID ${scanId}. Please retry.`,
         `/doctor/scans/${scanId}`
