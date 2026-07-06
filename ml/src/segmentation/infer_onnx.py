@@ -25,6 +25,7 @@ class SegmentationONNXPredictor:
         area_ratio = float(area_pixels / max(mask.size, 1))
         return {
             "mask": mask,
+            "probs": probs,
             "bbox": bbox,
             "tumor_area_pixels": area_pixels,
             "tumor_area_ratio": area_ratio,

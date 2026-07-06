@@ -27,9 +27,10 @@ def _safe_scan_id(scan_id: str) -> str:
 
 
 def _format_tumor_type(volume: float | None, predicted_class: str | None) -> str | None:
-    if volume is None or volume == 0.0:
-        return "None"
-    if not predicted_class or predicted_class.lower().replace(" ", "_") in ("no_tumor", "none"):
+    normalized = (predicted_class or "").lower().replace(" ", "_")
+    if normalized in ("no_tumor", "none", ""):
+        if volume is None or volume == 0.0:
+            return "None"
         return UNCLASSIFIED_TUMOR_TYPE
     label = predicted_class.replace("_", " ").strip().title()
     return f"{label} (Model Prediction)"
@@ -349,8 +350,29 @@ def compute_derived_metrics(
     tumor_type = _format_tumor_type(volume, predicted_class)
 
     if volume == 0.0:
-        risk_level = "None"
-        suggested_action = "No action required"
+        tumor_type = _format_tumor_type(volume, predicted_class)
+        normalized = (predicted_class or "").lower().replace(" ", "_")
+        no_tumor = normalized in ("no_tumor", "none", "")
+        risk_level = "None" if no_tumor else "Low"
+        suggested_action = (
+            "No action required"
+            if no_tumor
+            else "Radiologist review recommended — segmentation did not confirm a focal lesion"
+        )
+        seg_quality = None
+        if confidence is not None:
+            seg_quality = "Excellent" if confidence >= 97.0 else "Good"
+        return {
+            "confidence": confidence,
+            "tumor_type": tumor_type,
+            "risk_level": risk_level,
+            "estimated_diameter": None,
+            "brain_hemisphere": None,
+            "lobe": None,
+            "segmentation_quality": seg_quality,
+            "suggested_action": suggested_action,
+            "processing_time_sec": processing_time_sec,
+        }
     else:
         risk_level = (
             "High" if volume > 8.0 or lobe == "Brainstem"
@@ -361,22 +383,44 @@ def compute_derived_metrics(
             "Urgent Radiologist Review" if risk_level == "High"
             else "Standard Radiologist Review"
         )
+        seg_quality = None
+        if confidence is not None:
+            seg_quality = "Excellent" if confidence >= 97.0 else "Good"
 
-    seg_quality = None
-    if confidence is not None:
-        seg_quality = "Excellent" if confidence >= 97.0 else "Good"
+        return {
+            "confidence": confidence,
+            "tumor_type": tumor_type,
+            "risk_level": risk_level,
+            "estimated_diameter": diameter if volume > 0 else None,
+            "brain_hemisphere": hemisphere if volume > 0 else None,
+            "lobe": lobe if volume > 0 else None,
+            "segmentation_quality": seg_quality,
+            "suggested_action": suggested_action,
+            "processing_time_sec": processing_time_sec,
+        }
 
-    return {
-        "confidence": confidence,
-        "tumor_type": tumor_type,
-        "risk_level": risk_level,
-        "estimated_diameter": diameter if volume > 0 else None,
-        "brain_hemisphere": hemisphere if volume > 0 else None,
-        "lobe": lobe if volume > 0 else None,
-        "segmentation_quality": seg_quality,
-        "suggested_action": suggested_action,
-        "processing_time_sec": processing_time_sec,
-    }
+
+def _resize_mask_to_image(mask: np.ndarray, image: Image.Image) -> np.ndarray:
+    width, height = image.size
+    resized = np.asarray(
+        Image.fromarray((mask.astype(np.uint8) * 255)).resize((width, height), Image.NEAREST)
+    ) > 0
+    return resized
+
+
+def _segmentation_visualization_mask(
+    image: Image.Image,
+    probs: np.ndarray | None,
+    hard_mask: np.ndarray | None,
+) -> np.ndarray | None:
+    """Build a coarse overlay mask for Grad-CAM when hard segmentation is empty."""
+    if probs is not None:
+        soft = probs >= 0.35
+        if int(soft.sum()) >= 50:
+            return _resize_mask_to_image(soft, image)
+    if hard_mask is not None and int(np.asarray(hard_mask).sum()) > 0:
+        return _resize_mask_to_image(np.asarray(hard_mask).astype(bool), image)
+    return None
 
 
 def _interim_segmentation_mask(image: Image.Image) -> np.ndarray:

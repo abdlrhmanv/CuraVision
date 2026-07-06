@@ -124,28 +124,48 @@ class OnnxPipelineStrategy(InferenceStrategy):
         volume = None
         location = "no anomaly detected"
         decision_reason = ""
+        predicted_class = class_result.predicted_class
         
         if stop_early:
-            decision_reason = "Classification predicted no_tumor with high confidence, so segmentation was skipped."
+            decision_reason = (
+                f"Classification predicted {predicted_class} with "
+                f"{class_result.confidence * 100:.1f}% confidence; segmentation was skipped."
+            )
         elif should_run_segmentation:
             seg_raw = self.pipeline.segmenter.predict(image)
-            decision_reason = "Segmentation ran because tumor likelihood was high enough."
+            decision_reason = (
+                f"Segmentation ran after {predicted_class} classification "
+                f"({class_result.confidence * 100:.1f}% confidence)."
+            )
             
-            if seg_raw["mask_found"]:
-                mask = seg_raw["mask"]
-                if mask.sum() < 150:
-                    seg_raw["mask_found"] = False
+            mask = seg_raw["mask"]
+            if mask.sum() < 150:
+                seg_raw["mask_found"] = False
                     
             if seg_raw["mask_found"]:
-                # Save mask and gradcam using analysis_service helpers
                 mask_path = analysis_service._save_mask(mask, scan_id, mask_put_url)
                 gradcam_path = analysis_service._save_heatmap(image, mask, scan_id, gradcam_put_url)
                 volume = analysis_service._estimate_volume_cc(mask, metadata, scan_id)
                 location = analysis_service._describe_location(mask, scan_id)
             else:
                 location = "no anomaly segmented"
+                visualization_mask = analysis_service._segmentation_visualization_mask(
+                    image,
+                    seg_raw.get("probs"),
+                    seg_raw.get("mask"),
+                )
+                if visualization_mask is not None and int(visualization_mask.sum()) >= 50:
+                    gradcam_path = analysis_service._save_heatmap(
+                        image,
+                        visualization_mask,
+                        scan_id,
+                        gradcam_put_url,
+                    )
         else:
-            decision_reason = "Segmentation was skipped because tumor likelihood was below the trigger threshold."
+            decision_reason = (
+                f"Segmentation skipped for {predicted_class} "
+                f"({class_result.confidence * 100:.1f}% confidence) — below tumor trigger threshold."
+            )
             
         # Log to MLflow
         with mlflow.start_run(run_name=f"scan_{scan_id}"):

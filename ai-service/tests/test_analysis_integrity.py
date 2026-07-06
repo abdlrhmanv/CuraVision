@@ -33,6 +33,20 @@ def test_compute_derived_metrics_uses_real_classifier_output():
     assert metrics["tumor_type"] == "Glioma (Model Prediction)"
 
 
+def test_compute_derived_metrics_shows_classifier_label_without_segmentation():
+    metrics = compute_derived_metrics(
+        volume=0.0,
+        location="no anomaly segmented",
+        confidence=0.929,
+        predicted_class="glioma",
+        processing_time_sec=4.6,
+    )
+    assert metrics["confidence"] == 92.9
+    assert metrics["tumor_type"] == "Glioma (Model Prediction)"
+    assert metrics["risk_level"] == "Low"
+    assert "Radiologist review recommended" in metrics["suggested_action"]
+
+
 def test_report_template_states_human_review_when_confidence_missing():
     draft = format_draft_report_template(
         volume=0.0,
