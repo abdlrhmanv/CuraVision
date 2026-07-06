@@ -210,6 +210,8 @@ jobs:
           {
             echo "JWT_SECRET=ci-secret"
             echo "INTERNAL_SERVICE_TOKEN=ci-internal-token"
+            echo "INFERENCE_STRATEGY=interim"
+            echo "LLM_PROVIDER=groq"
             echo "POSTGRES_USER=curavision"
             echo "POSTGRES_PASSWORD=curavision"
             echo "POSTGRES_DB=curavision"
@@ -227,20 +229,34 @@ jobs:
       - name: Start stack
         run: |
           docker compose up -d postgres redis minio chromadb
-          docker compose up -d db-migrate
-          docker compose up -d backend ai-service
-          docker compose up -d frontend
+          docker compose up -d minio-bootstrap db-migrate
+          docker compose up -d ai-service ai-worker
+          docker compose up -d backend frontend
 
           echo "Waiting for backend health..."
           for i in $(seq 1 30); do
             if curl -sf http://localhost:3001/health | grep -qE '"status":"ok"'; then
               echo "Backend is healthy"
-              exit 0
+              break
             fi
             sleep 5
           done
-          echo "Backend failed to start"
-          docker compose logs backend ai-service
+          if ! curl -sf http://localhost:3001/health | grep -qE '"status":"ok"'; then
+            echo "Backend failed to start"
+            docker compose logs backend ai-service ai-worker
+            exit 1
+          fi
+
+          echo "Waiting for Celery worker..."
+          for i in $(seq 1 30); do
+            if docker compose exec -T ai-worker celery -A app.worker.celery_app.celery inspect ping -t 5 2>/dev/null | grep -q OK; then
+              echo "AI worker is ready"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "AI worker failed to start"
+          docker compose logs ai-worker ai-service
           exit 1
 
       - name: Smoke test
