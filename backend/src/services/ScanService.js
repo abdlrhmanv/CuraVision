@@ -1,5 +1,14 @@
+const fs = require("fs");
+const path = require("path");
 const prisma = require("../config/prisma");
-const { saveDicom, derivedPaths, uploadLocalFile, getPresignedGetUrl, getPresignedPutUrl } = require("../integrations/storageClient");
+const {
+  saveDicom,
+  derivedPaths,
+  uploadLocalFile,
+  getPresignedGetUrl,
+  getPresignedPutUrl,
+  getStorageRoot,
+} = require("../integrations/storageClient");
 const { fastapiClient } = require("../integrations/fastapiClient");
 const UserService = require("./UserService");
 const ReportService = require("./ReportService");
@@ -9,6 +18,12 @@ const logger = require("../utils/logger");
 const { notFound, badRequest, forbidden, conflict } = require("../utils/AppError");
 
 const HUMAN_REVIEW_CONFIDENCE = "Not available — human review required";
+
+function localStorageFileExists(logicalPath) {
+  if (!logicalPath || /^https?:\/\//i.test(logicalPath)) return false;
+  const relative = logicalPath.replace(/^storage\//, "");
+  return fs.existsSync(path.join(getStorageRoot(), relative));
+}
 
 async function serializeScan(scan) {
   const { isS3Enabled } = require("../integrations/storageClient");
@@ -314,7 +329,14 @@ async function scheduleAnalysis(scanId) {
 
   const { mask_path, gradcam_path } = derivedPaths(scanId);
 
-  const dicomUrl = await getPresignedGetUrl(scan.dicom_path, 3600, { internal: true }).catch(() => null);
+  // Prefer the shared Docker volume path; presigned URLs break when BACKEND_URL
+  // is localhost or a public proxy host unreachable from the AI worker.
+  let dicomUrl = null;
+  if (!localStorageFileExists(scan.dicom_path)) {
+    dicomUrl = await getPresignedGetUrl(scan.dicom_path, 3600, { internal: true }).catch(
+      () => null
+    );
+  }
   const maskPutUrl = await getPresignedPutUrl(mask_path, "image/png", 3600, { internal: true }).catch(() => null);
   const gradcamPutUrl = await getPresignedPutUrl(gradcam_path, "image/png", 3600, { internal: true }).catch(() => null);
 
