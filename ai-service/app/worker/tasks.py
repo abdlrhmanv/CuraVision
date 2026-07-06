@@ -15,13 +15,13 @@ from app.worker.celery_app import celery
 
 
 BACKEND_CALLBACK_URL = os.getenv("BACKEND_CALLBACK_URL", "http://localhost:3001")
-INTERNAL_SERVICE_TOKEN = os.getenv("INTERNAL_SERVICE_TOKEN", "")
 
 
 def _internal_callback_headers() -> dict[str, str]:
     headers: dict[str, str] = {"Content-Type": "application/json"}
-    if INTERNAL_SERVICE_TOKEN:
-        headers["X-Internal-Token"] = INTERNAL_SERVICE_TOKEN
+    token = os.getenv("INTERNAL_SERVICE_TOKEN", "").strip()
+    if token:
+        headers["X-Internal-Token"] = token
     return headers
 
 

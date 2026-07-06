@@ -44,6 +44,7 @@ services:
     restart: always
     environment:
       INFERENCE_STRATEGY: onnx
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
       CLS_ONNX_PATH: /models/classification.onnx
       SEG_ONNX_PATH: /models/segmentation.onnx
       ML_ROOT: /ml
@@ -64,6 +65,7 @@ services:
     restart: always
     environment:
       INFERENCE_STRATEGY: onnx
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
       CLS_ONNX_PATH: /models/classification.onnx
       SEG_ONNX_PATH: /models/segmentation.onnx
       ML_ROOT: /ml
