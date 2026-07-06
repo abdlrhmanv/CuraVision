@@ -379,6 +379,19 @@ def compute_derived_metrics(
     }
 
 
+def _interim_segmentation_mask(image: Image.Image) -> np.ndarray:
+    """Coarse intensity-based mask for dev/CI when ONNX models are unavailable."""
+    gray = np.asarray(image.convert("L"), dtype=np.float32)
+    if gray.size == 0:
+        return np.zeros((1, 1), dtype=bool)
+
+    threshold = float(np.percentile(gray, 92))
+    mask = gray >= threshold
+    if int(mask.sum()) < 50:
+        return np.zeros(gray.shape, dtype=bool)
+    return mask
+
+
 def run_segmentation(scan_id: str, dicom_path: str, dicom_url: str | None = None, put_url: str | None = None) -> dict[str, Any]:
     import time
     start_time = time.time()
@@ -387,12 +400,18 @@ def run_segmentation(scan_id: str, dicom_path: str, dicom_url: str | None = None
 
     from app.services.inference_strategy import get_inference_strategy
     strategy = get_inference_strategy()
-    seg_raw = strategy.pipeline.segmenter.predict(image)
-    mask = seg_raw["mask"]
-    if mask.sum() < 50:
-        mask = np.zeros_like(mask)
-        seg_raw["mask_found"] = False
-    inference_log = f"onnx-segmenter-analysis mask_found={seg_raw['mask_found']}"
+
+    if hasattr(strategy, "pipeline"):
+        seg_raw = strategy.pipeline.segmenter.predict(image)
+        mask = seg_raw["mask"]
+        if mask.sum() < 50:
+            mask = np.zeros_like(mask)
+            seg_raw["mask_found"] = False
+        inference_log = f"onnx-segmenter-analysis mask_found={seg_raw['mask_found']}"
+    else:
+        mask = _interim_segmentation_mask(image)
+        mask_found = int(mask.sum()) >= 50
+        inference_log = f"interim-heuristic mask_found={mask_found}"
 
     volume = _estimate_volume_cc(mask, metadata, scan_id)
     location = _describe_location(mask, scan_id)
@@ -421,8 +440,12 @@ def run_gradcam(scan_id: str, dicom_path: str, dicom_url: str | None = None, put
 
     from app.services.inference_strategy import get_inference_strategy
     strategy = get_inference_strategy()
-    seg_raw = strategy.pipeline.segmenter.predict(image)
-    mask = seg_raw["mask"]
+
+    if hasattr(strategy, "pipeline"):
+        seg_raw = strategy.pipeline.segmenter.predict(image)
+        mask = seg_raw["mask"]
+    else:
+        mask = _interim_segmentation_mask(image)
         
     location = _describe_location(mask, scan_id)
     return {
