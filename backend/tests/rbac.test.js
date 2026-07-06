@@ -87,6 +87,19 @@ test("RBAC - Test Cases Suite", async (t) => {
     },
   });
 
+  await prisma.user.upsert({
+    where: { email: "admin@rbac.test" },
+    update: {},
+    create: {
+      id: adminId,
+      email: "admin@rbac.test",
+      password_hash: "dummy",
+      role: "ADMIN",
+      full_name: "Admin User",
+      status: "ACTIVE",
+    },
+  });
+
   // Create scan and report for Patient B assigned to Doctor B
   const scanBId = "scan-b-id-test";
   await prisma.scan.upsert({
@@ -269,7 +282,9 @@ test("RBAC - Test Cases Suite", async (t) => {
   // Cleanup testing records
   await prisma.report.deleteMany({ where: { id: reportBId } });
   await prisma.scan.deleteMany({ where: { id: scanBId } });
-  await prisma.user.deleteMany({ where: { id: { in: [patientAId, patientBId, doctorAId, doctorBId] } } });
+  await prisma.user.deleteMany({
+    where: { id: { in: [patientAId, patientBId, doctorAId, doctorBId, adminId] } },
+  });
 });
 
 test.after(async () => {
