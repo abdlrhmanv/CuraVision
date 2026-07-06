@@ -78,13 +78,13 @@ jobs:
       - name: Test
         env:
           DATABASE_URL: postgresql://curavision:curavision@localhost:5432/curavision
-          JWT_SECRET: ${{ env.JWT_SECRET }}
-          INTERNAL_SERVICE_TOKEN: ${{ env.INTERNAL_SERVICE_TOKEN }}
+          JWT_SECRET: ci-secret
+          INTERNAL_SERVICE_TOKEN: ci-internal-token
           CORS_ORIGIN: "*"
           REDIS_URL: redis://localhost:6379/1
         run: npm test
 
-  ai-service:
+  ai_service:
     name: AI Service
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -115,7 +115,7 @@ jobs:
           GROQ_API_KEY: test-key
           LLM_PROVIDER: groq
           CHROMA_HOST: ""
-          INTERNAL_SERVICE_TOKEN: ${{ env.INTERNAL_SERVICE_TOKEN }}
+          INTERNAL_SERVICE_TOKEN: ci-internal-token
         run: pytest -q tests/
 
   frontend:
@@ -154,11 +154,11 @@ jobs:
       - name: Smoke test
         run: npm run test:smoke
 
-  docker-build:
+  docker_build:
     name: Docker Build
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [backend, ai-service, frontend]
+    needs: [backend, ai_service, frontend]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -200,13 +200,7 @@ jobs:
     name: Integration
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    needs: [docker-build]
-    env:
-      JWT_SECRET: ${{ env.JWT_SECRET }}
-      INTERNAL_SERVICE_TOKEN: ${{ env.INTERNAL_SERVICE_TOKEN }}
-      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-      CORS_ORIGIN: http://localhost:3000
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
+    needs: [docker_build]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -258,17 +252,25 @@ jobs:
         if: always()
         run: docker compose down -v --remove-orphans
 
-  ci-success:
+  ci_success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [backend, ai-service, frontend, docker-build, integration]
+    needs: [backend, ai_service, frontend, docker_build, integration]
     if: always()
     steps:
       - name: Verify all jobs passed
         run: |
-          results="${{ needs.backend.result }},${{ needs.ai-service.result }},${{ needs.frontend.result }},${{ needs.docker-build.result }},${{ needs.integration.result }}"
-          echo "Job results: ${results}"
-          for result in ${{ needs.backend.result }} ${{ needs.ai-service.result }} ${{ needs.frontend.result }} ${{ needs.docker-build.result }} ${{ needs.integration.result }}; do
+          echo "backend=${{ needs.backend.result }}"
+          echo "ai_service=${{ needs.ai_service.result }}"
+          echo "frontend=${{ needs.frontend.result }}"
+          echo "docker_build=${{ needs.docker_build.result }}"
+          echo "integration=${{ needs.integration.result }}"
+          for result in \
+            "${{ needs.backend.result }}" \
+            "${{ needs.ai_service.result }}" \
+            "${{ needs.frontend.result }}" \
+            "${{ needs.docker_build.result }}" \
+            "${{ needs.integration.result }}"; do
             if [[ "${result}" != "success" ]]; then
               echo "One or more CI jobs failed"
               exit 1
