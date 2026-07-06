@@ -239,7 +239,8 @@ test("RBAC - Test Cases Suite", async (t) => {
   });
 
   await t.test("TC-RBAC-015: Route Access Matrix Validation (Invalid role/Guest token)", async () => {
-    const guestToken = generateTestToken("guest-id", "GUEST");
+    // Token carries GUEST role but maps to an active user — auth passes, role check fails.
+    const guestToken = generateTestToken(patientAId, "GUEST");
     const res = await request(app)
       .get("/api/scans")
       .set("Authorization", `Bearer ${guestToken}`)

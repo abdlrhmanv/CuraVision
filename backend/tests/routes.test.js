@@ -202,18 +202,39 @@ test("full doctor flow: upload → analysis → report → approve", async (t) =
     .set("Authorization", `Bearer ${doc.token}`)
     .expect(200);
 
-  // Poll until the async pipeline completes (stub resolves in ~1s).
-  let status = "ANALYSIS_PENDING";
-  for (let i = 0; i < 20; i += 1) {
-    const s = await request(app)
-      .get(`/api/scans/${scanId}`)
-      .set("Authorization", `Bearer ${doc.token}`)
-      .expect(200);
-    status = s.body.status;
-    if (status === "ANALYSIS_COMPLETE") break;
-    await new Promise((r) => setTimeout(r, 300));
-  }
-  assert.equal(status, "ANALYSIS_COMPLETE", `scan never finished: ${status}`);
+  // CI has no AI worker — simulate the Celery success callback.
+  const callbackPayload = {
+    scan_id: scanId,
+    segmentation: {
+      scan_id: scanId,
+      mask_path: "",
+      tumor_volume_cc: 12.5,
+      tumor_location_description: "left parietal lobe",
+      inference_log: "route test simulated callback",
+    },
+    gradcam: {
+      scan_id: scanId,
+      gradcam_path: "",
+      activation_peak_region: "left parietal lobe",
+    },
+    report: {
+      scan_id: scanId,
+      ai_draft:
+        "FINDINGS:\nRoute test draft.\n\nIMPRESSION:\nRoute test impression.",
+    },
+  };
+
+  await request(app)
+    .post(`/api/internal/scans/${scanId}/analysis-complete`)
+    .set("X-Internal-Token", process.env.INTERNAL_SERVICE_TOKEN)
+    .send(callbackPayload)
+    .expect(200);
+
+  const s = await request(app)
+    .get(`/api/scans/${scanId}`)
+    .set("Authorization", `Bearer ${doc.token}`)
+    .expect(200);
+  assert.equal(s.body.status, "ANALYSIS_COMPLETE");
 
   const analysis = await request(app)
     .get(`/api/scans/${scanId}/analysis`)
