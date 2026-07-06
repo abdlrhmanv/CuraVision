@@ -414,15 +414,15 @@ async function scheduleAnalysis(scanId) {
 
   await ReportService.upsertDraftReport({
     scan_id: scanId,
-    patient_id: scan.patient_id,
-    doctor_id: scan.doctor_id,
+    patient_id: scanRow.patient_id,
+    doctor_id: scanRow.doctor_id,
     ai_draft: report.ai_draft,
   });
 
   await updateScanStatus(scanId, "ANALYSIS_COMPLETE");
 
   await NotificationService.createNotification(
-    scan.doctor_id,
+    scanRow.doctor_id,
     "Analysis Complete",
     `Scan analysis completed for scan ID ${scanId}.`,
     `/doctor/scans/${scanId}`
